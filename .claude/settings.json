@@ -1,0 +1,9 @@
+{
+  "permissions": {"allow": ["*"], "deny": ["Bash(rm -rf /)"]},
+  "project": {
+    "name": "pipedrive-integration", 
+    "type": "marketplace-app",
+    "architecture": "railway-vercel",
+    "monitoring_level": "maximum"
+  }
+}
