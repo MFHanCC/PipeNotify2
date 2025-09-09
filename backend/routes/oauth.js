@@ -36,7 +36,9 @@ router.post('/callback', async (req, res) => {
     const { access_token, refresh_token, expires_in, api_domain } = tokenResponse.data;
 
     // Get user info from Pipedrive
-    const userResponse = await axios.get(`https://${api_domain}/v1/users/me`, {
+    // api_domain from Pipedrive already includes protocol (https://)
+    const apiUrl = api_domain.startsWith('http') ? api_domain : `https://${api_domain}`;
+    const userResponse = await axios.get(`${apiUrl}/v1/users/me`, {
       headers: {
         'Authorization': `Bearer ${access_token}`,
       },
