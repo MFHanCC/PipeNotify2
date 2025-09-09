@@ -17,6 +17,14 @@ router.post('/callback', async (req, res) => {
       return res.status(400).json({ error: 'Authorization code is required' });
     }
 
+    // Filter out test/monitoring requests to prevent log spam
+    if (code.startsWith('test_') || code.includes('test')) {
+      return res.status(400).json({ 
+        error: 'Test request',
+        message: 'Monitoring test - not a real OAuth flow' 
+      });
+    }
+
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
