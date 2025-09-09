@@ -339,6 +339,18 @@ async function getTenantByPipedriveCompanyId(companyId) {
   }
 }
 
+async function getTenantByPipedriveUserId(userId) {
+  try {
+    const query = 'SELECT * FROM tenants WHERE pipedrive_user_id = $1';
+    const result = await pool.query(query, [userId]);
+    
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching tenant by Pipedrive user ID:', error);
+    throw error;
+  }
+}
+
 async function createTenant(tenantData) {
   try {
     const query = `
@@ -380,5 +392,6 @@ module.exports = {
   getLogs,
   getDashboardStats,
   getTenantByPipedriveCompanyId,
+  getTenantByPipedriveUserId,
   createTenant
 };

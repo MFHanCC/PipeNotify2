@@ -163,12 +163,38 @@ async function processNotification(webhookData) {
 async function identifyTenant(webhookData) {
   try {
     if (!webhookData.company_id) {
-      // For development, use the first tenant (ID: 1)
+      console.log('⚠️ No company_id in webhook, using tenant ID 1 for development');
       return 1;
     }
     
-    const tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
-    return tenant?.id || null;
+    // First try to find tenant by company_id
+    console.log(`🔍 Looking up tenant for company_id: ${webhookData.company_id}`);
+    let tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
+    
+    if (!tenant && webhookData.user_id) {
+      // Fallback: try to find by user_id if company lookup failed
+      console.log(`🔄 Company lookup failed, trying user_id: ${webhookData.user_id}`);
+      const { getTenantByPipedriveUserId } = require('../services/database');
+      tenant = await getTenantByPipedriveUserId(webhookData.user_id);
+      
+      if (tenant) {
+        console.log(`✅ Found tenant by user_id: ${tenant.id}, updating with company_id`);
+        // Update the tenant with the company_id for future lookups
+        const database = require('../services/database');
+        await database.pool.query(
+          'UPDATE tenants SET pipedrive_company_id = $1 WHERE id = $2',
+          [webhookData.company_id, tenant.id]
+        );
+      }
+    }
+    
+    if (tenant) {
+      console.log(`✅ Found tenant: ${tenant.id} for company_id: ${webhookData.company_id}`);
+      return tenant.id;
+    } else {
+      console.log(`❌ No tenant found for company_id: ${webhookData.company_id}`);
+      return null;
+    }
   } catch (error) {
     console.error('Error identifying tenant:', error);
     return null;

@@ -49,6 +49,7 @@ router.post('/callback', async (req, res) => {
     const companyName = userData.company_name;
     const userId = userData.id;
     const userName = userData.name;
+    const companyId = userData.company_id; // This is the critical missing piece!
 
     // Create or get tenant
     let tenantResult = await pool.query(
@@ -58,14 +59,22 @@ router.post('/callback', async (req, res) => {
 
     let tenantId;
     if (tenantResult.rows.length === 0) {
-      // Create new tenant
+      // Create new tenant with company_id
       const insertResult = await pool.query(
-        'INSERT INTO tenants (company_name, pipedrive_user_id, pipedrive_user_name, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id',
-        [companyName, userId, userName]
+        'INSERT INTO tenants (company_name, pipedrive_user_id, pipedrive_user_name, pipedrive_company_id, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id',
+        [companyName, userId, userName, companyId]
       );
       tenantId = insertResult.rows[0].id;
+      console.log('✅ Created tenant with company_id:', companyId);
     } else {
       tenantId = tenantResult.rows[0].id;
+      
+      // Update existing tenant with company_id if missing
+      await pool.query(
+        'UPDATE tenants SET pipedrive_company_id = $1, company_name = $2, pipedrive_user_name = $3 WHERE id = $4',
+        [companyId, companyName, userName, tenantId]
+      );
+      console.log('✅ Updated tenant with company_id:', companyId);
     }
 
     // Store or update Pipedrive connection
