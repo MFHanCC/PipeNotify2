@@ -51,33 +51,19 @@ async function processNotification(webhookData) {
       return { rulesMatched: 0, notificationsSent: 0, tenantId: null };
     }
 
-    // Step 2: Find matching rules for this event
+    // Step 2: Find matching rules for this event  
     let rules = await getRulesForEvent(tenantId, webhookData.event);
     console.log(`Found ${rules.length} matching rules for event: ${webhookData.event}`);
+    
+    // Also try broader event matching (deal.* for any deal event)
+    if (rules.length === 0 && webhookData.event.startsWith('deal.')) {
+      rules = await getRulesForEvent(tenantId, 'deal.*');
+      console.log(`Found ${rules.length} matching rules for broad event pattern: deal.*`);
+    }
 
-    // TEMPORARY: If no rules found, create a default test rule for development
     if (rules.length === 0) {
-      console.log('No rules found in database, creating temporary test rule...');
-      
-      // Try to get Google Chat webhook URL from environment or use placeholder
-      const testWebhookUrl = process.env.TEST_GOOGLE_CHAT_WEBHOOK || process.env.GOOGLE_CHAT_WEBHOOK || 'https://chat.googleapis.com/v1/spaces/PLACEHOLDER';
-      
-      rules = [{
-        id: 'temp-rule-1',
-        name: 'Development Test Rule',
-        event_type: webhookData.event,
-        template_mode: 'simple',
-        custom_template: null,
-        filters: {},
-        target_webhook_id: 'temp-webhook-1',
-        webhook_url: testWebhookUrl,
-        webhook_name: 'Test Webhook',
-        tenant_id: tenantId,
-        enabled: true,
-        priority: 1
-      }];
-      
-      console.log(`Created temporary test rule with webhook: ${testWebhookUrl.substring(0, 50)}...`);
+      console.log('No rules found for this event type');
+      return { rulesMatched: 0, notificationsSent: 0, tenantId };
     }
 
     // Step 3: Process each matching rule

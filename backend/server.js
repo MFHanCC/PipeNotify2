@@ -214,30 +214,85 @@ app.post('/api/v1/integration/activate', async (req, res) => {
       rules: rules.map(r => ({ template: r.templateId, webhook: r.webhookId }))
     });
 
-    // TODO: Actual implementation would:
-    // 1. Save webhooks to database
-    // 2. Create notification rules  
-    // 3. Set up Pipedrive webhooks (MISSING - this is the issue!)
-    // 4. Activate the integration
+    // Import database functions
+    const { createWebhook, createRule } = require('./services/database');
+    const axios = require('axios');
+    
+    // Use tenant ID 1 for now (in production this would come from OAuth)
+    const tenantId = 1;
+    const savedWebhooks = [];
+    const savedRules = [];
 
-    // Register Pipedrive webhooks for the authenticated user
+    // Step 1: Save Google Chat webhooks to database
+    for (const webhook of webhooks) {
+      if (webhook.isValid) {
+        try {
+          const savedWebhook = await createWebhook(tenantId, {
+            name: webhook.name,
+            webhook_url: webhook.url,
+            description: `Google Chat webhook for ${webhook.name}`
+          });
+          savedWebhooks.push(savedWebhook);
+          console.log('✅ Saved webhook:', savedWebhook.name);
+        } catch (error) {
+          console.error('❌ Failed to save webhook:', webhook.name, error.message);
+        }
+      }
+    }
+
+    // Step 2: Create notification rules
+    for (const rule of rules) {
+      try {
+        const template = templates.find(t => t.id === rule.templateId);
+        const webhook = savedWebhooks.find(w => w.id === rule.webhookId || w.name.includes(rule.webhookId));
+        
+        if (template && webhook) {
+          const savedRule = await createRule(tenantId, {
+            name: `${template.name} → ${webhook.name}`,
+            event_type: 'deal.*', // Match all deal events for now
+            filters: rule.filters || {},
+            target_webhook_id: webhook.id,
+            template_mode: template.mode || 'simple',
+            custom_template: template.customTemplate || null,
+            enabled: true
+          });
+          savedRules.push(savedRule);
+          console.log('✅ Created rule:', savedRule.name);
+        }
+      } catch (error) {
+        console.error('❌ Failed to create rule:', error.message);
+      }
+    }
+
+    // Step 3: Register Pipedrive webhook (if not already registered)
     try {
-      const axios = require('axios');
       const pipedriveToken = req.headers['x-pipedrive-token'] || process.env.PIPEDRIVE_API_TOKEN;
       
       if (pipedriveToken) {
         const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
         
-        // Register webhook for deal events
-        const webhookResponse = await axios.post('https://api.pipedrive.com/v1/webhooks', {
-          subscription_url: webhookUrl,
-          event_action: '*',
-          event_object: 'deal'
-        }, {
+        // Check if webhook already exists
+        const existingWebhooks = await axios.get('https://api.pipedrive.com/v1/webhooks', {
           params: { api_token: pipedriveToken }
         });
         
-        console.log('✅ Pipedrive webhook registered:', webhookResponse.data);
+        const existingWebhook = existingWebhooks.data.data?.find(w => 
+          w.subscription_url === webhookUrl
+        );
+        
+        if (!existingWebhook) {
+          const webhookResponse = await axios.post('https://api.pipedrive.com/v1/webhooks', {
+            subscription_url: webhookUrl,
+            event_action: '*',
+            event_object: 'deal'
+          }, {
+            params: { api_token: pipedriveToken }
+          });
+          
+          console.log('✅ Pipedrive webhook registered:', webhookResponse.data);
+        } else {
+          console.log('✅ Pipedrive webhook already exists:', existingWebhook.id);
+        }
       } else {
         console.log('⚠️ No Pipedrive token available - webhook not registered');
       }
@@ -248,9 +303,17 @@ app.post('/api/v1/integration/activate', async (req, res) => {
     res.json({
       success: true,
       message: 'Integration activated successfully',
-      webhooks: webhooks.length,
+      webhooks: {
+        total: webhooks.length,
+        saved: savedWebhooks.length,
+        details: savedWebhooks.map(w => ({ id: w.id, name: w.name }))
+      },
+      rules: {
+        total: rules.length,
+        saved: savedRules.length,
+        details: savedRules.map(r => ({ id: r.id, name: r.name, event_type: r.event_type }))
+      },
       templates: templates.length,
-      rules: rules.length,
       status: 'active',
       pipedriveWebhookUrl: 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive'
     });
