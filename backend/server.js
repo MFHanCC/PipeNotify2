@@ -186,15 +186,15 @@ async function startServer() {
   
   // Start server
   server = app.listen(PORT, () => {
-  console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API status: http://localhost:${PORT}/api/v1/status`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`✅ CORS enabled for: ${allowedOrigins.join(', ')}`);
-  }
-});
+    console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔗 API status: http://localhost:${PORT}/api/v1/status`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ CORS enabled for: ${allowedOrigins.join(', ')}`);
+    }
+  });
 
   // Keep server alive
   server.on('error', (error) => {
