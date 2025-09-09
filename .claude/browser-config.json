@@ -1,0 +1,33 @@
+{
+  "browser_testing": {
+    "browsers": ["chromium", "firefox", "webkit"],
+    "viewports": [
+      {"width": 1920, "height": 1080},
+      {"width": 1366, "height": 768},
+      {"width": 375, "height": 667}
+    ],
+    "test_scenarios": [
+      {
+        "name": "OAuth Flow",
+        "url": "http://localhost:3000/auth/pipedrive",
+        "actions": ["click", "fill", "submit"],
+        "assertions": ["no_errors", "redirect_success"]
+      },
+      {
+        "name": "Dashboard Load",
+        "url": "http://localhost:3000/dashboard",
+        "actions": ["login", "navigate"],
+        "assertions": ["data_loads", "no_console_errors"]
+      },
+      {
+        "name": "Rule Creation",
+        "url": "http://localhost:3000/rules/new",
+        "actions": ["fill_form", "save", "test"],
+        "assertions": ["rule_saved", "notification_sent"]
+      }
+    ],
+    "continuous_monitoring": true,
+    "screenshot_on_error": true,
+    "video_recording": true
+  }
+}

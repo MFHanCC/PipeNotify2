@@ -1,0 +1,153 @@
+# Pipedrive → Google Chat Integration Security-Compliant .gitignore
+# Railway backend + Vercel frontend architecture
+
+# Environment Variables & Secrets (CRITICAL SECURITY)
+.env
+.env.*
+!.env.example
+*.env
+backend/.env*
+frontend/.env.local
+frontend/.env.production.local
+frontend/.env.development.local
+
+# API Keys, Tokens, and Secrets
+api-keys/
+secrets/
+credentials/
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Node.js Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Build Outputs
+backend/dist/
+backend/build/
+frontend/build/
+frontend/dist/
+*.tgz
+*.tar.gz
+
+# Development & Testing
+*.log
+logs/
+coverage/
+.nyc_output/
+.coverage/
+junit.xml
+test-results/
+backend/tests/coverage/
+frontend/coverage/
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary Files & Caches
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.next/
+backend/.cache/
+frontend/.cache/
+
+# Database Files (Development)
+*.sqlite
+*.sqlite3
+*.db
+database.json
+backend/db/local.db
+
+# Runtime & Process Files
+*.pid
+*.seed
+*.pid.lock
+.grunt/
+
+# Railway Deployment
+railway.json
+.railway/
+
+# Vercel Deployment
+.vercel/
+vercel.json.*
+
+# Package Manager
+.npm/
+.yarn/
+yarn.lock.bak
+package-lock.json.bak
+
+# Security Scanning Results
+security-report.*
+audit-report.*
+vulnerability-report.*
+
+# Backup Files
+*.backup
+*.bak
+*.orig
+backup/
+backups/
+
+# OS Generated Files
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.vscode/c_cpp_properties.json
+
+# Webpack Bundle Analyzer
+frontend/bundle-analyzer-report.html
+
+# ESLint Cache
+.eslintcache
+
+# Prettier Cache
+.prettiercache
+
+# Local Development Certificates
+*.crt
+*.key
+localhost.pem
+localhost-key.pem
+
+# Pipedrive Development Sandbox Files
+pipedrive-sandbox/
+test-webhooks/
+mock-data/
+
+# Documentation Build
+docs-build/
+site/
+
+# Temporary Scripts
+debug.sh
+test-script.*
+temp-*

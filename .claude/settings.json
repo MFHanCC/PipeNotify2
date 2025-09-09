@@ -1,9 +1,35 @@
 {
-  "permissions": {"allow": ["*"], "deny": ["Bash(rm -rf /)"]},
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Write(*)",
+      "Read(*)",
+      "Update(*)",
+      "Execute(*)",
+      "Network(*)",
+      "Process(*)",
+      "FileSystem(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(sudo systemctl)",
+      "Bash(format)"
+    ],
+    "autonomous": true,
+    "real_time_monitoring": true
+  },
   "project": {
-    "name": "pipedrive-integration", 
+    "name": "pipedrive-google-chat-integration",
     "type": "marketplace-app",
     "architecture": "railway-vercel",
-    "monitoring_level": "maximum"
+    "monitoring_level": "maximum",
+    "auto_fix": true
+  },
+  "tools": {
+    "github_cli": true,
+    "railway_cli": true,
+    "vercel_cli": true,
+    "browser_automation": true,
+    "error_aggregation": true
   }
 }

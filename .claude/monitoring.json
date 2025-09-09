@@ -1,0 +1,44 @@
+{
+  "monitoring": {
+    "browser": {
+      "enabled": true,
+      "headless": false,
+      "capture_screenshots": true,
+      "record_network": true,
+      "detect_errors": true,
+      "auto_retry": true
+    },
+    "backend": {
+      "railway_logs": true,
+      "database_monitoring": true,
+      "api_performance": true,
+      "queue_monitoring": true
+    },
+    "frontend": {
+      "vercel_logs": true,
+      "console_errors": true,
+      "performance_metrics": true,
+      "bundle_analysis": true
+    },
+    "deployment": {
+      "github_actions": true,
+      "railway_deploys": true,
+      "vercel_deploys": true,
+      "rollback_detection": true
+    }
+  },
+  "autonomous_actions": {
+    "fix_errors": true,
+    "optimize_performance": true,
+    "update_dependencies": true,
+    "deploy_fixes": true,
+    "create_issues": true,
+    "notify_critical": true
+  },
+  "thresholds": {
+    "error_rate": 5,
+    "response_time": 3000,
+    "build_failures": 2,
+    "test_failures": 0
+  }
+}
