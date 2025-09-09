@@ -107,7 +107,7 @@ const OnboardingWizard: React.FC = () => {
   const [templateModes, setTemplateModes] = useState<Record<string, 'compact' | 'detailed'>>({});
 
   // Rule configuration
-  const [rules] = useState<Array<{
+  const [rules, setRules] = useState<Array<{
     templateId: string;
     filters: FilterRule;
     webhookId: string;
@@ -263,6 +263,9 @@ const OnboardingWizard: React.FC = () => {
       });
     }
     setSelectedTemplates(newSelected);
+    
+    // Auto-generate default rules when templates change
+    generateDefaultRules(newSelected);
   };
 
   const setTemplateMode = (templateId: string, mode: 'compact' | 'detailed') => {
@@ -270,6 +273,37 @@ const OnboardingWizard: React.FC = () => {
       ...templateModes,
       [templateId]: mode
     });
+  };
+
+  const generateDefaultRules = (selectedTemplateIds: Set<string>) => {
+    // Get the first valid webhook as default target
+    const defaultWebhook = webhooks.find(w => w.isValid);
+    if (!defaultWebhook || selectedTemplateIds.size === 0) {
+      setRules([]);
+      return;
+    }
+
+    const defaultRules = Array.from(selectedTemplateIds).map(templateId => ({
+      templateId,
+      filters: {
+        pipeline: '', // All pipelines
+        stage: '',    // All stages
+        owner: '',    // All owners
+        minValue: 0,  // No minimum value
+        targetWebhookId: defaultWebhook.id
+      },
+      webhookId: defaultWebhook.id
+    }));
+
+    setRules(defaultRules);
+  };
+
+  const updateRuleFilter = (templateId: string, filterKey: keyof FilterRule, value: any) => {
+    setRules(rules.map(rule => 
+      rule.templateId === templateId 
+        ? { ...rule, filters: { ...rule.filters, [filterKey]: value } }
+        : rule
+    ));
   };
 
   const testAllRules = async () => {
@@ -353,6 +387,10 @@ const OnboardingWizard: React.FC = () => {
 
   const nextStep = () => {
     if (currentStep < steps.length) {
+      // Generate default rules when entering step 4
+      if (currentStep === 3) {
+        generateDefaultRules(selectedTemplates);
+      }
       setCurrentStep(currentStep + 1);
     }
   };
@@ -520,16 +558,21 @@ const OnboardingWizard: React.FC = () => {
             <div className="rules-configuration">
               {Array.from(selectedTemplates).map((templateId) => {
                 const template = availableTemplates.find(t => t.id === templateId);
-                if (!template) return null;
+                const rule = rules.find(r => r.templateId === templateId);
+                if (!template || !rule) return null;
 
                 return (
                   <div key={templateId} className="rule-config-card">
                     <h3>{template.name}</h3>
+                    <p className="rule-status">✅ Default configuration applied - customize if needed</p>
                     <div className="rule-filters">
                       <div className="filter-group">
                         <label>Pipeline</label>
-                        <select defaultValue="">
-                          <option value="">All Pipelines</option>
+                        <select 
+                          value={rule.filters.pipeline || ""}
+                          onChange={(e) => updateRuleFilter(templateId, 'pipeline', e.target.value)}
+                        >
+                          <option value="">All Pipelines (Default)</option>
                           <option value="sales">Sales Pipeline</option>
                           <option value="marketing">Marketing Pipeline</option>
                         </select>
@@ -537,8 +580,11 @@ const OnboardingWizard: React.FC = () => {
                       
                       <div className="filter-group">
                         <label>Stage</label>
-                        <select defaultValue="">
-                          <option value="">All Stages</option>
+                        <select 
+                          value={rule.filters.stage || ""}
+                          onChange={(e) => updateRuleFilter(templateId, 'stage', e.target.value)}
+                        >
+                          <option value="">All Stages (Default)</option>
                           <option value="qualified">Qualified</option>
                           <option value="proposal">Proposal</option>
                           <option value="negotiation">Negotiation</option>
@@ -547,16 +593,24 @@ const OnboardingWizard: React.FC = () => {
                       
                       <div className="filter-group">
                         <label>Minimum Deal Value</label>
-                        <input type="number" placeholder="0" min="0" />
+                        <input 
+                          type="number" 
+                          placeholder="0" 
+                          min="0"
+                          value={rule.filters.minValue || 0}
+                          onChange={(e) => updateRuleFilter(templateId, 'minValue', parseInt(e.target.value) || 0)}
+                        />
                       </div>
                       
                       <div className="filter-group">
                         <label>Target Chat Space</label>
-                        <select defaultValue="">
-                          <option value="">Select Space</option>
+                        <select 
+                          value={rule.webhookId}
+                          onChange={(e) => updateRuleFilter(templateId, 'targetWebhookId', e.target.value)}
+                        >
                           {webhooks.filter(w => w.isValid).map(webhook => (
                             <option key={webhook.id} value={webhook.id}>
-                              {webhook.name}
+                              {webhook.name} {webhook.id === rule.webhookId ? '(Default)' : ''}
                             </option>
                           ))}
                         </select>
@@ -565,6 +619,12 @@ const OnboardingWizard: React.FC = () => {
                   </div>
                 );
               })}
+              
+              {selectedTemplates.size > 0 && rules.length > 0 && (
+                <div className="default-config-notice">
+                  <p>ℹ️ <strong>Default Configuration Applied:</strong> All selected templates will notify your first Google Chat space for any pipeline activity. You can customize these settings above or proceed with defaults.</p>
+                </div>
+              )}
             </div>
           </div>
         );
