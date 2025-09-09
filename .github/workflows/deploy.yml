@@ -57,32 +57,13 @@ jobs:
           REACT_APP_PIPEDRIVE_REDIRECT_URI: https://test.vercel.app/onboarding
           REACT_APP_ENVIRONMENT: test
 
-  deploy-backend:
-    name: Deploy Backend to Railway
-    runs-on: ubuntu-latest
-    container: ghcr.io/railwayapp/cli:latest
-    needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Deploy to Railway
-        run: |
-          cd backend
-          echo "Attempting deployment with environment variable approach..."
-          RAILWAY_SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}" railway up --detach || {
-            echo "Service ID approach failed, trying without service specification..."
-            railway up --detach
-          }
+  # Backend deployment now handled by Railway Connect Repo feature
+  # No manual deployment needed - Railway auto-deploys on push to main branch
 
   sentry-release:
     name: Create Sentry Release
     runs-on: ubuntu-latest
-    needs: [deploy-backend]
+    needs: [test-backend, test-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
