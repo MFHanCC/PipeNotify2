@@ -3,8 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
-// Run database migration on production startup
+// Run database migrations on production startup
 const { runMigration } = require('./scripts/migrate');
+const { fixPipedriveConnectionsTable } = require('./scripts/fix-pipedrive-connections');
 
 // Initialize Sentry error tracking
 const Sentry = require('@sentry/node');
@@ -175,9 +176,12 @@ let server;
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
     try {
-      console.log('🔄 Running database migration...');
+      console.log('🔄 Running database migrations...');
       await runMigration();
-      console.log('✅ Database migration completed');
+      console.log('✅ Tenants table migration completed');
+      
+      await fixPipedriveConnectionsTable();
+      console.log('✅ Pipedrive connections table migration completed');
     } catch (error) {
       console.error('❌ Database migration failed:', error);
       // Continue startup even if migration fails (in case columns already exist)

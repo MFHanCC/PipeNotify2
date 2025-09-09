@@ -21,9 +21,14 @@ if (process.env.REDIS_URL) {
       family: 4,
       connectTimeout: 10000,
       lazyConnect: true,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       retryDelayOnFailover: 100,
-      enableOfflineQueue: true
+      enableOfflineQueue: false,
+      keepAlive: 30000,
+      reconnectOnError: (err) => {
+        const targetError = 'READONLY';
+        return err.message.includes(targetError);
+      }
     }
   };
 } else {
@@ -34,9 +39,10 @@ if (process.env.REDIS_URL) {
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       connectTimeout: 5000,
-      enableOfflineQueue: true
+      enableOfflineQueue: false,
+      keepAlive: 30000
     }
   };
 }
