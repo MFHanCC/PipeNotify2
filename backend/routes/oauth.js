@@ -18,15 +18,17 @@ router.post('/callback', async (req, res) => {
     }
 
     // Exchange authorization code for access token
-    const tokenResponse = await axios.post('https://oauth.pipedrive.com/oauth/token', {
+    const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
       code: code,
       redirect_uri: process.env.PIPEDRIVE_REDIRECT_URI || `${process.env.FRONTEND_URL}/onboarding`,
       client_id: process.env.PIPEDRIVE_CLIENT_ID,
       client_secret: process.env.PIPEDRIVE_CLIENT_SECRET,
-    }, {
+    });
+
+    const tokenResponse = await axios.post('https://oauth.pipedrive.com/oauth/token', tokenParams, {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
       },
     });
@@ -145,14 +147,16 @@ router.post('/refresh', async (req, res) => {
     const { refresh_token, api_domain } = connectionResult.rows[0];
 
     // Refresh the access token
-    const tokenResponse = await axios.post('https://oauth.pipedrive.com/oauth/token', {
+    const refreshParams = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refresh_token,
       client_id: process.env.PIPEDRIVE_CLIENT_ID,
       client_secret: process.env.PIPEDRIVE_CLIENT_SECRET,
-    }, {
+    });
+
+    const tokenResponse = await axios.post('https://oauth.pipedrive.com/oauth/token', refreshParams, {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
       },
     });
