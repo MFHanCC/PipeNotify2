@@ -505,6 +505,54 @@ app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
   }
 });
 
+// System status endpoint for debugging
+app.get('/api/v1/debug/system-status', async (req, res) => {
+  const status = {
+    timestamp: new Date().toISOString(),
+    server: 'running',
+    environment: process.env.NODE_ENV || 'development',
+    database: { status: 'unknown', error: null },
+    redis: { status: 'unknown', error: null },
+    bullmq: { status: 'unknown', error: null },
+    webhooks: { received: 0, processed: 0 },
+    environment_vars: {
+      DATABASE_URL: !!process.env.DATABASE_URL,
+      REDIS_URL: !!process.env.REDIS_URL,  
+      PIPEDRIVE_API_TOKEN: !!process.env.PIPEDRIVE_API_TOKEN,
+      NODE_ENV: process.env.NODE_ENV
+    }
+  };
+
+  // Test database
+  try {
+    const { healthCheck } = require('./services/database');
+    const dbHealth = await healthCheck();
+    status.database.status = dbHealth.healthy ? 'connected' : 'failed';
+    status.database.error = dbHealth.error || null;
+  } catch (error) {
+    status.database.status = 'error';
+    status.database.error = error.message;
+  }
+
+  // Test Redis/BullMQ
+  try {
+    const { Queue } = require('bullmq');
+    const { redisConfig } = require('./jobs/queue');
+    const testQueue = new Queue('test', redisConfig);
+    await testQueue.ping();
+    status.redis.status = 'connected';
+    status.bullmq.status = 'running';
+    await testQueue.close();
+  } catch (error) {
+    status.redis.status = 'failed';
+    status.redis.error = error.message;
+    status.bullmq.status = 'failed';
+    status.bullmq.error = error.message;
+  }
+
+  res.json(status);
+});
+
 // Simple test endpoint that bypasses database and queues
 app.post('/api/v1/test/direct-chat', async (req, res) => {
   try {
