@@ -74,7 +74,8 @@ const adminRoutes = require('./routes/admin');
 const oauthRoutes = require('./routes/oauth');
 
 // Import job processor to start worker
-require('./jobs/processor');
+// Temporarily disabled due to Redis connection issues
+// require('./jobs/processor');
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);

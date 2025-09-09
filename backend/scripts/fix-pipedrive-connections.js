@@ -38,12 +38,23 @@ async function fixPipedriveConnectionsTable() {
     } else {
       console.log('📋 Table exists, checking/adding missing columns...');
       
+      // Fix old api_token column constraint first
+      try {
+        await pool.query(`
+          ALTER TABLE pipedrive_connections 
+          ALTER COLUMN api_token DROP NOT NULL;
+        `);
+        console.log('✅ Removed NOT NULL constraint from api_token column');
+      } catch (error) {
+        console.log(`ℹ️  api_token constraint: ${error.message}`);
+      }
+
       // Add missing columns if they don't exist
       const columnsToAdd = [
-        { name: 'access_token', type: 'TEXT NOT NULL' },
-        { name: 'refresh_token', type: 'TEXT NOT NULL' },
-        { name: 'api_domain', type: 'TEXT NOT NULL' },
-        { name: 'expires_at', type: 'TIMESTAMP WITH TIME ZONE NOT NULL' },
+        { name: 'access_token', type: 'TEXT' },
+        { name: 'refresh_token', type: 'TEXT' },
+        { name: 'api_domain', type: 'TEXT' },
+        { name: 'expires_at', type: 'TIMESTAMP WITH TIME ZONE' },
         { name: 'connected_at', type: 'TIMESTAMP WITH TIME ZONE DEFAULT NOW()' },
         { name: 'updated_at', type: 'TIMESTAMP WITH TIME ZONE DEFAULT NOW()' }
       ];
