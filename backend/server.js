@@ -74,7 +74,18 @@ const adminRoutes = require('./routes/admin');
 const oauthRoutes = require('./routes/oauth');
 
 // Import job processor to start worker
-require('./jobs/processor');
+console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
+try {
+  require('./jobs/processor');
+  console.log('✅ BULLMQ WORKER LOADED SUCCESSFULLY');
+} catch (workerError) {
+  console.error('❌ FAILED TO LOAD BULLMQ WORKER:', workerError);
+  console.error('Worker error details:', {
+    message: workerError.message,
+    code: workerError.code,
+    stack: workerError.stack
+  });
+}
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
@@ -640,6 +651,20 @@ let server;
 
 // Run database migration in production
 async function startServer() {
+  // Test database connectivity first
+  console.log('🔄 TESTING DATABASE CONNECTION...');
+  try {
+    const { healthCheck } = require('./services/database');
+    const dbHealth = await healthCheck();
+    if (dbHealth.healthy) {
+      console.log('✅ DATABASE CONNECTION SUCCESSFUL');
+    } else {
+      console.error('❌ DATABASE CONNECTION FAILED:', dbHealth.error);
+    }
+  } catch (dbError) {
+    console.error('❌ DATABASE TEST FAILED:', dbError.message);
+  }
+
   if (process.env.NODE_ENV === 'production') {
     try {
       console.log('🔄 Running database migrations...');
