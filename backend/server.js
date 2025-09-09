@@ -494,6 +494,42 @@ app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
   }
 });
 
+// Simple test endpoint that bypasses database and queues
+app.post('/api/v1/test/direct-chat', async (req, res) => {
+  try {
+    const { webhookUrl, message } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'webhookUrl is required'
+      });
+    }
+
+    const { defaultChatClient } = require('./services/chatClient');
+    
+    // Send directly to Google Chat without any queue or database
+    const testMessage = message || '🚀 Direct test from Railway backend - notification system is working!';
+    
+    const result = await defaultChatClient.sendTextMessage(webhookUrl, testMessage);
+    
+    res.json({
+      success: true,
+      message: 'Direct notification sent successfully',
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Direct chat test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send direct notification',
+      error: error.message
+    });
+  }
+});
+
 // Direct test endpoint to send webhook through processing pipeline
 app.post('/api/v1/test/webhook', async (req, res) => {
   try {
