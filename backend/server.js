@@ -74,8 +74,7 @@ const adminRoutes = require('./routes/admin');
 const oauthRoutes = require('./routes/oauth');
 
 // Import job processor to start worker
-// Temporarily disabled due to Redis connection issues
-// require('./jobs/processor');
+require('./jobs/processor');
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
@@ -272,6 +271,85 @@ app.post('/api/v1/test/notification', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to send test notification'
+    });
+  }
+});
+
+// Direct test endpoint to send webhook through processing pipeline
+app.post('/api/v1/test/webhook', async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'webhookUrl is required'
+      });
+    }
+
+    // Import dependencies for testing
+    const { addNotificationJob } = require('./jobs/queue');
+    const { defaultChatClient } = require('./services/chatClient');
+
+    // First, test direct Google Chat connectivity
+    console.log('Testing direct Google Chat webhook...');
+    const directTest = await defaultChatClient.testWebhook(webhookUrl);
+    
+    if (!directTest.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google Chat webhook test failed',
+        error: directTest.error
+      });
+    }
+
+    // Create test webhook data that matches Pipedrive format
+    const testWebhookData = {
+      event: 'deal.updated',
+      object: {
+        id: 123,
+        type: 'deal',
+        name: 'Test Deal - Notification System',
+        value: 1000,
+        currency: 'USD',
+        status: 'open',
+        stage_id: 1
+      },
+      user: {
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com'
+      },
+      user_id: 1,
+      company_id: 1,
+      company: {
+        id: 1,
+        name: 'Test Company'
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Test through the full pipeline
+    console.log('Testing full notification pipeline...');
+    const job = await addNotificationJob(testWebhookData, {
+      priority: 1,
+      delay: 0
+    });
+
+    res.json({
+      success: true,
+      message: 'Test webhook sent through full pipeline',
+      directTest: directTest,
+      jobId: job.id,
+      testData: testWebhookData
+    });
+    
+  } catch (error) {
+    console.error('Test webhook error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test webhook',
+      error: error.message
     });
   }
 });

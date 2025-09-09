@@ -7,9 +7,11 @@ router.post('/pipedrive', async (req, res) => {
   try {
     const webhookData = req.body;
     
-    // Log webhook received
+    // Log webhook received - full payload for debugging
     console.log('Pipedrive webhook received:', {
       timestamp: new Date().toISOString(),
+      fullPayload: JSON.stringify(webhookData, null, 2),
+      headers: req.headers,
       event: webhookData.event,
       object: webhookData.object,
       userId: webhookData.user_id,
