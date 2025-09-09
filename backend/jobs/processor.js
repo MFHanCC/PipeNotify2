@@ -51,11 +51,32 @@ async function processNotification(webhookData) {
     }
 
     // Step 2: Find matching rules for this event
-    const rules = await getRulesForEvent(tenantId, webhookData.event);
+    let rules = await getRulesForEvent(tenantId, webhookData.event);
     console.log(`Found ${rules.length} matching rules for event: ${webhookData.event}`);
 
+    // TEMPORARY: If no rules found, create a default test rule for development
     if (rules.length === 0) {
-      return { rulesMatched: 0, notificationsSent: 0, tenantId };
+      console.log('No rules found in database, creating temporary test rule...');
+      
+      // Try to get Google Chat webhook URL from environment or use placeholder
+      const testWebhookUrl = process.env.TEST_GOOGLE_CHAT_WEBHOOK || 'https://chat.googleapis.com/v1/spaces/PLACEHOLDER';
+      
+      rules = [{
+        id: 'temp-rule-1',
+        name: 'Development Test Rule',
+        event_type: webhookData.event,
+        template_mode: 'simple',
+        custom_template: null,
+        filters: {},
+        target_webhook_id: 'temp-webhook-1',
+        webhook_url: testWebhookUrl,
+        webhook_name: 'Test Webhook',
+        tenant_id: tenantId,
+        enabled: true,
+        priority: 1
+      }];
+      
+      console.log(`Created temporary test rule with webhook: ${testWebhookUrl.substring(0, 50)}...`);
     }
 
     // Step 3: Process each matching rule
