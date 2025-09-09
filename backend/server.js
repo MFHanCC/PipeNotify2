@@ -205,12 +205,6 @@ app.post('/api/v1/integration/activate', async (req, res) => {
       });
     }
 
-    // For now, just return success - the actual implementation would:
-    // 1. Save webhooks to database
-    // 2. Create notification rules  
-    // 3. Set up Pipedrive webhooks
-    // 4. Activate the integration
-    
     console.log('Integration activation requested:', {
       webhookCount: webhooks.length,
       templateCount: templates.length,
@@ -220,13 +214,45 @@ app.post('/api/v1/integration/activate', async (req, res) => {
       rules: rules.map(r => ({ template: r.templateId, webhook: r.webhookId }))
     });
 
+    // TODO: Actual implementation would:
+    // 1. Save webhooks to database
+    // 2. Create notification rules  
+    // 3. Set up Pipedrive webhooks (MISSING - this is the issue!)
+    // 4. Activate the integration
+
+    // Register Pipedrive webhooks for the authenticated user
+    try {
+      const axios = require('axios');
+      const pipedriveToken = req.headers['x-pipedrive-token'] || process.env.PIPEDRIVE_API_TOKEN;
+      
+      if (pipedriveToken) {
+        const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+        
+        // Register webhook for deal events
+        const webhookResponse = await axios.post('https://api.pipedrive.com/v1/webhooks', {
+          subscription_url: webhookUrl,
+          event_action: '*',
+          event_object: 'deal'
+        }, {
+          params: { api_token: pipedriveToken }
+        });
+        
+        console.log('✅ Pipedrive webhook registered:', webhookResponse.data);
+      } else {
+        console.log('⚠️ No Pipedrive token available - webhook not registered');
+      }
+    } catch (webhookError) {
+      console.error('❌ Failed to register Pipedrive webhook:', webhookError.response?.data || webhookError.message);
+    }
+
     res.json({
       success: true,
       message: 'Integration activated successfully',
       webhooks: webhooks.length,
       templates: templates.length,
       rules: rules.length,
-      status: 'active'
+      status: 'active',
+      pipedriveWebhookUrl: 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive'
     });
     
   } catch (error) {
@@ -271,6 +297,50 @@ app.post('/api/v1/test/notification', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to send test notification'
+    });
+  }
+});
+
+// Manual webhook registration endpoint
+app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
+  try {
+    const { apiToken } = req.body;
+    
+    if (!apiToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pipedrive API token is required'
+      });
+    }
+
+    const axios = require('axios');
+    const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+    
+    // Register webhook for all deal events
+    const response = await axios.post('https://api.pipedrive.com/v1/webhooks', {
+      subscription_url: webhookUrl,
+      event_action: '*',
+      event_object: 'deal'
+    }, {
+      params: { api_token: apiToken }
+    });
+    
+    console.log('✅ Pipedrive webhook registered manually:', response.data);
+    
+    res.json({
+      success: true,
+      message: 'Pipedrive webhook registered successfully',
+      webhookUrl: webhookUrl,
+      webhookId: response.data.data?.id,
+      webhookData: response.data.data
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to register webhook:', error.response?.data || error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to register webhook with Pipedrive',
+      error: error.response?.data || error.message
     });
   }
 });
