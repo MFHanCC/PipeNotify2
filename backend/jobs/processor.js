@@ -59,7 +59,7 @@ async function processNotification(webhookData) {
       console.log('No rules found in database, creating temporary test rule...');
       
       // Try to get Google Chat webhook URL from environment or use placeholder
-      const testWebhookUrl = process.env.TEST_GOOGLE_CHAT_WEBHOOK || 'https://chat.googleapis.com/v1/spaces/PLACEHOLDER';
+      const testWebhookUrl = process.env.TEST_GOOGLE_CHAT_WEBHOOK || process.env.GOOGLE_CHAT_WEBHOOK || 'https://chat.googleapis.com/v1/spaces/PLACEHOLDER';
       
       rules = [{
         id: 'temp-rule-1',

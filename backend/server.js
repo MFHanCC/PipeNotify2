@@ -301,6 +301,38 @@ app.post('/api/v1/test/notification', async (req, res) => {
   }
 });
 
+// Set Google Chat webhook URL for testing
+app.post('/api/v1/test/set-chat-webhook', (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl || !webhookUrl.includes('chat.googleapis.com')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid Google Chat webhook URL is required'
+      });
+    }
+
+    // Set environment variable for this session
+    process.env.TEST_GOOGLE_CHAT_WEBHOOK = webhookUrl;
+    
+    console.log('✅ Test Google Chat webhook URL set:', webhookUrl.substring(0, 50) + '...');
+    
+    res.json({
+      success: true,
+      message: 'Google Chat webhook URL set for testing',
+      webhookUrl: webhookUrl.substring(0, 50) + '...'
+    });
+    
+  } catch (error) {
+    console.error('Error setting test webhook URL:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set test webhook URL'
+    });
+  }
+});
+
 // Manual webhook registration endpoint
 app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
   try {
