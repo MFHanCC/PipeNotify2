@@ -364,6 +364,40 @@ app.post('/api/v1/test/notification', async (req, res) => {
   }
 });
 
+// Database connectivity test
+app.get('/api/v1/debug/database', async (req, res) => {
+  try {
+    const { healthCheck, getRulesForEvent, getWebhooks } = require('./services/database');
+    
+    // Test basic connectivity
+    const health = await healthCheck();
+    
+    // Test getting rules for tenant 1
+    const rules = await getRulesForEvent(1, 'deal.*');
+    
+    // Test getting webhooks for tenant 1  
+    const webhooks = await getWebhooks(1);
+    
+    res.json({
+      database: health,
+      rules: {
+        count: rules.length,
+        details: rules.map(r => ({ id: r.id, name: r.name, event_type: r.event_type, webhook_url: r.webhook_url?.substring(0, 50) + '...' }))
+      },
+      webhooks: {
+        count: webhooks.length,
+        details: webhooks.map(w => ({ id: w.id, name: w.name, webhook_url: w.webhook_url?.substring(0, 50) + '...' }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Database test failed',
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Check recent webhook activity
 app.get('/api/v1/debug/recent-webhooks', (req, res) => {
   // This is a simple in-memory log for debugging
