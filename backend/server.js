@@ -3,6 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
+// Run database migration on production startup
+const { runMigration } = require('./scripts/migrate');
+
 // Initialize Sentry error tracking
 const Sentry = require('@sentry/node');
 
@@ -165,8 +168,24 @@ app.use((req, res) => {
   });
 });
 
-// Start server
-const server = app.listen(PORT, () => {
+// Server variable for graceful shutdown
+let server;
+
+// Run database migration in production
+async function startServer() {
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      console.log('🔄 Running database migration...');
+      await runMigration();
+      console.log('✅ Database migration completed');
+    } catch (error) {
+      console.error('❌ Database migration failed:', error);
+      // Continue startup even if migration fails (in case columns already exist)
+    }
+  }
+  
+  // Start server
+  server = app.listen(PORT, () => {
   console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API status: http://localhost:${PORT}/api/v1/status`);
@@ -177,10 +196,14 @@ const server = app.listen(PORT, () => {
   }
 });
 
-// Keep server alive
-server.on('error', (error) => {
-  console.error('Server error:', error);
-});
+  // Keep server alive
+  server.on('error', (error) => {
+    console.error('Server error:', error);
+  });
+}
+
+// Start the server
+startServer().catch(console.error);
 
 process.on('SIGTERM', () => {
   console.log('Received SIGTERM, shutting down gracefully...');
