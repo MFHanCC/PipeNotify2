@@ -3,9 +3,16 @@ const { Queue } = require('bullmq');
 // Redis connection configuration
 let redisConfig;
 
+console.log('🔍 Redis Environment Check:');
+console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
+console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
+console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
+
 if (process.env.REDIS_URL) {
   // Parse Railway Redis URL: redis://username:password@host:port
   const url = new URL(process.env.REDIS_URL);
+  console.log('📊 Parsed Redis URL - Host:', url.hostname, 'Port:', url.port);
+  
   redisConfig = {
     connection: {
       host: url.hostname,
@@ -14,21 +21,25 @@ if (process.env.REDIS_URL) {
       family: 4,
       connectTimeout: 10000,
       lazyConnect: true,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null, // BullMQ requirement
       retryDelayOnFailover: 100,
       enableOfflineQueue: false
     }
   };
 } else {
   // Local development fallback
+  console.log('🔧 Using fallback Redis configuration');
   redisConfig = {
     connection: {
       host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD || undefined
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      maxRetriesPerRequest: null // BullMQ requirement
     }
   };
 }
+
+console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
 
 // Create notification queue
 const notificationQueue = new Queue('notification', redisConfig);
