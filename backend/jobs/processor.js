@@ -10,11 +10,12 @@ const notificationWorker = new Worker('notification', async (job) => {
   const { data } = job;
   
   try {
-    console.log(`Processing notification job ${job.id}:`, {
+    console.log(`🚀 PROCESSING JOB ${job.id}:`, {
       event: data.event,
       object: data.object,
       userId: data.user_id,
-      companyId: data.company_id
+      companyId: data.company_id,
+      fullData: JSON.stringify(data, null, 2)
     });
 
     // Process the webhook notification

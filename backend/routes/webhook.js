@@ -8,14 +8,18 @@ router.post('/pipedrive', async (req, res) => {
     const webhookData = req.body;
     
     // Log webhook received - full payload for debugging
-    console.log('Pipedrive webhook received:', {
+    console.log('🔔 PIPEDRIVE WEBHOOK RECEIVED:', {
       timestamp: new Date().toISOString(),
-      fullPayload: JSON.stringify(webhookData, null, 2),
-      headers: req.headers,
       event: webhookData.event,
       object: webhookData.object,
       userId: webhookData.user_id,
-      companyId: webhookData.company_id
+      companyId: webhookData.company_id,
+      fullPayload: JSON.stringify(webhookData, null, 2),
+      headers: {
+        'user-agent': req.headers['user-agent'],
+        'content-type': req.headers['content-type'],
+        'x-forwarded-for': req.headers['x-forwarded-for']
+      }
     });
 
     // Validate webhook structure

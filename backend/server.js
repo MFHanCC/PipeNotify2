@@ -301,6 +301,26 @@ app.post('/api/v1/test/notification', async (req, res) => {
   }
 });
 
+// Check recent webhook activity
+app.get('/api/v1/debug/recent-webhooks', (req, res) => {
+  // This is a simple in-memory log for debugging
+  // In production, this would come from database
+  res.json({
+    message: 'Check Railway logs for recent webhook activity',
+    instructions: [
+      '1. Look for "🔔 PIPEDRIVE WEBHOOK RECEIVED" in Railway logs',
+      '2. Look for "🚀 PROCESSING JOB" in Railway logs', 
+      '3. If no webhooks received, Pipedrive may not be sending them',
+      '4. If webhooks received but not processed, check BullMQ/Redis connection'
+    ],
+    testEndpoints: {
+      'Test webhook processing': 'POST /api/v1/webhook/pipedrive',
+      'Set Google Chat URL': 'POST /api/v1/test/set-chat-webhook',
+      'Test full pipeline': 'POST /api/v1/test/webhook'
+    }
+  });
+});
+
 // Set Google Chat webhook URL for testing
 app.post('/api/v1/test/set-chat-webhook', (req, res) => {
   try {
