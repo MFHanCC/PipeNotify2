@@ -57,45 +57,48 @@ jobs:
           REACT_APP_PIPEDRIVE_REDIRECT_URI: https://test.vercel.app/onboarding
           REACT_APP_ENVIRONMENT: test
 
-  # deploy-backend:
-  #   name: Deploy Backend to Railway
-  #   runs-on: ubuntu-latest
-  #   container: ghcr.io/railwayapp/cli:latest
-  #   needs: [test-backend, test-frontend]
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   env:
-  #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-  #   
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #       
-  #     - name: Deploy to Railway
-  #       run: |
-  #         cd backend
-  #         echo "Railway deployment temporarily disabled for testing"
-  #         echo "Please deploy manually to Railway when needed"
+  deploy-backend:
+    name: Deploy Backend to Railway
+    runs-on: ubuntu-latest
+    container: ghcr.io/railwayapp/cli:latest
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Railway
+        run: |
+          cd backend
+          echo "Attempting deployment with environment variable approach..."
+          RAILWAY_SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}" railway up --detach || {
+            echo "Service ID approach failed, trying without service specification..."
+            railway up --detach
+          }
 
-  # sentry-release:
-  #   name: Create Sentry Release
-  #   runs-on: ubuntu-latest
-  #   needs: [test-backend, test-frontend]
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #       
-  #     - name: Install Sentry CLI
-  #       run: curl -sL https://sentry.io/get-cli/ | bash
-  #       
-  #     - name: Create Sentry release
-  #       env:
-  #         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-  #         SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-  #         SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-  #       run: |
-  #         export SENTRY_RELEASE=${{ github.sha }}
-  #         sentry-cli releases new $SENTRY_RELEASE
-  #         sentry-cli releases set-commits --auto $SENTRY_RELEASE
-  #         sentry-cli releases finalize $SENTRY_RELEASE
+  sentry-release:
+    name: Create Sentry Release
+    runs-on: ubuntu-latest
+    needs: [deploy-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Sentry CLI
+        run: curl -sL https://sentry.io/get-cli/ | bash
+        
+      - name: Create Sentry release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          export SENTRY_RELEASE=${{ github.sha }}
+          sentry-cli releases new $SENTRY_RELEASE
+          sentry-cli releases set-commits --auto $SENTRY_RELEASE
+          sentry-cli releases finalize $SENTRY_RELEASE
