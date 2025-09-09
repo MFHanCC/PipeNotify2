@@ -4,15 +4,10 @@ const { addNotificationJob } = require('../jobs/queue');
 
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks  
 router.post('/pipedrive', async (req, res) => {
-  console.log('🔥 WEBHOOK ENDPOINT HIT - START PROCESSING');
-  console.log('Request headers:', req.headers);
-  console.log('Request method:', req.method);
-  console.log('Request URL:', req.url);
+  console.log('🔥 WEBHOOK RECEIVED');
   
   try {
     let webhookData = req.body;
-    console.log('Raw body type:', typeof webhookData);
-    console.log('Raw body keys:', Object.keys(webhookData || {}));
     
     // Handle potential JSON parsing issues with control characters
     if (typeof webhookData === 'string') {
@@ -32,44 +27,65 @@ router.post('/pipedrive', async (req, res) => {
       }
     }
     
-    // Log webhook received - full payload for debugging (safely handle control characters)
-    console.log('🔔 PIPEDRIVE WEBHOOK RECEIVED:', {
-      timestamp: new Date().toISOString(),
-      event: webhookData.event,
-      object: webhookData.object,
-      userId: webhookData.user_id,
-      companyId: webhookData.company_id,
-      headers: {
-        'user-agent': req.headers['user-agent'],
-        'content-type': req.headers['content-type'],
-        'x-forwarded-for': req.headers['x-forwarded-for']
-      }
+    // Basic webhook info (reduced logging for rate limit)
+    console.log('🔔 WEBHOOK INFO:', {
+      entity: webhookData.meta?.entity,
+      action: webhookData.meta?.action,
+      id: webhookData.data?.id,
+      timestamp: new Date().toISOString()
     });
-    
-    // Log payload separately with control character handling
-    try {
-      const cleanPayload = JSON.stringify(webhookData, (key, value) => {
-        if (typeof value === 'string') {
-          return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-        }
-        return value;
-      }, 2);
-      console.log('📋 PAYLOAD:', cleanPayload);
-    } catch (logError) {
-      console.log('📋 PAYLOAD: [Unable to stringify safely]', Object.keys(webhookData));
+
+    // Transform Pipedrive webhook format to internal format
+    if (webhookData.meta && webhookData.data) {
+      // This is a Pipedrive webhook - transform it
+      const transformedData = {
+        event: `${webhookData.meta.entity}.${webhookData.meta.action}`, // e.g., "deal.update", "person.create"
+        object: {
+          type: webhookData.meta.entity,
+          id: webhookData.data.id,
+          ...webhookData.data
+        },
+        user_id: parseInt(webhookData.meta.user_id),
+        company_id: parseInt(webhookData.meta.company_id),
+        user: {
+          id: parseInt(webhookData.meta.user_id),
+          name: 'Pipedrive User' // We don't get user name from webhook
+        },
+        company: {
+          id: parseInt(webhookData.meta.company_id),
+          name: 'Company'
+        },
+        timestamp: webhookData.meta.timestamp,
+        previous: webhookData.previous || null,
+        raw_meta: webhookData.meta
+      };
+      
+      console.log('🔄 TRANSFORMED PIPEDRIVE WEBHOOK:', {
+        original_entity: webhookData.meta.entity,
+        original_action: webhookData.meta.action,
+        transformed_event: transformedData.event,
+        object_id: transformedData.object.id
+      });
+      
+      webhookData = transformedData;
     }
 
-    // Validate webhook structure
+    // Validate transformed webhook structure
     if (!webhookData.event || !webhookData.object) {
+      console.error('❌ WEBHOOK VALIDATION FAILED:', {
+        has_event: !!webhookData.event,
+        has_object: !!webhookData.object,
+        keys: Object.keys(webhookData)
+      });
       return res.status(400).json({
         error: 'Invalid webhook payload',
-        message: 'Missing required fields: event, object'
+        message: 'Missing required fields after transformation'
       });
     }
 
     // TODO: Add webhook signature validation for security
     
-    console.log('🚀 ATTEMPTING TO QUEUE JOB...');
+    console.log('🚀 QUEUING JOB for', webhookData.event);
     
     // Enqueue webhook for processing via BullMQ
     try {

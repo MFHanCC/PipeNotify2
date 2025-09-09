@@ -65,12 +65,22 @@ async function processNotification(webhookData) {
 
     // Step 2: Find matching rules for this event  
     let rules = await getRulesForEvent(tenantId, webhookData.event);
-    console.log(`Found ${rules.length} matching rules for event: ${webhookData.event}`);
+    console.log(`📋 Found ${rules.length} rules for event: ${webhookData.event}`);
     
-    // Also try broader event matching (deal.* for any deal event)
-    if (rules.length === 0 && webhookData.event.startsWith('deal.')) {
-      rules = await getRulesForEvent(tenantId, 'deal.*');
-      console.log(`Found ${rules.length} matching rules for broad event pattern: deal.*`);
+    // Try broader event matching patterns
+    if (rules.length === 0 && webhookData.event.includes('.')) {
+      const [entity, action] = webhookData.event.split('.');
+      
+      // Try entity.* pattern (e.g., deal.*)
+      const broadPattern = `${entity}.*`;
+      rules = await getRulesForEvent(tenantId, broadPattern);
+      console.log(`📋 Found ${rules.length} rules for pattern: ${broadPattern}`);
+      
+      // If still no rules, try just the entity
+      if (rules.length === 0) {
+        rules = await getRulesForEvent(tenantId, entity);
+        console.log(`📋 Found ${rules.length} rules for entity: ${entity}`);
+      }
     }
 
     if (rules.length === 0) {
