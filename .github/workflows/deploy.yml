@@ -78,10 +78,11 @@ jobs:
       - name: Deploy to Railway
         run: |
           cd backend
-          railway link ${{ secrets.RAILWAY_PROJECT_ID }} --environment production
+          railway link "$RAILWAY_PROJECT_ID" --environment production
           railway up --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
 
   sentry-release:
     name: Create Sentry Release
