@@ -14,9 +14,21 @@ const notificationWorker = new Worker('notification', async (job) => {
       event: data.event,
       object: data.object,
       userId: data.user_id,
-      companyId: data.company_id,
-      fullData: JSON.stringify(data, null, 2)
+      companyId: data.company_id
     });
+    
+    // Log full data safely
+    try {
+      const cleanData = JSON.stringify(data, (key, value) => {
+        if (typeof value === 'string') {
+          return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        }
+        return value;
+      }, 2);
+      console.log(`📊 JOB ${job.id} DATA:`, cleanData);
+    } catch (logError) {
+      console.log(`📊 JOB ${job.id} DATA: [Unable to stringify safely]`, Object.keys(data));
+    }
 
     // Process the webhook notification
     const result = await processNotification(data);

@@ -5,22 +5,50 @@ const { addNotificationJob } = require('../jobs/queue');
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks
 router.post('/pipedrive', async (req, res) => {
   try {
-    const webhookData = req.body;
+    let webhookData = req.body;
     
-    // Log webhook received - full payload for debugging
+    // Handle potential JSON parsing issues with control characters
+    if (typeof webhookData === 'string') {
+      try {
+        // Clean control characters before parsing
+        const cleanedData = webhookData.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        webhookData = JSON.parse(cleanedData);
+      } catch (parseError) {
+        console.error('JSON parsing error:', parseError.message);
+        console.error('Raw data:', webhookData.substring(0, 500));
+        return res.status(400).json({
+          error: 'Invalid JSON payload',
+          message: 'Unable to parse webhook data'
+        });
+      }
+    }
+    
+    // Log webhook received - full payload for debugging (safely handle control characters)
     console.log('🔔 PIPEDRIVE WEBHOOK RECEIVED:', {
       timestamp: new Date().toISOString(),
       event: webhookData.event,
       object: webhookData.object,
       userId: webhookData.user_id,
       companyId: webhookData.company_id,
-      fullPayload: JSON.stringify(webhookData, null, 2),
       headers: {
         'user-agent': req.headers['user-agent'],
         'content-type': req.headers['content-type'],
         'x-forwarded-for': req.headers['x-forwarded-for']
       }
     });
+    
+    // Log payload separately with control character handling
+    try {
+      const cleanPayload = JSON.stringify(webhookData, (key, value) => {
+        if (typeof value === 'string') {
+          return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        }
+        return value;
+      }, 2);
+      console.log('📋 PAYLOAD:', cleanPayload);
+    } catch (logError) {
+      console.log('📋 PAYLOAD: [Unable to stringify safely]', Object.keys(webhookData));
+    }
 
     // Validate webhook structure
     if (!webhookData.event || !webhookData.object) {
