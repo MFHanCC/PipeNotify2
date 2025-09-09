@@ -207,7 +207,8 @@ const OnboardingWizard: React.FC = () => {
       isValidating: true,
     };
 
-    setWebhooks([...webhooks, webhook]);
+    const newWebhooksList = [...webhooks, webhook];
+    setWebhooks(newWebhooksList);
     setNewWebhook({ name: '', url: '' });
 
     // Validate webhook
@@ -222,7 +223,7 @@ const OnboardingWizard: React.FC = () => {
         body: JSON.stringify({ url: webhook.url }),
       });
 
-      const updatedWebhooks = webhooks.map(w => 
+      const updatedWebhooks = newWebhooksList.map(w => 
         w.id === webhookId 
           ? { ...w, isValid: response.ok, isValidating: false }
           : w
@@ -233,7 +234,7 @@ const OnboardingWizard: React.FC = () => {
         setError('Webhook validation failed. Please check the URL and permissions.');
       }
     } catch (err) {
-      const updatedWebhooks = webhooks.map(w => 
+      const updatedWebhooks = newWebhooksList.map(w => 
         w.id === webhookId 
           ? { ...w, isValid: false, isValidating: false }
           : w
