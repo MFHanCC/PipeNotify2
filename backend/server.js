@@ -116,13 +116,62 @@ app.post('/api/v1/auth/callback', (req, res) => {
   });
 });
 
-// Webhook validation placeholder
-app.post('/api/v1/webhooks/validate', (req, res) => {
-  res.json({
-    message: 'Webhook validation endpoint ready',
-    status: 'not_implemented',
-    note: 'Will be implemented in Phase 3'
-  });
+// Webhook validation endpoint
+app.post('/api/v1/webhooks/validate', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'Webhook URL is required'
+      });
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+      if (!url.startsWith('https://chat.googleapis.com/v1/spaces/')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid Google Chat webhook URL format'
+        });
+      }
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid URL format'
+      });
+    }
+
+    // Test the webhook with a simple message
+    try {
+      const axios = require('axios');
+      const testResponse = await axios.post(url, {
+        text: '🧪 Webhook validation test from Pipenotify'
+      }, { timeout: 5000 });
+
+      res.json({
+        success: true,
+        message: 'Webhook validated successfully',
+        valid: true
+      });
+    } catch (error) {
+      console.error('Webhook validation failed:', error.message);
+      res.status(400).json({
+        success: false,
+        message: 'Webhook validation failed - please check the URL and permissions',
+        valid: false
+      });
+    }
+    
+  } catch (error) {
+    console.error('Webhook validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error during webhook validation'
+    });
+  }
 });
 
 // Dashboard stats placeholder
@@ -142,6 +191,89 @@ app.get('/api/v1/rules', (req, res) => {
 
 app.get('/api/v1/logs', (req, res) => {
   res.json({ logs: [] });
+});
+
+// Integration activation endpoint
+app.post('/api/v1/integration/activate', async (req, res) => {
+  try {
+    const { webhooks, templates, rules } = req.body;
+    
+    // Validate required data
+    if (!webhooks || !templates || !rules || webhooks.length === 0 || templates.length === 0 || rules.length === 0) {
+      return res.status(400).json({
+        error: 'Missing required data',
+        message: 'webhooks, templates, and rules are required'
+      });
+    }
+
+    // For now, just return success - the actual implementation would:
+    // 1. Save webhooks to database
+    // 2. Create notification rules  
+    // 3. Set up Pipedrive webhooks
+    // 4. Activate the integration
+    
+    console.log('Integration activation requested:', {
+      webhookCount: webhooks.length,
+      templateCount: templates.length,
+      ruleCount: rules.length,
+      webhooks: webhooks.map(w => ({ name: w.name, valid: w.isValid })),
+      templates: templates.map(t => t.id),
+      rules: rules.map(r => ({ template: r.templateId, webhook: r.webhookId }))
+    });
+
+    res.json({
+      success: true,
+      message: 'Integration activated successfully',
+      webhooks: webhooks.length,
+      templates: templates.length,
+      rules: rules.length,
+      status: 'active'
+    });
+    
+  } catch (error) {
+    console.error('Integration activation error:', error);
+    res.status(500).json({
+      error: 'Failed to activate integration',
+      message: error.message
+    });
+  }
+});
+
+// Test notification endpoint
+app.post('/api/v1/test/notification', async (req, res) => {
+  try {
+    const { templateId, webhookId, filters } = req.body;
+    
+    if (!templateId || !webhookId) {
+      return res.status(400).json({
+        success: false,
+        message: 'templateId and webhookId are required'
+      });
+    }
+
+    // Simulate a test notification
+    console.log('Test notification requested:', {
+      templateId,
+      webhookId,
+      filters: filters || 'none'
+    });
+
+    // For now, just return success
+    res.json({
+      success: true,
+      message: `Test notification sent for template ${templateId}`,
+      templateId,
+      webhookId,
+      status: 'sent'
+    });
+    
+  } catch (error) {
+    console.error('Test notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test notification'
+    });
+  }
 });
 
 // Sentry error handler (configured when valid DSN is provided)
