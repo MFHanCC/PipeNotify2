@@ -148,7 +148,7 @@ const OnboardingWizard: React.FC = () => {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/auth/callback`, {
+      const response = await fetch(`${apiUrl}/api/v1/oauth/callback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +163,7 @@ const OnboardingWizard: React.FC = () => {
       const data = await response.json();
       setOauthToken(data.token);
       setPipedriveConnected(true);
-      setPipedriveCompany(data.companyName);
+      setPipedriveCompany(data.user.company);
       
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
