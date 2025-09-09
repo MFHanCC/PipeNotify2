@@ -436,6 +436,28 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Rule configuration styles */
+.rule-status {
+  color: #059669;
+  font-size: 0.9em;
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+
+.default-config-notice {
+  background-color: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.default-config-notice p {
+  margin: 0;
+  color: #0c4a6e;
+  line-height: 1.5;
+}
+
 /* Testing Section */
 .test-section {
   text-align: center;
