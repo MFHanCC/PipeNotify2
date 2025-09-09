@@ -73,13 +73,10 @@ jobs:
       - name: Deploy to Railway
         run: |
           cd backend
-          echo "Current directory: $(pwd)"
-          echo "Files in directory:"
-          ls -la
-          echo "Railway CLI version:"
-          railway --version
-          echo "Deploying to Railway..."
-          railway up --detach --verbose
+          echo "Listing available services..."
+          railway service list || echo "Could not list services"
+          echo "Deploying backend service..."
+          railway up --detach --service backend
 
   sentry-release:
     name: Create Sentry Release
