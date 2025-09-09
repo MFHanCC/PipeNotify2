@@ -21,9 +21,9 @@ if (process.env.REDIS_URL) {
       family: 4,
       connectTimeout: 10000,
       lazyConnect: true,
-      maxRetriesPerRequest: null, // BullMQ requirement
+      maxRetriesPerRequest: 3,
       retryDelayOnFailover: 100,
-      enableOfflineQueue: false
+      enableOfflineQueue: true
     }
   };
 } else {
@@ -34,7 +34,9 @@ if (process.env.REDIS_URL) {
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
-      maxRetriesPerRequest: null // BullMQ requirement
+      maxRetriesPerRequest: 3,
+      connectTimeout: 5000,
+      enableOfflineQueue: true
     }
   };
 }
