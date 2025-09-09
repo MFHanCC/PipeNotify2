@@ -1,20 +1,34 @@
 const { Queue } = require('bullmq');
 
 // Redis connection configuration
-const redisConfig = {
-  connection: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-    // For Railway Redis URL format: redis://username:password@host:port
-    ...(process.env.REDIS_URL && {
-      host: undefined,
-      port: undefined,
-      password: undefined,
-      url: process.env.REDIS_URL
-    })
-  }
-};
+let redisConfig;
+
+if (process.env.REDIS_URL) {
+  // Parse Railway Redis URL: redis://username:password@host:port
+  const url = new URL(process.env.REDIS_URL);
+  redisConfig = {
+    connection: {
+      host: url.hostname,
+      port: parseInt(url.port),
+      password: url.password,
+      family: 4,
+      connectTimeout: 10000,
+      lazyConnect: true,
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 100,
+      enableOfflineQueue: false
+    }
+  };
+} else {
+  // Local development fallback
+  redisConfig = {
+    connection: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379,
+      password: process.env.REDIS_PASSWORD || undefined
+    }
+  };
+}
 
 // Create notification queue
 const notificationQueue = new Queue('notification', redisConfig);
