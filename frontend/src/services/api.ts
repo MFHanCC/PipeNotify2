@@ -360,7 +360,24 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}/api/v1/billing/plans`, {
       headers: this.getAuthHeaders(),
     });
-    return this.handleResponse(response);
+    const data = await this.handleResponse(response);
+    
+    // Convert plans object to array format expected by frontend
+    if (data.plans) {
+      return Object.entries(data.plans).map(([tier, plan]: [string, any]) => ({
+        tier,
+        name: plan.name,
+        price: plan.price || 0,
+        price_id: plan.price_id,
+        features: plan.features,
+        notifications_limit: plan.limits.notifications,
+        webhooks_limit: plan.limits.webhooks,
+        rules_limit: plan.limits.rules,
+        log_retention_days: plan.limits.log_retention_days
+      }));
+    }
+    
+    return [];
   }
 
   async getCurrentSubscription(): Promise<{ subscription: Subscription | null; usage: UsageStats }> {
