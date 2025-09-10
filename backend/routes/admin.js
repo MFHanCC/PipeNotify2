@@ -378,7 +378,7 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
         id: insertResult.rows[0].id,
         name: ruleData.name,
         event_type: ruleData.event_type,
-        description: ruleData.description
+        enabled: insertResult.rows[0].enabled
       });
       console.log(`✅ Created rule: ${ruleData.name}`);
     }
