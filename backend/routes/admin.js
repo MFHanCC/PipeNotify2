@@ -359,8 +359,8 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
     const createdRules = [];
     for (const ruleData of rulesToCreate) {
       const insertResult = await pool.query(
-        `INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled, description)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
         [
           tenantId,
@@ -370,8 +370,7 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
           webhook.id,
           'simple', // Use our enhanced simple template mode
           null, // No custom template
-          true, // Enabled
-          ruleData.description || null
+          true // Enabled
         ]
       );
       
