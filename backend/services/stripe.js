@@ -1,5 +1,14 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const { pool } = require('./database');
+
+/**
+ * Check if Stripe is configured and throw an error if not
+ */
+function ensureStripeConfigured() {
+  if (!stripe) {
+    throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+  }
+}
 
 /**
  * Stripe billing service for subscription management
@@ -64,6 +73,7 @@ const PLAN_CONFIGS = {
  * @returns {Object} Stripe customer
  */
 async function getOrCreateCustomer(tenantId, customerData = {}) {
+  ensureStripeConfigured();
   try {
     // Check if customer already exists
     const existingResult = await pool.query(
@@ -127,6 +137,7 @@ async function getOrCreateCustomer(tenantId, customerData = {}) {
  * @returns {Object} Checkout session
  */
 async function createCheckoutSession(tenantId, planTier, successUrl, cancelUrl) {
+  ensureStripeConfigured();
   try {
     if (!PLAN_CONFIGS[planTier] || planTier === 'free') {
       throw new Error('Invalid plan tier for checkout');
@@ -179,6 +190,7 @@ async function createCheckoutSession(tenantId, planTier, successUrl, cancelUrl) 
  * @returns {Object} Portal session
  */
 async function createPortalSession(tenantId, returnUrl) {
+  ensureStripeConfigured();
   try {
     // Get customer
     const result = await pool.query(
@@ -212,6 +224,7 @@ async function createPortalSession(tenantId, returnUrl) {
  * @param {string} sessionId - Checkout session ID
  */
 async function handleCheckoutSuccess(sessionId) {
+  ensureStripeConfigured();
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     const tenantId = parseInt(session.metadata.tenant_id);
@@ -261,6 +274,7 @@ async function handleCheckoutSuccess(sessionId) {
  * @param {Object} event - Stripe webhook event
  */
 async function handleWebhookEvent(event) {
+  ensureStripeConfigured();
   try {
     console.log(`🔔 Processing Stripe webhook: ${event.type}`);
 
@@ -300,6 +314,7 @@ async function handleWebhookEvent(event) {
  * @param {Object} invoice - Stripe invoice object
  */
 async function handleInvoicePaymentSucceeded(invoice) {
+  ensureStripeConfigured();
   try {
     const subscriptionId = invoice.subscription;
     if (!subscriptionId) return;
@@ -332,6 +347,7 @@ async function handleInvoicePaymentSucceeded(invoice) {
  * @param {Object} invoice - Stripe invoice object
  */
 async function handleInvoicePaymentFailed(invoice) {
+  ensureStripeConfigured();
   try {
     const subscriptionId = invoice.subscription;
     if (!subscriptionId) return;
@@ -360,6 +376,7 @@ async function handleInvoicePaymentFailed(invoice) {
  * @param {Object} subscription - Stripe subscription object
  */
 async function handleSubscriptionUpdated(subscription) {
+  ensureStripeConfigured();
   try {
     const tenantId = parseInt(subscription.metadata.tenant_id);
     const planTier = subscription.metadata.plan_tier;
@@ -393,6 +410,7 @@ async function handleSubscriptionUpdated(subscription) {
  * @param {Object} subscription - Stripe subscription object
  */
 async function handleSubscriptionCanceled(subscription) {
+  ensureStripeConfigured();
   try {
     // Downgrade to free plan
     await pool.query(`
@@ -419,6 +437,7 @@ async function handleSubscriptionCanceled(subscription) {
  * @returns {Object} Subscription details
  */
 async function getSubscription(tenantId) {
+  ensureStripeConfigured();
   try {
     const result = await pool.query(`
       SELECT * FROM subscriptions WHERE tenant_id = $1
