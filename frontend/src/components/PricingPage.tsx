@@ -163,7 +163,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
           <h1>Choose Your Plan</h1>
           <p>Select the perfect plan for your notification needs</p>
           
-          {usage && (
+          {usage && usage.notifications_used > 0 && (
             <div className="current-usage">
               <div className="usage-card">
                 <h3>Current Usage</h3>
