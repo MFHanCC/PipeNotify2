@@ -248,6 +248,178 @@ router.post('/debug/create-missing-rules', async (req, res) => {
   }
 });
 
+// DEBUG ENDPOINT - Create comprehensive notification rules
+router.post('/debug/create-comprehensive-rules', async (req, res) => {
+  try {
+    console.log('🎯 DEBUG: Creating comprehensive notification rules...');
+    
+    // Get the correct tenant (ID 2 with company_id 13887824)
+    const tenantsResult = await pool.query('SELECT id FROM tenants WHERE pipedrive_company_id = 13887824');
+    if (tenantsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant with company_id 13887824 not found' });
+    }
+    
+    const tenantId = tenantsResult.rows[0].id;
+    console.log(`📍 Target tenant ID: ${tenantId}`);
+    
+    // Get the first available webhook
+    const webhooksResult = await pool.query('SELECT id, name FROM chat_webhooks WHERE tenant_id = $1 LIMIT 1', [tenantId]);
+    if (webhooksResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No webhooks found for this tenant' });
+    }
+    
+    const webhook = webhooksResult.rows[0];
+    console.log(`🎯 Using webhook: ${webhook.name} (ID: ${webhook.id})`);
+    
+    // Define comprehensive rules for all requested event types
+    const rulesToCreate = [
+      // Activity events
+      {
+        name: `📞 New Activity Created → ${webhook.name}`,
+        event_type: 'activity.create',
+        filters: JSON.stringify({}), // No filters = all activities
+        description: 'Notifications for all new activities (calls, meetings, tasks, etc.)'
+      },
+      {
+        name: `📝 Activity Updated → ${webhook.name}`,
+        event_type: 'activity.change', 
+        filters: JSON.stringify({}),
+        description: 'Notifications when activities are modified or completed'
+      },
+      {
+        name: `🗑️ Activity Deleted → ${webhook.name}`,
+        event_type: 'activity.delete',
+        filters: JSON.stringify({}),
+        description: 'Notifications when activities are removed'
+      },
+      
+      // Note events
+      {
+        name: `📔 New Note Added → ${webhook.name}`,
+        event_type: 'note.create',
+        filters: JSON.stringify({}),
+        description: 'Notifications when notes are added to deals/persons/organizations'
+      },
+      {
+        name: `📝 Note Updated → ${webhook.name}`,
+        event_type: 'note.change',
+        filters: JSON.stringify({}),
+        description: 'Notifications when notes are modified'
+      },
+      
+      // Product events
+      {
+        name: `📦 New Product Added → ${webhook.name}`,
+        event_type: 'product.create',
+        filters: JSON.stringify({}),
+        description: 'Notifications when products are added to catalog'
+      },
+      {
+        name: `📦 Product Updated → ${webhook.name}`,
+        event_type: 'product.change',
+        filters: JSON.stringify({}),
+        description: 'Notifications when product details are modified'
+      },
+      {
+        name: `🗑️ Product Deleted → ${webhook.name}`,
+        event_type: 'product.delete',
+        filters: JSON.stringify({}),
+        description: 'Notifications when products are removed from catalog'
+      },
+      
+      // Person events
+      {
+        name: `👤 New Contact Added → ${webhook.name}`,
+        event_type: 'person.create',
+        filters: JSON.stringify({}),
+        description: 'Notifications when new contacts are added'
+      },
+      {
+        name: `👤 Contact Updated → ${webhook.name}`,
+        event_type: 'person.change',
+        filters: JSON.stringify({}),
+        description: 'Notifications when contact details are modified'
+      },
+      
+      // Organization events  
+      {
+        name: `🏢 New Organization Added → ${webhook.name}`,
+        event_type: 'organization.create',
+        filters: JSON.stringify({}),
+        description: 'Notifications when new organizations are added'
+      },
+      {
+        name: `🏢 Organization Updated → ${webhook.name}`,
+        event_type: 'organization.change',
+        filters: JSON.stringify({}),
+        description: 'Notifications when organization details are modified'
+      }
+    ];
+    
+    const createdRules = [];
+    for (const ruleData of rulesToCreate) {
+      const insertResult = await pool.query(
+        `INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled, description)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          tenantId,
+          ruleData.name,
+          ruleData.event_type,
+          ruleData.filters,
+          webhook.id,
+          'simple', // Use our enhanced simple template mode
+          null, // No custom template
+          true, // Enabled
+          ruleData.description || null
+        ]
+      );
+      
+      createdRules.push({
+        id: insertResult.rows[0].id,
+        name: ruleData.name,
+        event_type: ruleData.event_type,
+        description: ruleData.description
+      });
+      console.log(`✅ Created rule: ${ruleData.name}`);
+    }
+    
+    // Final verification
+    const finalRulesResult = await pool.query(
+      'SELECT event_type, COUNT(*) as rule_count FROM rules WHERE tenant_id = $1 GROUP BY event_type ORDER BY event_type',
+      [tenantId]
+    );
+    
+    console.log('\n🔍 Final rules by event type:');
+    finalRulesResult.rows.forEach(row => {
+      console.log(`  ${row.event_type}: ${row.rule_count} rules`);
+    });
+    
+    res.json({
+      message: 'Comprehensive notification rules created successfully',
+      tenantId: tenantId,
+      webhook: { id: webhook.id, name: webhook.name },
+      createdRules: createdRules,
+      summary: {
+        totalRules: createdRules.length,
+        activities: 3, // create, change, delete
+        notes: 2, // create, change
+        products: 3, // create, change, delete  
+        persons: 2, // create, change
+        organizations: 2 // create, change
+      },
+      rulesByEventType: finalRulesResult.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating comprehensive rules:', error);
+    res.status(500).json({
+      error: 'Failed to create comprehensive rules',
+      message: error.message
+    });
+  }
+});
+
 // Apply authentication to all other admin routes
 router.use(authenticateToken);
 
