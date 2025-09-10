@@ -124,13 +124,13 @@
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
-  padding: 2rem;
+  padding: 1.5rem;
   position: relative;
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 580px;
+  min-height: 450px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -183,7 +183,7 @@
 /* Plan Header */
 .plan-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .plan-name {
@@ -194,7 +194,7 @@
 }
 
 .plan-price {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .price {
@@ -216,7 +216,7 @@
   font-size: 0.9rem;
   line-height: 1.6;
   margin: 0;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 /* Plan Features */
@@ -227,14 +227,14 @@
 
 /* Key Features Section */
 .key-features {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .feature-highlight {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -267,10 +267,10 @@
 .feature-item {
   display: flex;
   align-items: flex-start;
-  padding: 0.75rem 0;
-  font-size: 0.95rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .feature-check {
@@ -470,11 +470,12 @@
   .plans-grid {
     grid-template-columns: repeat(2, 1fr);
     max-width: 800px;
-    gap: 1.5rem;
+    gap: 2rem 1.5rem; /* row-gap column-gap */
   }
   
   .plan-card {
     padding: 1.5rem;
+    min-height: 420px;
   }
 }
 
@@ -518,6 +519,7 @@
 
   .plan-card {
     padding: 1.5rem;
+    min-height: 400px;
   }
 
   .price {
