@@ -220,23 +220,23 @@ const PricingPage: React.FC<PricingPageProps> = ({
             </div>
 
             <div className="plan-features">
-              <div className="feature-limits">
-                <div className="limit-item">
-                  <span className="limit-number">{formatLimit(plan.notifications_limit, 'notifications')}</span>
-                  <span className="limit-label">notifications</span>
+              <div className="key-features">
+                <div className="feature-highlight">
+                  <span className="feature-number">{formatLimit(plan.notifications_limit, 'notifications')}</span>
+                  <span className="feature-text">notifications per month</span>
                 </div>
-                <div className="limit-item">
-                  <span className="limit-number">{formatLimit(plan.webhooks_limit, 'webhooks')}</span>
-                  <span className="limit-label">webhooks</span>
+                <div className="feature-highlight">
+                  <span className="feature-number">{formatLimit(plan.webhooks_limit, 'webhooks')}</span>
+                  <span className="feature-text">Google Chat webhooks</span>
                 </div>
-                <div className="limit-item">
-                  <span className="limit-number">{formatLimit(plan.rules_limit, 'rules')}</span>
-                  <span className="limit-label">rules</span>
+                <div className="feature-highlight">
+                  <span className="feature-number">{formatLimit(plan.rules_limit, 'rules')}</span>
+                  <span className="feature-text">custom notification rules</span>
                 </div>
               </div>
 
               <ul className="feature-list">
-                {plan.features.map((feature, index) => (
+                {plan.features.slice(3).map((feature, index) => (
                   <li key={index} className="feature-item">
                     <span className="feature-check">✓</span>
                     {feature}
