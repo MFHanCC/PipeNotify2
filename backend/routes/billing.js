@@ -44,6 +44,36 @@ router.get('/plans', async (req, res) => {
 });
 
 /**
+ * GET /api/v1/billing/subscription
+ * Get subscription info without authentication (for pricing page)
+ */
+router.get('/subscription', async (req, res) => {
+  try {
+    // Return default response for unauthenticated users
+    res.json({
+      success: true,
+      subscription: null,
+      usage: {
+        plan_tier: 'free',
+        notifications_used: 0,
+        notifications_limit: 100,
+        webhooks_used: 0,
+        webhooks_limit: 1,
+        rules_used: 0,
+        rules_limit: 3,
+        usage_percentage: 0
+      }
+    });
+  } catch (error) {
+    console.error('Error getting default subscription info:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load subscription information'
+    });
+  }
+});
+
+/**
  * GET /api/v1/billing/subscription/:tenantId
  * Get current subscription details for a tenant
  */
