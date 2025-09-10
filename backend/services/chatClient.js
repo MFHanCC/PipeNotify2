@@ -147,6 +147,9 @@ class ChatClient {
 
       case 'deal.change':
         // Determine what changed for more specific messaging
+        const changes = [];
+        let changeType = 'updated';
+        
         if (object?.status === 'won') {
           emoji = '🎉';
           message = `${emoji} *Deal Won!*\n🏆 *${objectName}*`;
@@ -165,9 +168,110 @@ class ChatClient {
           if (value) message += `\n💰 Value: *${value}*`;
           message += `\n👤 Updated by: *${userName}*`;
         } else {
-          emoji = '📝';
-          message = `${emoji} *Deal Updated*\n📋 *${objectName}*`;
-          if (value) message += `\n💰 Value: *${value}*`;
+          // Detect specific field changes
+          if (previous) {
+            // Value change
+            if (previous.value !== object?.value) {
+              const oldValue = previous.value ? `${object?.currency || '$'}${previous.value}` : 'No value';
+              const newValue = value || 'No value';
+              changes.push(`💰 Value: ${oldValue} → *${newValue}*`);
+              emoji = '💰';
+              changeType = 'value updated';
+            }
+            
+            // Title change
+            if (previous.title !== object?.title) {
+              changes.push(`📝 Title: "${previous.title}" → "*${object?.title}*"`);
+              emoji = '📝';
+              changeType = 'title updated';
+            }
+            
+            // Person assignment change
+            if (previous.person_id !== object?.person_id) {
+              emoji = '👤';
+              changeType = 'contact updated';
+              if (object?.person_id) {
+                changes.push(`👤 Contact: Added person ID ${object.person_id}`);
+              } else {
+                changes.push(`👤 Contact: Removed`);
+              }
+            }
+            
+            // Organization assignment change
+            if (previous.org_id !== object?.org_id) {
+              emoji = '🏢';
+              changeType = 'organization updated';
+              if (object?.org_id) {
+                changes.push(`🏢 Organization: Added org ID ${object.org_id}`);
+              } else {
+                changes.push(`🏢 Organization: Removed`);
+              }
+            }
+            
+            // Owner change
+            if (previous.owner_id !== object?.owner_id) {
+              emoji = '👥';
+              changeType = 'owner changed';
+              changes.push(`👥 Owner: Changed to user ID ${object?.owner_id}`);
+            }
+            
+            // Priority change (if available)
+            if (previous.priority !== object?.priority) {
+              emoji = '⭐';
+              changeType = 'priority updated';
+              changes.push(`⭐ Priority: ${previous.priority || 'None'} → *${object?.priority || 'None'}*`);
+            }
+            
+            // Expected close date change
+            if (previous.expected_close_date !== object?.expected_close_date) {
+              emoji = '📅';
+              changeType = 'close date updated';
+              const oldDate = previous.expected_close_date || 'Not set';
+              const newDate = object?.expected_close_date || 'Not set';
+              changes.push(`📅 Expected close: ${oldDate} → *${newDate}*`);
+            }
+            
+            // Label changes (if available in the data)
+            if (object?.label_ids && previous.label_ids) {
+              const oldLabels = Array.isArray(previous.label_ids) ? previous.label_ids : [];
+              const newLabels = Array.isArray(object.label_ids) ? object.label_ids : [];
+              
+              if (JSON.stringify(oldLabels.sort()) !== JSON.stringify(newLabels.sort())) {
+                emoji = '🏷️';
+                changeType = 'labels updated';
+                const added = newLabels.filter(id => !oldLabels.includes(id));
+                const removed = oldLabels.filter(id => !newLabels.includes(id));
+                
+                if (added.length > 0) {
+                  changes.push(`🏷️ Labels added: ${added.join(', ')}`);
+                }
+                if (removed.length > 0) {
+                  changes.push(`🏷️ Labels removed: ${removed.join(', ')}`);
+                }
+              }
+            }
+            
+            // Product changes (detected from activities or custom fields if available)
+            // This would require additional webhook data structure analysis
+            
+            // Probability change
+            if (previous.probability !== object?.probability) {
+              emoji = '📊';
+              changeType = 'probability updated';
+              const oldProb = previous.probability || 0;
+              const newProb = object?.probability || 0;
+              changes.push(`📊 Probability: ${oldProb}% → *${newProb}%*`);
+            }
+          }
+          
+          if (changes.length > 0) {
+            message = `${emoji} *Deal ${changeType.charAt(0).toUpperCase() + changeType.slice(1)}*\n📋 *${objectName}*\n${changes.join('\n')}`;
+          } else {
+            emoji = '📝';
+            message = `${emoji} *Deal Updated*\n📋 *${objectName}*`;
+            if (value) message += `\n💰 Value: *${value}*`;
+          }
+          
           message += `\n👤 Updated by: *${userName}*`;
         }
         break;
