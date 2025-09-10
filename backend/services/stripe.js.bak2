@@ -20,7 +20,7 @@ const PLAN_CONFIGS = {
   free: {
     name: 'Free',
     price_id: null,
-    features: ['100 notifications/month', '1 Google Chat webhook', '3 custom notification rules', 'Basic email support'],
+    features: ['100 notifications/month', '1 webhook', '3 rules', 'Basic support'],
     limits: {
       notifications: 100,
       webhooks: 1,
@@ -32,7 +32,7 @@ const PLAN_CONFIGS = {
     name: 'Starter',
     price_id: process.env.STRIPE_PRICE_STARTER,
     price: 9,
-    features: ['1,000 notifications/month', '3 Google Chat webhooks', '10 custom notification rules', 'Advanced filtering', 'Email support'],
+    features: ['1,000 notifications/month', '3 webhooks', '10 rules', 'Value filtering', 'Email support'],
     limits: {
       notifications: 1000,
       webhooks: 3,
@@ -44,7 +44,7 @@ const PLAN_CONFIGS = {
     name: 'Professional',
     price_id: process.env.STRIPE_PRICE_PRO,
     price: 29,
-    features: ['10,000 notifications/month', 'Unlimited webhooks', 'Unlimited custom rules', 'Multi-channel routing', 'Stalled deal alerts', 'Custom message templates', 'Priority support'],
+    features: ['10,000 notifications/month', 'Unlimited webhooks', 'Unlimited rules', 'Channel routing', 'Stalled alerts', 'Custom templates', 'Priority support'],
     limits: {
       notifications: 10000,
       webhooks: 999,
@@ -56,7 +56,7 @@ const PLAN_CONFIGS = {
     name: 'Team',
     price_id: process.env.STRIPE_PRICE_TEAM,
     price: 79,
-    features: ['Unlimited notifications', 'Unlimited custom rules', 'Advanced filtering', 'Daily digest summaries', 'Team usage analytics', '1-year activity logs', 'Full API access', 'Dedicated account manager'],
+    features: ['Unlimited notifications', 'Multi-channel orchestration', 'Advanced filters', 'Daily summaries', 'Team metrics', '1-year logs', 'API access', 'Dedicated support'],
     limits: {
       notifications: 999999,
       webhooks: 999,
@@ -73,6 +73,7 @@ const PLAN_CONFIGS = {
  * @returns {Object} Stripe customer
  */
 async function getOrCreateCustomer(tenantId, customerData = {}) {
+  ensureStripeConfigured();
   ensureStripeConfigured();
   try {
     // Check if customer already exists

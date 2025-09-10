@@ -87,6 +87,18 @@ const PricingPage: React.FC<PricingPageProps> = ({
     return currentSubscription?.plan_tier || usage?.plan_tier || 'free';
   };
 
+  const formatLimit = (value: number, type: 'notifications' | 'webhooks' | 'rules') => {
+    if (value >= 999999) return 'Unlimited';
+    if (value >= 999) {
+      if (type === 'notifications') return 'Unlimited';
+      return 'Unlimited';
+    }
+    if (type === 'notifications' && value >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
+    }
+    return value.toString();
+  };
+
   const isPlanCurrent = (planTier: string) => {
     return getCurrentPlanTier() === planTier;
   };
@@ -210,16 +222,16 @@ const PricingPage: React.FC<PricingPageProps> = ({
             <div className="plan-features">
               <div className="feature-limits">
                 <div className="limit-item">
-                  <span className="limit-number">{plan.notifications_limit.toLocaleString()}</span>
-                  <span className="limit-label">notifications/month</span>
+                  <span className="limit-number">{formatLimit(plan.notifications_limit, 'notifications')}</span>
+                  <span className="limit-label">notifications</span>
                 </div>
                 <div className="limit-item">
-                  <span className="limit-number">{plan.webhooks_limit}</span>
-                  <span className="limit-label">Google Chat webhooks</span>
+                  <span className="limit-number">{formatLimit(plan.webhooks_limit, 'webhooks')}</span>
+                  <span className="limit-label">webhooks</span>
                 </div>
                 <div className="limit-item">
-                  <span className="limit-number">{plan.rules_limit}</span>
-                  <span className="limit-label">notification rules</span>
+                  <span className="limit-number">{formatLimit(plan.rules_limit, 'rules')}</span>
+                  <span className="limit-label">rules</span>
                 </div>
               </div>
 

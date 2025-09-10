@@ -111,9 +111,12 @@
 /* Plans Grid */
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
   margin-bottom: 4rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Plan Cards */
@@ -218,31 +221,36 @@
 }
 
 .feature-limits {
-  background: #f8fafc;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.75rem;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border: 1px solid #e2e8f0;
 }
 
 .limit-item {
   text-align: center;
+  flex: 1;
 }
 
 .limit-number {
   display: block;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #667eea;
+  margin-bottom: 0.25rem;
 }
 
 .limit-label {
   display: block;
-  font-size: 0.75rem;
-  color: #666;
-  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .feature-list {
@@ -447,7 +455,19 @@
   transform: translateY(-2px);
 }
 
-/* Responsive Design */
+/* Tablet Design */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .plans-grid {
+    max-width: 800px;
+    gap: 1.5rem;
+  }
+  
+  .plan-card {
+    padding: 1.5rem;
+  }
+}
+
+/* Mobile Design */
 @media (max-width: 768px) {
   .pricing-page {
     padding: 1rem;
@@ -468,7 +488,12 @@
   }
 
   .feature-limits {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .limit-item {
+    margin-bottom: 0.5rem;
   }
 
   .faq-grid {
