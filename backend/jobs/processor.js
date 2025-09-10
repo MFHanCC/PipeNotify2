@@ -51,11 +51,43 @@ const notificationWorker = new Worker('notification', async (job) => {
   }
 }, redisConfig);
 
+// Simple in-memory deduplication cache (for production, use Redis)
+const processedWebhooks = new Map();
+const DEDUP_TTL = 60000; // 1 minute TTL
+
+// Cleanup expired entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of processedWebhooks.entries()) {
+    if (now - timestamp > DEDUP_TTL) {
+      processedWebhooks.delete(key);
+    }
+  }
+}, 30000); // Clean every 30 seconds
+
 // Real notification processing function
 async function processNotification(webhookData) {
   const startTime = Date.now();
   
   try {
+    // Step 0: Deduplication check
+    const correlationId = webhookData.raw_meta?.correlation_id;
+    const entityId = webhookData.raw_meta?.entity_id;
+    const eventType = webhookData.event;
+    
+    if (correlationId && entityId) {
+      const dedupKey = `${correlationId}-${entityId}-${eventType}`;
+      
+      if (processedWebhooks.has(dedupKey)) {
+        console.log(`🔄 Duplicate webhook detected, skipping: ${dedupKey}`);
+        return { rulesMatched: 0, notificationsSent: 0, tenantId: null, skipped: true };
+      }
+      
+      // Mark as processed
+      processedWebhooks.set(dedupKey, Date.now());
+      console.log(`✅ Processing unique webhook: ${dedupKey}`);
+    }
+
     // Step 1: Identify tenant from webhook data
     const tenantId = await identifyTenant(webhookData);
     if (!tenantId) {
@@ -109,6 +141,7 @@ async function processNotification(webhookData) {
           await createLog(tenantId, {
             rule_id: rule.id,
             webhook_id: rule.target_webhook_id,
+            event_type: webhookData.event,
             payload: webhookData,
             formatted_message: notificationResult.message,
             status: 'success',
@@ -122,6 +155,7 @@ async function processNotification(webhookData) {
           await createLog(tenantId, {
             rule_id: rule.id,
             webhook_id: rule.target_webhook_id,
+            event_type: webhookData.event,
             payload: webhookData,
             formatted_message: notificationResult.message,
             status: 'failed',
@@ -139,6 +173,7 @@ async function processNotification(webhookData) {
         await createLog(tenantId, {
           rule_id: rule.id,
           webhook_id: rule.target_webhook_id,
+          event_type: webhookData.event,
           payload: webhookData,
           status: 'failed',
           error_message: error.message,

@@ -180,8 +180,8 @@ async function createWebhook(tenantId, webhookData) {
 async function createLog(tenantId, logData) {
   try {
     const query = `
-      INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, error_message, response_code, response_time_ms)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO logs (tenant_id, rule_id, webhook_id, event_type, payload, formatted_message, status, error_message, response_code, response_time_ms)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
     
@@ -189,6 +189,7 @@ async function createLog(tenantId, logData) {
       tenantId,
       logData.rule_id || null,
       logData.webhook_id || null,
+      logData.event_type || null,
       JSON.stringify(logData.payload || {}),
       JSON.stringify(logData.formatted_message || {}),
       logData.status,
