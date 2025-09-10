@@ -206,11 +206,83 @@ class ChatClient {
         break;
 
       case 'activity.create':
-        emoji = '📅';
-        message = `${emoji} *New Activity Created*\n📝 *${objectName}*`;
+        // Determine activity type for better emoji and messaging
+        const activityType = object?.type?.toLowerCase() || 'activity';
+        if (activityType.includes('call')) {
+          emoji = '📞';
+          message = `${emoji} *New Call Scheduled*\n📞 *${objectName}*`;
+        } else if (activityType.includes('meeting')) {
+          emoji = '🤝';
+          message = `${emoji} *New Meeting Scheduled*\n🤝 *${objectName}*`;
+        } else if (activityType.includes('email')) {
+          emoji = '📧';
+          message = `${emoji} *New Email Activity*\n📧 *${objectName}*`;
+        } else if (activityType.includes('task')) {
+          emoji = '✅';
+          message = `${emoji} *New Task Created*\n✅ *${objectName}*`;
+        } else {
+          emoji = '📅';
+          message = `${emoji} *New Activity Created*\n📝 *${objectName}*`;
+        }
+        
         if (object?.type) message += `\n📋 Type: ${object.type}`;
         if (object?.due_date) message += `\n📅 Due: ${object.due_date}`;
+        if (object?.due_time) message += ` at ${object.due_time}`;
+        if (object?.duration) message += `\n⏱️ Duration: ${object.duration}`;
         message += `\n👤 Created by: *${userName}*`;
+        break;
+
+      case 'activity.change':
+        const updatedActivityType = object?.type?.toLowerCase() || 'activity';
+        if (updatedActivityType.includes('call')) {
+          emoji = '📞';
+          message = `${emoji} *Call Updated*\n📞 *${objectName}*`;
+        } else if (updatedActivityType.includes('meeting')) {
+          emoji = '🤝';
+          message = `${emoji} *Meeting Updated*\n🤝 *${objectName}*`;
+        } else {
+          emoji = '📅';
+          message = `${emoji} *Activity Updated*\n📝 *${objectName}*`;
+        }
+        
+        if (object?.type) message += `\n📋 Type: ${object.type}`;
+        if (object?.done) message += `\n✅ Status: Completed`;
+        message += `\n👤 Updated by: *${userName}*`;
+        break;
+
+      case 'activity.delete':
+        emoji = '🗑️';
+        message = `${emoji} *Activity Deleted*\n📅 *${objectName}*`;
+        if (object?.type) message += `\n📋 Type: ${object.type}`;
+        message += `\n👤 Deleted by: *${userName}*`;
+        break;
+
+      case 'note.create':
+        emoji = '📔';
+        message = `${emoji} *New Note Added*\n📝 *${objectName || 'Note'}*`;
+        if (object?.content) message += `\n💬 Content: ${object.content.substring(0, 100)}${object.content.length > 100 ? '...' : ''}`;
+        message += `\n👤 Added by: *${userName}*`;
+        break;
+
+      case 'note.change':
+        emoji = '📔';
+        message = `${emoji} *Note Updated*\n📝 *${objectName || 'Note'}*`;
+        message += `\n👤 Updated by: *${userName}*`;
+        break;
+
+      case 'product.create':
+        emoji = '📦';
+        message = `${emoji} *New Product Added*\n📦 *${objectName}*`;
+        if (object?.code) message += `\n🏷️ Code: ${object.code}`;
+        if (object?.prices && object.prices[0]) message += `\n💰 Price: ${object.prices[0].currency || '$'}${object.prices[0].price}`;
+        message += `\n👤 Added by: *${userName}*`;
+        break;
+
+      case 'product.change':
+        emoji = '📦';
+        message = `${emoji} *Product Updated*\n📦 *${objectName}*`;
+        if (object?.code) message += `\n🏷️ Code: ${object.code}`;
+        message += `\n👤 Updated by: *${userName}*`;
         break;
 
       default:
