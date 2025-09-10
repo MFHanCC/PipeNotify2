@@ -135,6 +135,119 @@ router.post('/debug/fix-tenant-rules', async (req, res) => {
   }
 });
 
+// DEBUG ENDPOINT - Create missing rules and fix webhook assignment
+router.post('/debug/create-missing-rules', async (req, res) => {
+  try {
+    console.log('🔧 DEBUG: Creating missing rules for tenant 2...');
+    
+    // First, get the correct tenant (ID 2 with company_id 13887824)
+    const tenantsResult = await pool.query('SELECT id FROM tenants WHERE pipedrive_company_id = 13887824');
+    if (tenantsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant with company_id 13887824 not found' });
+    }
+    
+    const tenantId = tenantsResult.rows[0].id; // Should be 2
+    console.log(`📍 Target tenant ID: ${tenantId}`);
+    
+    // Move webhooks from tenant 1 to tenant 2
+    const moveWebhooksResult = await pool.query(
+      'UPDATE chat_webhooks SET tenant_id = $1 WHERE tenant_id = 1 RETURNING id, name, webhook_url',
+      [tenantId]
+    );
+    
+    console.log(`🔄 Moved ${moveWebhooksResult.rows.length} webhooks to tenant ${tenantId}`);
+    
+    // Get the first moved webhook to use for rules
+    if (moveWebhooksResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No webhooks found to associate with rules' });
+    }
+    
+    const webhook = moveWebhooksResult.rows[0];
+    console.log(`🎯 Using webhook: ${webhook.name} (ID: ${webhook.id})`);
+    
+    // Create essential notification rules
+    const rulesToCreate = [
+      {
+        name: `Deal Won → ${webhook.name}`,
+        event_type: 'deal.change',
+        filters: JSON.stringify({ status: ['won'] }),
+        target_webhook_id: webhook.id,
+        template_mode: 'simple',
+        enabled: true
+      },
+      {
+        name: `Deal Stage Changed → ${webhook.name}`,
+        event_type: 'deal.change', 
+        filters: JSON.stringify({}), // No filters = all deal changes
+        target_webhook_id: webhook.id,
+        template_mode: 'simple',
+        enabled: true
+      },
+      {
+        name: `New Deal Created → ${webhook.name}`,
+        event_type: 'deal.create',
+        filters: JSON.stringify({}),
+        target_webhook_id: webhook.id,
+        template_mode: 'simple', 
+        enabled: true
+      }
+    ];
+    
+    const createdRules = [];
+    for (const ruleData of rulesToCreate) {
+      const insertResult = await pool.query(
+        `INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          tenantId,
+          ruleData.name,
+          ruleData.event_type,
+          ruleData.filters,
+          ruleData.target_webhook_id,
+          ruleData.template_mode,
+          null, // custom_template
+          ruleData.enabled
+        ]
+      );
+      
+      createdRules.push(insertResult.rows[0]);
+      console.log(`✅ Created rule: ${ruleData.name}`);
+    }
+    
+    // Verify final state
+    const finalRulesResult = await pool.query('SELECT tenant_id, COUNT(*) as rule_count FROM rules GROUP BY tenant_id ORDER BY tenant_id');
+    const finalWebhooksResult = await pool.query('SELECT tenant_id, COUNT(*) as webhook_count FROM chat_webhooks GROUP BY tenant_id ORDER BY tenant_id');
+    
+    console.log('\n🔍 Final verification:');
+    console.log('Rules by tenant:', finalRulesResult.rows);
+    console.log('Webhooks by tenant:', finalWebhooksResult.rows);
+    
+    res.json({
+      message: 'Missing rules created and webhooks moved successfully',
+      tenantId: tenantId,
+      movedWebhooks: moveWebhooksResult.rows,
+      createdRules: createdRules.map(rule => ({
+        id: rule.id,
+        name: rule.name,
+        event_type: rule.event_type,
+        enabled: rule.enabled
+      })),
+      finalState: {
+        rulesByTenant: finalRulesResult.rows,
+        webhooksByTenant: finalWebhooksResult.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating missing rules:', error);
+    res.status(500).json({
+      error: 'Failed to create missing rules',
+      message: error.message
+    });
+  }
+});
+
 // Apply authentication to all other admin routes
 router.use(authenticateToken);
 
