@@ -3,7 +3,11 @@ const { redisConfig } = require('./queue');
 
 // Import services
 const { defaultChatClient } = require('../services/chatClient');
-const { getRulesForEvent, createLog, getTenantByPipedriveCompanyId } = require('../services/database');
+const { getRulesForEvent, createLog, getTenantByPipedriveCompanyId, getWebhooks } = require('../services/database');
+const { applyAdvancedFilters } = require('../services/ruleFilters');
+const { routeToChannel } = require('../services/channelRouter');
+const { checkNotificationQuota, trackNotificationUsage } = require('../middleware/quotaEnforcement');
+const { isQuietTime, queueDelayedNotification } = require('../services/quietHours');
 
 // Create BullMQ worker for processing notification jobs
 const notificationWorker = new Worker('notification', async (job) => {
@@ -95,6 +99,21 @@ async function processNotification(webhookData) {
       return { rulesMatched: 0, notificationsSent: 0, tenantId: null };
     }
 
+    // Step 1.5: Check notification quota before processing
+    const quotaCheck = await checkNotificationQuota(tenantId, 1);
+    if (!quotaCheck.within_quota) {
+      console.log(`🚫 Notification quota exceeded for tenant ${tenantId}: ${quotaCheck.current_usage}/${quotaCheck.limit}`);
+      return { 
+        rulesMatched: 0, 
+        notificationsSent: 0, 
+        tenantId, 
+        quotaExceeded: true,
+        planTier: quotaCheck.plan_tier 
+      };
+    }
+
+    console.log(`✅ Quota check passed: ${quotaCheck.current_usage}/${quotaCheck.limit} (${quotaCheck.usage_percentage}%)`);
+
     // Step 2: Find matching rules for this event  
     let rules = await getRulesForEvent(tenantId, webhookData.event);
     console.log(`📋 Found ${rules.length} rules for event: ${webhookData.event}`);
@@ -120,27 +139,74 @@ async function processNotification(webhookData) {
       return { rulesMatched: 0, notificationsSent: 0, tenantId };
     }
 
+    // Step 2.5: Get available webhooks for channel routing
+    const availableWebhooks = await getWebhooks(tenantId);
+    console.log(`🔗 Found ${availableWebhooks.length} active webhooks for channel routing`);
+
     // Step 3: Process each matching rule
     let notificationsSent = 0;
     
     for (const rule of rules) {
       try {
-        // Check if rule filters match the webhook data
-        if (!matchesFilters(webhookData, rule.filters)) {
-          console.log(`Rule ${rule.name} filters don't match, skipping`);
+        // Check if rule filters match the webhook data (advanced filtering)
+        if (!applyAdvancedFilters(webhookData, rule)) {
+          console.log(`Rule ${rule.name} advanced filters don't match, skipping`);
           continue;
         }
 
-        // Send notification to Google Chat
-        const notificationResult = await sendNotification(rule, webhookData);
+        // Use channel routing to determine the best webhook
+        const targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
+        
+        if (!targetWebhook) {
+          console.log(`No suitable webhook found for rule ${rule.name}, skipping`);
+          continue;
+        }
+
+        // Check quiet hours before sending
+        const quietCheck = await isQuietTime(tenantId);
+        if (quietCheck.is_quiet) {
+          console.log(`🔇 Notification delayed due to quiet hours: ${quietCheck.reason}`);
+          
+          // Queue for delayed delivery
+          const queueResult = await queueDelayedNotification(tenantId, {
+            webhook_url: targetWebhook.webhook_url,
+            webhook_data: webhookData,
+            template_mode: rule.template_mode || 'simple',
+            custom_template: rule.custom_template,
+            rule_id: rule.id,
+            rule_name: rule.name
+          });
+          
+          if (queueResult.queued) {
+            // Log queued notification
+            await createLog(tenantId, {
+              rule_id: rule.id,
+              webhook_id: targetWebhook.id,
+              event_type: webhookData.event,
+              payload: webhookData,
+              status: 'queued',
+              response_time_ms: Date.now() - startTime,
+              message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
+            });
+            
+            console.log(`📅 Notification queued for ${queueResult.scheduled_for} (delay: ${queueResult.delay_minutes}min)`);
+            continue; // Skip immediate sending
+          }
+        }
+
+        // Send notification to the routed Google Chat channel
+        const notificationResult = await sendNotification(rule, webhookData, targetWebhook);
         
         if (notificationResult.success) {
           notificationsSent++;
           
+          // Track usage for successful notification
+          await trackNotificationUsage(tenantId, 1);
+          
           // Log successful notification
           await createLog(tenantId, {
             rule_id: rule.id,
-            webhook_id: rule.target_webhook_id,
+            webhook_id: targetWebhook?.id || rule.target_webhook_id,
             event_type: webhookData.event,
             payload: webhookData,
             formatted_message: notificationResult.message,
@@ -154,7 +220,7 @@ async function processNotification(webhookData) {
           // Log failed notification
           await createLog(tenantId, {
             rule_id: rule.id,
-            webhook_id: rule.target_webhook_id,
+            webhook_id: targetWebhook?.id || rule.target_webhook_id,
             event_type: webhookData.event,
             payload: webhookData,
             formatted_message: notificationResult.message,
@@ -172,7 +238,7 @@ async function processNotification(webhookData) {
         // Log error
         await createLog(tenantId, {
           rule_id: rule.id,
-          webhook_id: rule.target_webhook_id,
+          webhook_id: targetWebhook?.id || rule.target_webhook_id,
           event_type: webhookData.event,
           payload: webhookData,
           status: 'failed',
@@ -285,10 +351,13 @@ function matchesFilters(webhookData, filters) {
 }
 
 // Helper function to send notification via Google Chat
-async function sendNotification(rule, webhookData) {
+async function sendNotification(rule, webhookData, targetWebhook = null) {
   try {
+    // Use target webhook URL if provided, otherwise fall back to rule's default
+    const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
+    
     const result = await defaultChatClient.sendNotification(
-      rule.webhook_url,
+      webhookUrl,
       webhookData,
       rule.template_mode,
       rule.custom_template

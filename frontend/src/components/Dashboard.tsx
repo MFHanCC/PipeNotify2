@@ -505,6 +505,18 @@ const Dashboard: React.FC = () => {
           >
             📋 Logs
           </button>
+          <button 
+            className="nav-tab"
+            onClick={() => window.location.href = '/billing'}
+          >
+            💳 Billing
+          </button>
+          <button 
+            className="nav-tab"
+            onClick={() => window.location.href = '/pricing'}
+          >
+            💎 Pricing
+          </button>
         </nav>
       </div>
       

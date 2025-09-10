@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getChatWebhooks, createChatWebhook, pool } = require('../services/database');
+const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 
 // JWT authentication middleware
 const authenticateToken = (req, res, next) => {

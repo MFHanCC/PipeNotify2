@@ -72,6 +72,10 @@ app.use(express.urlencoded({ extended: true }));
 const webhookRoutes = require('./routes/webhook');
 const adminRoutes = require('./routes/admin');
 const oauthRoutes = require('./routes/oauth');
+const monitoringRoutes = require('./routes/monitoring');
+const billingRoutes = require('./routes/billing');
+const settingsRoutes = require('./routes/settings');
+const templatesRoutes = require('./routes/templates');
 
 // Import job processor to start worker
 console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
@@ -87,10 +91,28 @@ try {
   });
 }
 
+// Start delayed notification processor (cron job)
+console.log('🔄 STARTING DELAYED NOTIFICATION PROCESSOR...');
+try {
+  require('./jobs/delayedNotificationProcessor');
+  console.log('✅ DELAYED NOTIFICATION PROCESSOR STARTED');
+} catch (cronError) {
+  console.error('❌ FAILED TO START DELAYED NOTIFICATION PROCESSOR:', cronError);
+  console.error('Cron error details:', {
+    message: cronError.message,
+    code: cronError.code,
+    stack: cronError.stack
+  });
+}
+
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
+app.use('/api/v1/monitoring', monitoringRoutes);
+app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/templates', templatesRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

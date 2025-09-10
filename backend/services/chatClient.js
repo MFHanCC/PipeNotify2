@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { processTemplate, getDefaultTemplate } = require('./templateEngine');
 
 /**
  * Google Chat webhook client for sending notifications
@@ -85,7 +86,7 @@ class ChatClient {
    * Send formatted notification based on template mode
    * @param {string} webhookUrl - Google Chat webhook URL  
    * @param {Object} webhookData - Original Pipedrive webhook data
-   * @param {string} templateMode - 'simple', 'detailed', or 'custom'
+   * @param {string} templateMode - 'simple', 'detailed', 'card', or 'custom'
    * @param {string} customTemplate - Custom template (if mode is 'custom')
    * @returns {Promise<Object>} Response from Google Chat
    */
@@ -96,6 +97,9 @@ class ChatClient {
       switch (templateMode) {
         case 'detailed':
           message = this.formatDetailedMessage(webhookData);
+          break;
+        case 'card':
+          message = this.formatCardMessage(webhookData);
           break;
         case 'custom':
           message = this.formatCustomMessage(webhookData, customTemplate);
@@ -491,36 +495,253 @@ class ChatClient {
   }
 
   /**
-   * Format custom message using template
+   * Format rich interactive card message from webhook data
+   * @private
+   */
+  formatCardMessage(webhookData) {
+    const { event, object, user, previous, company } = webhookData;
+    
+    // Determine card theme and actions based on event
+    let headerColor = '#4285f4'; // Default blue
+    let headerIcon = '🔔';
+    let actionButtons = [];
+    
+    if (event.includes('won')) {
+      headerColor = '#34a853'; // Green
+      headerIcon = '🎉';
+    } else if (event.includes('lost')) {
+      headerColor = '#ea4335'; // Red  
+      headerIcon = '😞';
+    } else if (event.includes('created') || event.includes('added')) {
+      headerColor = '#fbbc04'; // Yellow
+      headerIcon = '🆕';
+    } else if (event.includes('deleted')) {
+      headerColor = '#9aa0a6'; // Gray
+      headerIcon = '🗑️';
+    } else if (event.includes('change') || event.includes('update')) {
+      headerColor = '#4285f4'; // Blue
+      headerIcon = '📝';
+    }
+    
+    // Generate Pipedrive link if we have object ID
+    const objectId = object?.id;
+    const objectType = object?.type || 'item';
+    let pipedriveUrl = null;
+    
+    if (objectId && objectType) {
+      // Generate Pipedrive URL based on object type
+      const typeUrlMap = {
+        'deal': `https://app.pipedrive.com/pipeline/deal/${objectId}`,
+        'person': `https://app.pipedrive.com/person/${objectId}`,
+        'organization': `https://app.pipedrive.com/organization/${objectId}`,
+        'activity': `https://app.pipedrive.com/activities/calendar/${objectId}`
+      };
+      pipedriveUrl = typeUrlMap[objectType] || `https://app.pipedrive.com/`;
+    }
+    
+    // Add action buttons
+    if (pipedriveUrl) {
+      actionButtons.push({
+        textButton: {
+          text: `View ${objectType.charAt(0).toUpperCase() + objectType.slice(1)}`,
+          onClick: {
+            openLink: {
+              url: pipedriveUrl
+            }
+          }
+        }
+      });
+    }
+    
+    // Build main content sections
+    const sections = [];
+    
+    // Main information section
+    const mainWidgets = [];
+    
+    // Event info
+    mainWidgets.push({
+      keyValue: {
+        topLabel: 'Event',
+        content: `${headerIcon} ${event.replace(/\./g, ' ').toUpperCase()}`,
+        contentMultiline: false,
+        iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/notification_important/v1/24px.svg'
+      }
+    });
+    
+    // Object information
+    const objectName = object?.name || object?.title || `${objectType} #${objectId}`;
+    mainWidgets.push({
+      keyValue: {
+        topLabel: objectType.charAt(0).toUpperCase() + objectType.slice(1),
+        content: objectName,
+        contentMultiline: true,
+        iconUrl: this.getIconForObjectType(objectType)
+      }
+    });
+    
+    // Value information (for deals)
+    if (object?.value && object?.currency) {
+      const value = parseFloat(object.value);
+      const formattedValue = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: object.currency
+      }).format(value);
+      
+      mainWidgets.push({
+        keyValue: {
+          topLabel: 'Value',
+          content: formattedValue,
+          contentMultiline: false,
+          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/attach_money/v1/24px.svg'
+        }
+      });
+    }
+    
+    // Probability (for deals)
+    if (object?.probability !== undefined) {
+      mainWidgets.push({
+        keyValue: {
+          topLabel: 'Probability',
+          content: `${object.probability}%`,
+          contentMultiline: false,
+          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/trending_up/v1/24px.svg'
+        }
+      });
+    }
+    
+    // User information
+    if (user?.name) {
+      mainWidgets.push({
+        keyValue: {
+          topLabel: 'User',
+          content: user.name,
+          contentMultiline: false,
+          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/person/v1/24px.svg'
+        }
+      });
+    }
+    
+    sections.push({
+      widgets: mainWidgets
+    });
+    
+    // Changes section (for update events)
+    if (event.includes('change') && previous && object) {
+      const changes = this.detectChanges(previous, object);
+      if (changes.length > 0) {
+        const changeWidgets = changes.map(change => ({
+          keyValue: {
+            topLabel: change.field,
+            content: `${change.from} → ${change.to}`,
+            contentMultiline: false,
+            iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/compare_arrows/v1/24px.svg'
+          }
+        }));
+        
+        sections.push({
+          header: 'Changes',
+          widgets: changeWidgets
+        });
+      }
+    }
+    
+    // Action buttons section
+    if (actionButtons.length > 0) {
+      sections.push({
+        widgets: [{
+          buttons: actionButtons
+        }]
+      });
+    }
+    
+    // Timestamp footer
+    sections.push({
+      widgets: [{
+        keyValue: {
+          topLabel: 'Timestamp',
+          content: new Date().toLocaleString(),
+          contentMultiline: false,
+          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/schedule/v1/24px.svg'
+        }
+      }]
+    });
+    
+    const card = {
+      header: {
+        title: `${headerIcon} Pipedrive Notification`,
+        subtitle: company?.name || 'Pipeline Update',
+        imageUrl: 'https://cdn.pipedrive.com/assets/icons/pipedrivelogo_108.png'
+      },
+      sections
+    };
+    
+    return { cards: [card] };
+  }
+  
+  /**
+   * Get appropriate icon URL for object type
+   * @private
+   */
+  getIconForObjectType(objectType) {
+    const iconMap = {
+      'deal': 'https://fonts.gstatic.com/s/i/materialicons/handshake/v1/24px.svg',
+      'person': 'https://fonts.gstatic.com/s/i/materialicons/person/v1/24px.svg',
+      'organization': 'https://fonts.gstatic.com/s/i/materialicons/business/v1/24px.svg',
+      'activity': 'https://fonts.gstatic.com/s/i/materialicons/event/v1/24px.svg',
+      'note': 'https://fonts.gstatic.com/s/i/materialicons/note/v1/24px.svg',
+      'product': 'https://fonts.gstatic.com/s/i/materialicons/inventory/v1/24px.svg'
+    };
+    
+    return iconMap[objectType] || 'https://fonts.gstatic.com/s/i/materialicons/info/v1/24px.svg';
+  }
+  
+  /**
+   * Detect changes between previous and current object
+   * @private
+   */
+  detectChanges(previous, current) {
+    const changes = [];
+    const fieldsToCheck = ['value', 'stage_id', 'probability', 'status', 'title', 'name'];
+    
+    fieldsToCheck.forEach(field => {
+      if (previous[field] !== undefined && current[field] !== undefined) {
+        if (previous[field] !== current[field]) {
+          changes.push({
+            field: field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            from: String(previous[field]),
+            to: String(current[field])
+          });
+        }
+      }
+    });
+    
+    return changes;
+  }
+
+  /**
+   * Format custom message using template engine
    * @private
    */
   formatCustomMessage(webhookData, template) {
     if (!template) {
-      return this.formatSimpleMessage(webhookData);
+      // Use default template for the event type
+      template = getDefaultTemplate(webhookData.event);
     }
 
     try {
-      // Simple template variable replacement
-      let message = template;
-      const variables = {
-        '{{event}}': webhookData.event,
-        '{{object.type}}': webhookData.object?.type || '',
-        '{{object.name}}': webhookData.object?.name || webhookData.object?.title || '',
-        '{{object.id}}': webhookData.object?.id || '',
-        '{{object.value}}': webhookData.object?.value || '',
-        '{{object.currency}}': webhookData.object?.currency || '',
-        '{{user.name}}': webhookData.user?.name || '',
-        '{{user.email}}': webhookData.user?.email || '',
-        '{{company.name}}': webhookData.company?.name || '',
-        '{{timestamp}}': new Date().toLocaleString()
-      };
-
-      // Replace all template variables
-      Object.entries(variables).forEach(([key, value]) => {
-        message = message.replace(new RegExp(key, 'g'), value);
+      // Use the advanced template engine for variable substitution
+      const processedMessage = processTemplate(template, webhookData, {
+        format: 'text',
+        strictMode: false,
+        fallbackValues: {
+          'company.name': 'Pipedrive',
+          'user.name': 'Unknown User',
+          'event.timestamp': new Date().toLocaleString()
+        }
       });
 
-      return { text: message };
+      return { text: processedMessage };
     } catch (error) {
       console.error('Error formatting custom message:', error);
       return this.formatSimpleMessage(webhookData);

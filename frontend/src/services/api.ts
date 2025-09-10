@@ -47,6 +47,39 @@ interface DashboardStats {
   avgDeliveryTime: number;
 }
 
+interface PlanDetails {
+  tier: 'free' | 'starter' | 'pro' | 'team';
+  name: string;
+  price: number;
+  notifications_limit: number;
+  webhooks_limit: number;
+  rules_limit: number;
+  features: string[];
+}
+
+interface Subscription {
+  id: string;
+  tenant_id: number;
+  stripe_subscription_id: string;
+  plan_tier: string;
+  status: string;
+  current_period_start: string;
+  current_period_end: string;
+  cancel_at_period_end: boolean;
+  metadata: any;
+}
+
+interface UsageStats {
+  notifications_used: number;
+  notifications_limit: number;
+  usage_percentage: number;
+  webhooks_used: number;
+  webhooks_limit: number;
+  rules_used: number;
+  rules_limit: number;
+  plan_tier: string;
+}
+
 class ApiService {
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
@@ -322,6 +355,65 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  // Billing and subscription management
+  async getPlans(): Promise<PlanDetails[]> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/plans`, {
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getCurrentSubscription(): Promise<{ subscription: Subscription | null; usage: UsageStats }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/subscription`, {
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createCheckoutSession(planTier: string): Promise<{ checkout_url: string; session_id: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/create-checkout`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ plan_tier: planTier }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createPortalSession(): Promise<{ portal_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/create-portal`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async cancelSubscription(): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/cancel`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getUsageHistory(months: number = 6): Promise<Array<{
+    month: string;
+    notifications_used: number;
+    notifications_limit: number;
+    usage_percentage: number;
+  }>> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/usage-history?months=${months}`, {
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getFeatureAccess(): Promise<{ [featureName: string]: { has_access: boolean; plan_required: string } }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features`, {
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   // Error handling utility
   static isNetworkError(error: Error): boolean {
     return error.message.includes('Network error') || 
@@ -345,5 +437,8 @@ export type {
   NotificationRule,
   DeliveryLog,
   DashboardStats,
+  PlanDetails,
+  Subscription,
+  UsageStats,
   ApiResponse
 };
