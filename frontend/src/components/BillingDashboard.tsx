@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import apiService, { Subscription, UsageStats, PlanDetails } from '../services/api';
+import apiService, { Subscription, UsageStats } from '../services/api';
 import './BillingDashboard.css';
 
 interface BillingDashboardProps {
@@ -87,13 +87,6 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   const getPlanName = (tier: string) => {
     const planNames: { [key: string]: string } = {

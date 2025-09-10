@@ -325,18 +325,22 @@ async function runStalledDealMonitoring() {
   }
 }
 
-// Schedule stalled deal monitoring to run daily at 9 AM
-console.log('⏰ Scheduling stalled deal monitoring for 9 AM daily...');
-cron.schedule('0 9 * * *', async () => {
-  console.log('⏰ Running scheduled stalled deal monitoring...');
-  try {
-    await runStalledDealMonitoring();
-  } catch (error) {
-    console.error('Scheduled stalled deal monitoring failed:', error);
-  }
-}, {
-  timezone: 'UTC'
-});
+// Schedule stalled deal monitoring to run daily at 9 AM (skip in test environment)
+if (process.env.NODE_ENV !== 'test') {
+  console.log('⏰ Scheduling stalled deal monitoring for 9 AM daily...');
+  cron.schedule('0 9 * * *', async () => {
+    console.log('⏰ Running scheduled stalled deal monitoring...');
+    try {
+      await runStalledDealMonitoring();
+    } catch (error) {
+      console.error('Scheduled stalled deal monitoring failed:', error);
+    }
+  }, {
+    timezone: 'UTC'
+  });
+} else {
+  console.log('⏸️ Skipping cron job scheduling in test environment');
+}
 
 // Also create a BullMQ worker for manual triggering
 const stalledDealWorker = new Worker('stalled-deals', async (job) => {
