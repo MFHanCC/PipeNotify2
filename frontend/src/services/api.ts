@@ -360,7 +360,7 @@ class ApiService {
     const response = await fetch(`${API_BASE_URL}/api/v1/billing/plans`, {
       headers: this.getAuthHeaders(),
     });
-    const data = await this.handleResponse(response);
+    const data = await this.handleResponse(response) as any;
     
     // Convert plans object to array format expected by frontend
     if (data.plans) {
