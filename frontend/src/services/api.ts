@@ -365,7 +365,7 @@ class ApiService {
     // Convert plans object to array format expected by frontend
     if (data.plans) {
       return Object.entries(data.plans).map(([tier, plan]: [string, any]) => ({
-        tier,
+        tier: tier as 'free' | 'starter' | 'pro' | 'team',
         name: plan.name,
         price: plan.price || 0,
         price_id: plan.price_id,
