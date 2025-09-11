@@ -420,6 +420,58 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
   }
 });
 
+// Fix tenant rules endpoint - no auth required for system fix
+router.post('/system/fix-tenant-rules', async (req, res) => {
+  try {
+    console.log('🔧 Fixing tenant rules via API...');
+    
+    // Check current rules
+    const currentRules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, id');
+    console.log('📋 Current rules:', currentRules.rows.map(r => `Tenant ${r.tenant_id}: ${r.name} (${r.event_type})`));
+    
+    // Check current webhooks
+    const currentWebhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id, id');
+    console.log('🔗 Current webhooks:', currentWebhooks.rows.map(w => `Tenant ${w.tenant_id}: ${w.name}`));
+    
+    // Move rules from tenant 1 to tenant 2
+    const moveRulesResult = await pool.query(
+      'UPDATE rules SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
+    );
+    
+    // Move webhooks from tenant 1 to tenant 2  
+    const moveWebhooksResult = await pool.query(
+      'UPDATE chat_webhooks SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
+    );
+    
+    // Show final state
+    const finalRules = await pool.query('SELECT * FROM rules WHERE tenant_id = 2');
+    const finalWebhooks = await pool.query('SELECT * FROM chat_webhooks WHERE tenant_id = 2');
+    
+    console.log(`✅ Moved ${moveRulesResult.rows.length} rules and ${moveWebhooksResult.rows.length} webhooks to tenant 2`);
+    
+    res.json({
+      success: true,
+      message: 'Tenant rules fixed successfully',
+      moved: {
+        rules: moveRulesResult.rows.length,
+        webhooks: moveWebhooksResult.rows.length
+      },
+      final_state: {
+        rules: finalRules.rows.map(r => ({ id: r.id, name: r.name, event_type: r.event_type })),
+        webhooks: finalWebhooks.rows.map(w => ({ id: w.id, name: w.name }))
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fixing tenant rules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix tenant rules',
+      message: error.message
+    });
+  }
+});
+
 // Apply authentication to all other admin routes
 router.use(authenticateToken);
 
@@ -681,58 +733,6 @@ router.post('/rules/:id/test', async (req, res) => {
     console.error('Error sending test notification:', error);
     res.status(500).json({
       error: 'Failed to send test notification',
-      message: error.message
-    });
-  }
-});
-
-// Fix tenant rules endpoint - move rules from tenant 1 to correct tenant
-router.post('/system/fix-tenant-rules', async (req, res) => {
-  try {
-    console.log('🔧 Fixing tenant rules via API...');
-    
-    // Check current rules
-    const currentRules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, id');
-    console.log('📋 Current rules:', currentRules.rows.map(r => `Tenant ${r.tenant_id}: ${r.name} (${r.event_type})`));
-    
-    // Check current webhooks
-    const currentWebhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id, id');
-    console.log('🔗 Current webhooks:', currentWebhooks.rows.map(w => `Tenant ${w.tenant_id}: ${w.name}`));
-    
-    // Move rules from tenant 1 to tenant 2
-    const moveRulesResult = await pool.query(
-      'UPDATE rules SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
-    );
-    
-    // Move webhooks from tenant 1 to tenant 2  
-    const moveWebhooksResult = await pool.query(
-      'UPDATE chat_webhooks SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
-    );
-    
-    // Show final state
-    const finalRules = await pool.query('SELECT * FROM rules WHERE tenant_id = 2');
-    const finalWebhooks = await pool.query('SELECT * FROM chat_webhooks WHERE tenant_id = 2');
-    
-    console.log(`✅ Moved ${moveRulesResult.rows.length} rules and ${moveWebhooksResult.rows.length} webhooks to tenant 2`);
-    
-    res.json({
-      success: true,
-      message: 'Tenant rules fixed successfully',
-      moved: {
-        rules: moveRulesResult.rows.length,
-        webhooks: moveWebhooksResult.rows.length
-      },
-      final_state: {
-        rules: finalRules.rows.map(r => ({ id: r.id, name: r.name, event_type: r.event_type })),
-        webhooks: finalWebhooks.rows.map(w => ({ id: w.id, name: w.name }))
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Error fixing tenant rules:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fix tenant rules',
       message: error.message
     });
   }
