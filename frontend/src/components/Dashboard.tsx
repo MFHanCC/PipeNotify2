@@ -185,10 +185,13 @@ const Dashboard: React.FC = () => {
       const webhooksResponse = await fetch(`${apiUrl}/api/v1/admin/webhooks`, { headers });
       if (webhooksResponse.ok) {
         const webhooksData = await webhooksResponse.json();
+        console.log('🔗 Webhooks response:', webhooksData);
         setAvailableWebhooks((webhooksData.webhooks || []).map((webhook: any) => ({
           id: webhook.id.toString(),
           name: webhook.name || webhook.url || 'Unnamed Webhook',
         })));
+      } else {
+        console.error('❌ Failed to load webhooks:', webhooksResponse.status, await webhooksResponse.text());
       }
 
     } catch (err) {
@@ -791,7 +794,7 @@ const Dashboard: React.FC = () => {
                   className="form-select"
                 >
                   {availableWebhooks.length === 0 ? (
-                    <option value="">No webhooks available</option>
+                    <option value="">No webhooks available - go through onboarding first</option>
                   ) : (
                     availableWebhooks.map(webhook => (
                       <option key={webhook.id} value={webhook.id}>
@@ -800,6 +803,21 @@ const Dashboard: React.FC = () => {
                     ))
                   )}
                 </select>
+                {availableWebhooks.length === 0 && (
+                  <div className="form-help">
+                    <p style={{fontSize: '12px', color: '#6b7280', marginTop: '4px'}}>
+                      No Google Chat webhooks found. Complete onboarding first to set up your Google Chat integration.
+                    </p>
+                    <button 
+                      type="button"
+                      onClick={() => window.location.href = '/onboarding'} 
+                      className="button-secondary"
+                      style={{marginTop: '8px', fontSize: '12px', padding: '6px 12px'}}
+                    >
+                      Go to Onboarding
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
