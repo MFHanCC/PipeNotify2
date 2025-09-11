@@ -230,6 +230,25 @@ app.post('/api/v1/integration/activate', async (req, res) => {
   try {
     const { webhooks, templates, rules } = req.body;
     
+    // Get tenant ID from JWT token
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+    
+    let tenantId = 1; // fallback
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.tenantId) {
+        tenantId = decoded.tenantId;
+        console.log(`🔑 Using tenant ID ${tenantId} from JWT token`);
+      }
+    } catch (jwtError) {
+      console.warn('⚠️ Could not decode JWT, using fallback tenant ID 1');
+    }
+    
     // Validate required data
     if (!webhooks || !templates || !rules || webhooks.length === 0 || templates.length === 0 || rules.length === 0) {
       return res.status(400).json({
@@ -251,8 +270,7 @@ app.post('/api/v1/integration/activate', async (req, res) => {
     const { createWebhook, createRule } = require('./services/database');
     const axios = require('axios');
     
-    // Use tenant ID 1 for now (in production this would come from OAuth)
-    const tenantId = 1;
+    // tenantId is now set above from JWT token
     const savedWebhooks = [];
     const savedRules = [];
 
@@ -280,9 +298,24 @@ app.post('/api/v1/integration/activate', async (req, res) => {
         const webhook = savedWebhooks.find(w => w.id === rule.webhookId || w.name.includes(rule.webhookId));
         
         if (template && webhook) {
+          // Map template IDs to correct event types
+          let eventType = 'deal.updated'; // default
+          if (template.id.includes('won')) eventType = 'deal.won';
+          else if (template.id.includes('lost')) eventType = 'deal.lost';
+          else if (template.id.includes('added') || template.id.includes('created')) eventType = 'deal.added';
+          else if (template.id.includes('updated') || template.id.includes('change')) eventType = 'deal.updated';
+          else if (template.id.includes('stage')) eventType = 'deal.updated';
+          
+          // For broader matching, also match deal.change events
+          if (eventType === 'deal.updated') {
+            eventType = 'deal.change'; // This matches what the webhook processor creates
+          }
+          
+          console.log(`🎯 Creating rule for template "${template.name}" with event type: ${eventType}`);
+          
           const savedRule = await createRule(tenantId, {
             name: `${template.name} → ${webhook.name}`,
-            event_type: 'deal.*', // Match all deal events for now
+            event_type: eventType,
             filters: rule.filters || {},
             target_webhook_id: webhook.id,
             template_mode: template.mode || 'simple',
