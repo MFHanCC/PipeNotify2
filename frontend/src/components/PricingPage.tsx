@@ -295,18 +295,15 @@ const PricingPage: React.FC<PricingPageProps> = ({
             </div>
 
             <div className="plan-features">
-              <div className="key-features">
-                <div className="feature-highlight">
-                  <span className="feature-number">{formatLimit(plan.notifications_limit, 'notifications')}</span>
-                  <span className="feature-text">notifications per month</span>
+              <div className="key-limits">
+                <div className="limit-item">
+                  <strong>{formatLimit(plan.notifications_limit, 'notifications')}</strong> notifications/month
                 </div>
-                <div className="feature-highlight">
-                  <span className="feature-number">{formatLimit(plan.webhooks_limit, 'webhooks')}</span>
-                  <span className="feature-text">Google Chat webhooks</span>
+                <div className="limit-item">
+                  <strong>{formatLimit(plan.webhooks_limit, 'webhooks')}</strong> webhooks
                 </div>
-                <div className="feature-highlight">
-                  <span className="feature-number">{formatLimit(plan.rules_limit, 'rules')}</span>
-                  <span className="feature-text">custom notification rules</span>
+                <div className="limit-item">
+                  <strong>{formatLimit(plan.rules_limit, 'rules')}</strong> custom rules
                 </div>
               </div>
 
