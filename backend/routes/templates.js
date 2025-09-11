@@ -384,6 +384,106 @@ router.put('/presets/:tenantId/:presetId', requireFeature('custom_templates'), a
 });
 
 /**
+ * GET /api/v1/templates/:templateId/preview
+ * Get template preview with sample data
+ */
+router.get('/:templateId/preview', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const { mode = 'compact' } = req.query;
+    
+    // Get default template for the event type
+    const { getDefaultTemplate, processTemplate } = require('../services/templateEngine');
+    
+    const template = getDefaultTemplate(templateId);
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found'
+      });
+    }
+    
+    // Create sample data based on template type
+    let sampleData = {
+      event: templateId,
+      user: {
+        name: 'John Doe',
+        email: 'john@company.com'
+      },
+      company: {
+        name: 'Sample Company'
+      },
+      company_domain: 'sample-company',
+      company_id: 123
+    };
+    
+    if (templateId.includes('deal')) {
+      sampleData.object = {
+        id: 12345,
+        title: 'Sample Enterprise Deal',
+        value: 50000,
+        currency: 'USD',
+        stage_name: 'Negotiation',
+        status: 'open',
+        probability: 75,
+        expected_close_date: '2025-02-15',
+        owner_name: 'John Doe',
+        add_time: '2024-12-01T10:00:00Z',
+        stage_change_time: '2024-12-10T14:30:00Z'
+      };
+    } else if (templateId.includes('person')) {
+      sampleData.object = {
+        id: 67890,
+        name: 'Jane Smith',
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email: [{ value: 'jane@example.com' }],
+        phone: [{ value: '+1-555-0123' }],
+        org_name: 'Acme Corporation',
+        job_title: 'Marketing Director',
+        owner_name: 'John Doe'
+      };
+    } else if (templateId.includes('activity')) {
+      sampleData.object = {
+        id: 11111,
+        subject: 'Follow-up Call',
+        type: 'call',
+        due_date: '2025-01-20',
+        due_time: '14:30',
+        duration: 30,
+        note: 'Discuss pricing and next steps',
+        owner_name: 'John Doe'
+      };
+    }
+    
+    // Process the template with sample data
+    const preview = processTemplate(template, sampleData, {
+      format: mode === 'detailed' ? 'markdown' : 'text',
+      fallbackValues: {
+        'company.name': 'Sample Company',
+        'user.name': 'John Doe',
+        'event.timestamp': new Date().toLocaleString()
+      }
+    });
+    
+    res.json({
+      success: true,
+      preview,
+      sampleData,
+      template_content: template,
+      mode
+    });
+    
+  } catch (error) {
+    console.error('Error generating template preview:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate template preview'
+    });
+  }
+});
+
+/**
  * DELETE /api/v1/templates/presets/:tenantId/:presetId
  * Delete a template preset
  */
