@@ -1,95 +1,61 @@
 #!/usr/bin/env node
 
-// Fix tenant/rules mismatch - move rules from tenant 1 to tenant 2
-// This addresses the issue where onboarding created rules for tenant 1
-// but webhooks are processed for tenant 2
-
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 
-    `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('../services/database');
 
 async function fixTenantRules() {
   try {
-    console.log('🔍 Checking current tenant and rules state...');
+    console.log('🔧 Fixing tenant rules...');
     
-    // Check tenants
-    const tenantsResult = await pool.query('SELECT id, company_name, pipedrive_user_id, pipedrive_company_id FROM tenants ORDER BY id');
-    console.log('\n📋 Current tenants:');
-    tenantsResult.rows.forEach(tenant => {
-      console.log(`  ID: ${tenant.id}, Company: ${tenant.company_name}, User ID: ${tenant.pipedrive_user_id}, Company ID: ${tenant.pipedrive_company_id}`);
+    // Check current rules
+    const currentRules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, id');
+    console.log('📋 Current rules:');
+    currentRules.rows.forEach(rule => {
+      console.log(`  - Tenant ${rule.tenant_id}: Rule ${rule.id} - ${rule.name} (${rule.event_type})`);
     });
     
-    // Check rules distribution
-    const rulesResult = await pool.query('SELECT tenant_id, COUNT(*) as rule_count FROM rules GROUP BY tenant_id ORDER BY tenant_id');
-    console.log('\n📊 Rules by tenant:');
-    rulesResult.rows.forEach(row => {
-      console.log(`  Tenant ${row.tenant_id}: ${row.rule_count} rules`);
+    // Check current webhooks
+    const currentWebhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id, id');
+    console.log('🔗 Current webhooks:');
+    currentWebhooks.rows.forEach(webhook => {
+      console.log(`  - Tenant ${webhook.tenant_id}: Webhook ${webhook.id} - ${webhook.name}`);
     });
     
-    // Check webhooks distribution  
-    const webhooksResult = await pool.query('SELECT tenant_id, COUNT(*) as webhook_count FROM chat_webhooks GROUP BY tenant_id ORDER BY tenant_id');
-    console.log('\n🔗 Webhooks by tenant:');
-    webhooksResult.rows.forEach(row => {
-      console.log(`  Tenant ${row.tenant_id}: ${row.webhook_count} webhooks`);
-    });
+    // Move rules from tenant 1 to tenant 2
+    const moveRulesResult = await pool.query(
+      'UPDATE rules SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
+    );
     
-    // Find the correct tenant (the one with pipedrive_company_id = 13887824)
-    const correctTenant = tenantsResult.rows.find(t => t.pipedrive_company_id == 13887824);
-    if (!correctTenant) {
-      console.log('❌ Could not find tenant with company_id 13887824');
-      return;
-    }
-    
-    console.log(`\n🎯 Correct tenant for company_id 13887824 is: ${correctTenant.id}`);
-    
-    // Check if there are rules in tenant 1 that need to be moved
-    const tenant1Rules = await pool.query('SELECT COUNT(*) FROM rules WHERE tenant_id = 1');
-    const correctTenantRules = await pool.query('SELECT COUNT(*) FROM rules WHERE tenant_id = $1', [correctTenant.id]);
-    
-    console.log(`\nRules in tenant 1: ${tenant1Rules.rows[0].count}`);
-    console.log(`Rules in tenant ${correctTenant.id}: ${correctTenantRules.rows[0].count}`);
-    
-    if (tenant1Rules.rows[0].count > 0 && correctTenantRules.rows[0].count == 0) {
-      console.log('\n🔄 Moving rules from tenant 1 to tenant', correctTenant.id);
-      
-      // Move rules
-      const updateRulesResult = await pool.query(
-        'UPDATE rules SET tenant_id = $1 WHERE tenant_id = 1 RETURNING id, name',
-        [correctTenant.id]
-      );
-      
-      console.log(`✅ Moved ${updateRulesResult.rows.length} rules:`);
-      updateRulesResult.rows.forEach(rule => {
-        console.log(`  - Rule ${rule.id}: ${rule.name}`);
+    if (moveRulesResult.rows.length > 0) {
+      console.log(`✅ Moved ${moveRulesResult.rows.length} rules to tenant 2:`);
+      moveRulesResult.rows.forEach(rule => {
+        console.log(`  - Rule ${rule.id}: ${rule.name} (${rule.event_type})`);
       });
-      
-      // Also move webhooks if needed
-      const tenant1Webhooks = await pool.query('SELECT COUNT(*) FROM chat_webhooks WHERE tenant_id = 1');
-      if (tenant1Webhooks.rows[0].count > 0) {
-        const updateWebhooksResult = await pool.query(
-          'UPDATE chat_webhooks SET tenant_id = $1 WHERE tenant_id = 1 RETURNING id, name',
-          [correctTenant.id]
-        );
-        
-        console.log(`✅ Moved ${updateWebhooksResult.rows.length} webhooks:`);
-        updateWebhooksResult.rows.forEach(webhook => {
-          console.log(`  - Webhook ${webhook.id}: ${webhook.name}`);
-        });
-      }
     } else {
-      console.log('\n✅ No rules need to be moved');
+      console.log('ℹ️ No rules to move from tenant 1 to tenant 2');
     }
     
-    // Final verification
-    console.log('\n🔍 Final verification:');
-    const finalRulesResult = await pool.query('SELECT tenant_id, COUNT(*) as rule_count FROM rules GROUP BY tenant_id ORDER BY tenant_id');
-    finalRulesResult.rows.forEach(row => {
-      console.log(`  Tenant ${row.tenant_id}: ${row.rule_count} rules`);
+    // Move webhooks from tenant 1 to tenant 2
+    const moveWebhooksResult = await pool.query(
+      'UPDATE chat_webhooks SET tenant_id = 2 WHERE tenant_id = 1 RETURNING *'
+    );
+    
+    if (moveWebhooksResult.rows.length > 0) {
+      console.log(`✅ Moved ${moveWebhooksResult.rows.length} webhooks to tenant 2:`);
+      moveWebhooksResult.rows.forEach(webhook => {
+        console.log(`  - Webhook ${webhook.id}: ${webhook.name}`);
+      });
+    } else {
+      console.log('ℹ️ No webhooks to move from tenant 1 to tenant 2');
+    }
+    
+    // Show final state
+    const finalRules = await pool.query('SELECT * FROM rules WHERE tenant_id = 2');
+    console.log(`\n🎯 Final state: ${finalRules.rows.length} rules for tenant 2:`);
+    finalRules.rows.forEach(rule => {
+      console.log(`  - ${rule.name} (${rule.event_type}) → webhook ${rule.target_webhook_id}`);
     });
+    
+    console.log('\n✅ Tenant rules fixed! Try creating a deal in Pipedrive now.');
     
   } catch (error) {
     console.error('❌ Error fixing tenant rules:', error);
@@ -98,4 +64,8 @@ async function fixTenantRules() {
   }
 }
 
-fixTenantRules();
+if (require.main === module) {
+  fixTenantRules();
+}
+
+module.exports = { fixTenantRules };
