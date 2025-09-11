@@ -2,6 +2,33 @@ import React, { useState, useEffect } from 'react';
 import apiService, { PlanDetails, Subscription, UsageStats } from '../services/api';
 import './PricingPage.css';
 
+interface PricingToggleProps {
+  billingCycle: 'monthly' | 'annual';
+  onToggle: (cycle: 'monthly' | 'annual') => void;
+}
+
+const PricingToggle: React.FC<PricingToggleProps> = ({ billingCycle, onToggle }) => {
+  return (
+    <div className="pricing-toggle">
+      <div className="toggle-container">
+        <button 
+          className={`toggle-option ${billingCycle === 'monthly' ? 'active' : ''}`}
+          onClick={() => onToggle('monthly')}
+        >
+          Monthly
+        </button>
+        <button 
+          className={`toggle-option ${billingCycle === 'annual' ? 'active' : ''}`}
+          onClick={() => onToggle('annual')}
+        >
+          Annual
+          <span className="savings-badge">Save 20%</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface PricingPageProps {
   onPlanSelect?: (planTier: string) => void;
   currentSubscription?: Subscription | null;
@@ -18,6 +45,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageStats | null>(null);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
   useEffect(() => {
     loadPricingData();
@@ -76,11 +104,23 @@ const PricingPage: React.FC<PricingPageProps> = ({
   };
 
   const formatPrice = (price: number) => {
+    const adjustedPrice = billingCycle === 'annual' ? price * 0.8 * 12 : price;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0
-    }).format(price);
+    }).format(adjustedPrice);
+  };
+
+  const getOriginalPrice = (price: number) => {
+    if (billingCycle === 'annual' && price > 0) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0
+      }).format(price * 12);
+    }
+    return null;
   };
 
   const getCurrentPlanTier = () => {
@@ -160,8 +200,29 @@ const PricingPage: React.FC<PricingPageProps> = ({
     <div className="pricing-page">
       {showHeader && (
         <div className="pricing-header">
-          <h1>Choose Your Plan</h1>
-          <p>Select the perfect plan for your notification needs</p>
+          <div className="hero-section">
+            <h1>Transform Your Pipedrive Notifications</h1>
+            <p className="hero-subtitle">Streamline deal updates with intelligent Google Chat integration</p>
+            <div className="hero-features">
+              <div className="hero-feature">
+                <span className="feature-icon">⚡</span>
+                <span>Real-time Alerts</span>
+              </div>
+              <div className="hero-feature">
+                <span className="feature-icon">🎯</span>
+                <span>Smart Filtering</span>
+              </div>
+              <div className="hero-feature">
+                <span className="feature-icon">🔄</span>
+                <span>Multi-channel Routing</span>
+              </div>
+            </div>
+          </div>
+          
+          <PricingToggle 
+            billingCycle={billingCycle} 
+            onToggle={setBillingCycle} 
+          />
           
           {usage && usage.notifications_used > 0 && (
             <div className="current-usage">
@@ -208,8 +269,22 @@ const PricingPage: React.FC<PricingPageProps> = ({
             <div className="plan-header">
               <h3 className="plan-name">{plan.name}</h3>
               <div className="plan-price">
+                {getOriginalPrice(plan.price) && (
+                  <span className="original-price">{getOriginalPrice(plan.price)}</span>
+                )}
                 <span className="price">{formatPrice(plan.price)}</span>
-                {plan.price > 0 && <span className="period">/month</span>}
+                {plan.price > 0 && (
+                  <span className="period">/{billingCycle === 'annual' ? 'year' : 'month'}</span>
+                )}
+                {billingCycle === 'annual' && plan.price > 0 && (
+                  <div className="savings-indicator">
+                    Save {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                      minimumFractionDigits: 0
+                    }).format(plan.price * 12 * 0.2)} annually
+                  </div>
+                )}
               </div>
               <p className="plan-description">
                 {plan.tier === 'free' && 'Perfect for trying out Pipenotify'}
@@ -284,6 +359,32 @@ const PricingPage: React.FC<PricingPageProps> = ({
             <div className="faq-item">
               <h4>Is there a setup fee?</h4>
               <p>No setup fees. All plans include free onboarding and setup assistance.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="trust-section">
+          <div className="trust-badges">
+            <div className="trust-badge">
+              <span className="trust-icon">🔒</span>
+              <div className="trust-content">
+                <h4>Enterprise Security</h4>
+                <p>SOC 2 compliant</p>
+              </div>
+            </div>
+            <div className="trust-badge">
+              <span className="trust-icon">💯</span>
+              <div className="trust-content">
+                <h4>30-Day Guarantee</h4>
+                <p>Full money back</p>
+              </div>
+            </div>
+            <div className="trust-badge">
+              <span className="trust-icon">⚡</span>
+              <div className="trust-content">
+                <h4>99.9% Uptime</h4>
+                <p>Reliable delivery</p>
+              </div>
             </div>
           </div>
         </div>
