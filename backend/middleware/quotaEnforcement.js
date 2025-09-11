@@ -56,6 +56,22 @@ async function trackNotificationUsage(tenantId, count = 1) {
  */
 async function checkNotificationQuota(tenantId, requestedCount = 1) {
   try {
+    // Skip quota enforcement if Stripe is not configured (development mode)
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.log(`⚠️ Quota enforcement skipped for tenant ${tenantId} - Stripe not configured`);
+      return {
+        tenant_id: tenantId,
+        plan_tier: 'free',
+        current_usage: 0,
+        requested: requestedCount,
+        limit: 10000, // Allow high limit for development
+        remaining: 10000,
+        would_exceed: false,
+        allowed: true,
+        reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      };
+    }
+
     const subscription = await getSubscription(tenantId);
     const currentCount = subscription.monthly_notification_count || 0;
     const limit = subscription.plan_config.limits.notifications;
