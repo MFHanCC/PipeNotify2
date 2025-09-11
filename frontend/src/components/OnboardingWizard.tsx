@@ -41,6 +41,7 @@ const OnboardingWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [integrationComplete, setIntegrationComplete] = useState(false);
 
   // OAuth and connection state
   const [pipedriveConnected, setPipedriveConnected] = useState(false);
@@ -162,6 +163,8 @@ const OnboardingWizard: React.FC = () => {
 
       const data = await response.json();
       setOauthToken(data.token);
+      // Store token for Dashboard and other components to use
+      localStorage.setItem('auth_token', data.token);
       setPipedriveConnected(true);
       setPipedriveCompany(data.user.company);
       
@@ -376,8 +379,8 @@ const OnboardingWizard: React.FC = () => {
         throw new Error('Failed to activate integration');
       }
 
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      // Integration activated successfully - don't auto-redirect
+      setIntegrationComplete(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Activation failed');
     } finally {
@@ -657,7 +660,7 @@ const OnboardingWizard: React.FC = () => {
                 ))}
               </div>
               
-              {Object.values(testResults).every(status => status === 'success') && (
+              {Object.values(testResults).every(status => status === 'success') && !integrationComplete && (
                 <div className="activation-section">
                   <h3>Ready to Activate!</h3>
                   <p>All tests passed. Click below to activate your integration.</p>
@@ -668,6 +671,39 @@ const OnboardingWizard: React.FC = () => {
                   >
                     {isLoading ? 'Activating...' : 'Activate Integration'}
                   </button>
+                </div>
+              )}
+
+              {integrationComplete && (
+                <div className="completion-section">
+                  <div className="success-icon">🎉</div>
+                  <h3>Integration Activated Successfully!</h3>
+                  <p>Your Pipedrive → Google Chat integration is now live. Choose where to go next:</p>
+                  
+                  <div className="completion-buttons">
+                    <button 
+                      className="completion-button primary"
+                      onClick={() => window.location.href = '/dashboard'}
+                    >
+                      📊 View Integration Dashboard
+                    </button>
+                    
+                    <button 
+                      className="completion-button secondary"
+                      onClick={() => window.open('https://app.pipedrive.com', '_blank')}
+                    >
+                      🔗 Go to Pipedrive
+                    </button>
+                  </div>
+
+                  <div className="next-steps">
+                    <h4>What's Next?</h4>
+                    <ul>
+                      <li>Create deals in Pipedrive to test notifications</li>
+                      <li>Monitor delivery logs in the dashboard</li>
+                      <li>Adjust rules and templates as needed</li>
+                    </ul>
+                  </div>
                 </div>
               )}
             </div>

@@ -483,6 +483,35 @@ app.post('/api/v1/test/set-chat-webhook', (req, res) => {
   }
 });
 
+// Development: Create tenant record
+app.post('/api/v1/dev/create-tenant', async (req, res) => {
+  try {
+    const { company_name, pipedrive_company_id, pipedrive_user_id } = req.body;
+    
+    console.log('🔧 DEV: Creating tenant record', { company_name, pipedrive_company_id, pipedrive_user_id });
+    
+    const { pool } = require('./services/database');
+    const result = await pool.query(
+      'INSERT INTO tenants (company_name, pipedrive_company_id, pipedrive_user_id, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [company_name, pipedrive_company_id, pipedrive_user_id]
+    );
+    
+    console.log('✅ DEV: Tenant created successfully', result.rows[0]);
+    
+    res.json({
+      success: true,
+      tenant: result.rows[0],
+      message: 'Tenant created successfully'
+    });
+  } catch (error) {
+    console.error('❌ DEV: Failed to create tenant:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Manual webhook registration endpoint
 app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
   try {

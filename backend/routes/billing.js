@@ -491,4 +491,44 @@ router.get('/limits/:tenantId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/billing/usage-history
+ * Get usage history for the past N months
+ */
+router.get('/usage-history', async (req, res) => {
+  try {
+    const months = parseInt(req.query.months) || 6;
+    
+    // For now, return mock data since we don't have historical tracking
+    // In production, this would query historical usage data
+    const mockHistory = [];
+    const currentDate = new Date();
+    
+    for (let i = months - 1; i >= 0; i--) {
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      
+      // Mock usage data - in real implementation this would come from database
+      const usageData = {
+        month: monthName,
+        notifications_used: Math.floor(Math.random() * 80) + 10, // 10-90 notifications
+        notifications_limit: 100,
+        usage_percentage: 0
+      };
+      
+      usageData.usage_percentage = (usageData.notifications_used / usageData.notifications_limit) * 100;
+      mockHistory.push(usageData);
+    }
+    
+    res.json(mockHistory);
+    
+  } catch (error) {
+    console.error('Error getting usage history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get usage history'
+    });
+  }
+});
+
 module.exports = router;

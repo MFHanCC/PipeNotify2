@@ -38,6 +38,21 @@ interface DashboardStats {
   avgDeliveryTime: number;
 }
 
+// JWT Token utilities
+const decodeJWTPayload = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding JWT:', error);
+    return null;
+  }
+};
+
 const Dashboard: React.FC = () => {
   // State management
   const [stats, setStats] = useState<DashboardStats>({
@@ -61,6 +76,17 @@ const Dashboard: React.FC = () => {
   
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs'>('overview');
+  const [editingRule, setEditingRule] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<{name: string; enabled: boolean}>({name: '', enabled: true});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    name: '',
+    event_type: 'deal.updated',
+    target_webhook_id: '',
+    template_mode: 'compact',
+    enabled: true,
+  });
+  const [availableWebhooks, setAvailableWebhooks] = useState<Array<{id: string; name: string}>>([]);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -75,33 +101,94 @@ const Dashboard: React.FC = () => {
         'Authorization': `Bearer ${token}`,
       };
 
-      // Load stats
-      const statsResponse = await fetch(`${apiUrl}/api/v1/dashboard/stats?range=${dateRange}`, { headers });
+      // Get tenant ID from JWT token
+      let tenantId = '1'; // Fallback
+      if (token) {
+        const payload = decodeJWTPayload(token);
+        if (payload && payload.tenantId) {
+          tenantId = payload.tenantId.toString();
+        }
+      }
+
+      // Load stats from monitoring dashboard
+      const statsResponse = await fetch(`${apiUrl}/api/v1/monitoring/dashboard/${tenantId}?days=${dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 1}`, { headers });
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
-        setStats(statsData);
+        // Transform monitoring data to dashboard stats format
+        setStats({
+          totalNotifications: statsData.summary?.channel_routing?.total_notifications || 0,
+          successRate: statsData.summary?.channel_routing?.avg_success_rate || 0,
+          activeRules: statsData.summary?.rule_filters?.total_rules || 0,
+          avgDeliveryTime: 250, // Placeholder since monitoring doesn't track delivery time
+        });
+      } else {
+        console.warn('Failed to load stats, using fallback data');
+        // Set fallback stats if monitoring endpoint fails
+        setStats({
+          totalNotifications: 0,
+          successRate: 0,
+          activeRules: 0,
+          avgDeliveryTime: 0,
+        });
       }
 
-      // Load rules
-      const rulesResponse = await fetch(`${apiUrl}/api/v1/rules`, { headers });
+      // Load rules from admin endpoint
+      const rulesResponse = await fetch(`${apiUrl}/api/v1/admin/rules`, { headers });
       if (rulesResponse.ok) {
         const rulesData = await rulesResponse.json();
-        setRules(rulesData);
+        // Transform backend rule format to frontend format
+        const transformedRules = (rulesData.rules || []).map((rule: any) => ({
+          id: rule.id,
+          name: rule.name,
+          eventType: rule.event_type,
+          templateMode: rule.template_mode || 'compact',
+          targetSpace: rule.webhook_name || 'Unknown',
+          filters: rule.filters || {},
+          enabled: rule.enabled,
+          lastTriggered: rule.last_triggered,
+          successRate: 95, // Placeholder - backend doesn't track this yet
+          createdAt: rule.created_at,
+        }));
+        setRules(transformedRules);
       }
 
-      // Load logs
+      // Load logs from admin endpoint
       const logsParams = new URLSearchParams({
         page: logsPage.toString(),
         limit: logsPerPage.toString(),
         status: statusFilter !== 'all' ? statusFilter : '',
-        rule: ruleFilter !== 'all' ? ruleFilter : '',
-        range: dateRange,
+        rule_id: ruleFilter !== 'all' ? ruleFilter : '',
       });
       
-      const logsResponse = await fetch(`${apiUrl}/api/v1/logs?${logsParams}`, { headers });
+      const logsResponse = await fetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { headers });
       if (logsResponse.ok) {
         const logsData = await logsResponse.json();
-        setLogs(logsData.logs || []);
+        // Transform backend log format to frontend format
+        const transformedLogs = (logsData.logs || []).map((log: any) => ({
+          id: log.id,
+          ruleId: log.rule_id,
+          ruleName: log.rule_name || 'Unknown Rule',
+          targetSpace: log.webhook_name || 'Unknown Space',
+          status: log.status === 'failed' ? 'error' : log.status === 'success' ? 'success' : 'pending',
+          message: log.formatted_message?.text || 'Notification sent',
+          errorDetails: log.error_message,
+          timestamp: log.created_at,
+          deliveryTime: log.response_time_ms,
+        }));
+        setLogs(transformedLogs);
+      } else {
+        console.warn('Failed to load logs, using empty array');
+        setLogs([]);
+      }
+
+      // Load webhooks for create rule form
+      const webhooksResponse = await fetch(`${apiUrl}/api/v1/admin/webhooks`, { headers });
+      if (webhooksResponse.ok) {
+        const webhooksData = await webhooksResponse.json();
+        setAvailableWebhooks((webhooksData.webhooks || []).map((webhook: any) => ({
+          id: webhook.id.toString(),
+          name: webhook.name || webhook.url || 'Unnamed Webhook',
+        })));
       }
 
     } catch (err) {
@@ -124,7 +211,7 @@ const Dashboard: React.FC = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/rules/${ruleId}`, {
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +237,7 @@ const Dashboard: React.FC = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/rules/${ruleId}/test`, {
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,6 +256,52 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const startEditRule = (rule: NotificationRule) => {
+    setEditingRule(rule.id);
+    setEditFormData({
+      name: rule.name,
+      enabled: rule.enabled,
+    });
+  };
+
+  const cancelEditRule = () => {
+    setEditingRule(null);
+    setEditFormData({name: '', enabled: true});
+  };
+
+  const saveEditRule = async (ruleId: string) => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editFormData.name,
+          enabled: editFormData.enabled,
+        }),
+      });
+
+      if (response.ok) {
+        setRules(rules.map(r => 
+          r.id === ruleId 
+            ? { ...r, name: editFormData.name, enabled: editFormData.enabled }
+            : r
+        ));
+        setEditingRule(null);
+        setEditFormData({name: '', enabled: true});
+      } else {
+        setError('Failed to update rule');
+      }
+    } catch (err) {
+      setError('Failed to update rule');
+    }
+  };
+
   const deleteRule = async (ruleId: string) => {
     if (!window.confirm('Are you sure you want to delete this rule?')) {
       return;
@@ -178,7 +311,7 @@ const Dashboard: React.FC = () => {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/rules/${ruleId}`, {
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -190,6 +323,63 @@ const Dashboard: React.FC = () => {
       }
     } catch (err) {
       setError('Failed to delete rule');
+    }
+  };
+
+  const openCreateModal = () => {
+    setCreateFormData({
+      name: '',
+      event_type: 'deal.updated',
+      target_webhook_id: availableWebhooks[0]?.id || '',
+      template_mode: 'compact',
+      enabled: true,
+    });
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCreateFormData({
+      name: '',
+      event_type: 'deal.updated',
+      target_webhook_id: '',
+      template_mode: 'compact',
+      enabled: true,
+    });
+  };
+
+  const createNewRule = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: createFormData.name,
+          event_type: createFormData.event_type,
+          target_webhook_id: parseInt(createFormData.target_webhook_id),
+          template_mode: createFormData.template_mode,
+          enabled: createFormData.enabled,
+          filters: {},
+        }),
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        // Refresh the dashboard data to show the new rule
+        loadDashboardData();
+        closeCreateModal();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to create rule');
+      }
+    } catch (err) {
+      setError('Failed to create rule');
     }
   };
 
@@ -280,7 +470,7 @@ const Dashboard: React.FC = () => {
         <h3>Notification Rules</h3>
         <button 
           className="create-rule-button"
-          onClick={() => window.location.href = '/onboarding'}
+          onClick={openCreateModal}
         >
           + Create Rule
         </button>
@@ -291,12 +481,41 @@ const Dashboard: React.FC = () => {
           <div key={rule.id} className="rule-card">
             <div className="rule-header">
               <div className="rule-info">
-                <h4>{rule.name}</h4>
-                <div className="rule-meta">
-                  <span className="event-type">{rule.eventType}</span>
-                  <span className="template-mode">{rule.templateMode}</span>
-                  <span className="target-space">→ {rule.targetSpace}</span>
-                </div>
+                {editingRule === rule.id ? (
+                  <div className="edit-form">
+                    <input
+                      type="text"
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                      className="edit-name-input"
+                      placeholder="Rule name"
+                    />
+                    <div className="edit-actions">
+                      <button
+                        className="save-button"
+                        onClick={() => saveEditRule(rule.id)}
+                        disabled={!editFormData.name.trim()}
+                      >
+                        ✓ Save
+                      </button>
+                      <button
+                        className="cancel-button"
+                        onClick={cancelEditRule}
+                      >
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h4>{rule.name}</h4>
+                    <div className="rule-meta">
+                      <span className="event-type">{rule.eventType}</span>
+                      <span className="template-mode">{rule.templateMode}</span>
+                      <span className="target-space">→ {rule.targetSpace}</span>
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="rule-controls">
@@ -331,8 +550,9 @@ const Dashboard: React.FC = () => {
                   
                   <button
                     className="edit-button"
-                    onClick={() => alert('Edit functionality coming soon!')}
+                    onClick={() => startEditRule(rule)}
                     title="Edit rule"
+                    disabled={editingRule !== null}
                   >
                     ✏️
                   </button>
@@ -366,7 +586,7 @@ const Dashboard: React.FC = () => {
           <p>Create your first rule to start receiving notifications in Google Chat.</p>
           <button 
             className="create-first-rule"
-            onClick={() => window.location.href = '/onboarding'}
+            onClick={openCreateModal}
           >
             Create First Rule
           </button>
@@ -525,6 +745,103 @@ const Dashboard: React.FC = () => {
         {activeTab === 'rules' && renderRules()}
         {activeTab === 'logs' && renderLogs()}
       </div>
+
+      {/* Create Rule Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={closeCreateModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Create New Rule</h3>
+              <button className="modal-close" onClick={closeCreateModal}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Rule Name *</label>
+                <input
+                  type="text"
+                  value={createFormData.name}
+                  onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
+                  placeholder="e.g., Deal Won Notifications"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Event Type *</label>
+                <select
+                  value={createFormData.event_type}
+                  onChange={(e) => setCreateFormData({...createFormData, event_type: e.target.value})}
+                  className="form-select"
+                >
+                  <option value="deal.updated">Deal Updated</option>
+                  <option value="deal.won">Deal Won</option>
+                  <option value="deal.lost">Deal Lost</option>
+                  <option value="deal.added">Deal Added</option>
+                  <option value="person.added">Person Added</option>
+                  <option value="person.updated">Person Updated</option>
+                  <option value="activity.added">Activity Added</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Target Google Chat *</label>
+                <select
+                  value={createFormData.target_webhook_id}
+                  onChange={(e) => setCreateFormData({...createFormData, target_webhook_id: e.target.value})}
+                  className="form-select"
+                >
+                  {availableWebhooks.length === 0 ? (
+                    <option value="">No webhooks available</option>
+                  ) : (
+                    availableWebhooks.map(webhook => (
+                      <option key={webhook.id} value={webhook.id}>
+                        {webhook.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Template Mode</label>
+                <select
+                  value={createFormData.template_mode}
+                  onChange={(e) => setCreateFormData({...createFormData, template_mode: e.target.value})}
+                  className="form-select"
+                >
+                  <option value="compact">Compact</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={createFormData.enabled}
+                    onChange={(e) => setCreateFormData({...createFormData, enabled: e.target.checked})}
+                  />
+                  <span>Enable rule immediately</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="button-secondary" onClick={closeCreateModal}>
+                Cancel
+              </button>
+              <button 
+                className="button-primary" 
+                onClick={createNewRule}
+                disabled={!createFormData.name.trim() || !createFormData.target_webhook_id}
+              >
+                Create Rule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

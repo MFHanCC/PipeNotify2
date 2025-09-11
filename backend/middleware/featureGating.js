@@ -258,8 +258,21 @@ async function getTenantFeatures(tenantId) {
     };
     
   } catch (error) {
-    console.error('Error getting tenant features:', error);
-    throw error;
+    console.error('Error getting tenant features (falling back to free plan):', error);
+    
+    // Fallback to free plan features when Stripe is not configured
+    const planTier = 'free';
+    const limits = PLAN_LIMITS.free;
+    
+    const features = {};
+    for (const [feature, availablePlans] of Object.entries(FEATURE_PLANS)) {
+      features[feature] = {
+        has_access: availablePlans.includes(planTier),
+        plan_required: availablePlans[0] || 'starter' // First required plan
+      };
+    }
+    
+    return features; // Return just the features object to match frontend expectation
   }
 }
 
