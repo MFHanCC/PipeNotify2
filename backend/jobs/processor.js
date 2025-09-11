@@ -84,7 +84,9 @@ async function processNotification(webhookData) {
       
       if (processedWebhooks.has(dedupKey)) {
         console.log(`🔄 Duplicate webhook detected, skipping: ${dedupKey}`);
-        return { rulesMatched: 0, notificationsSent: 0, tenantId: null, skipped: true };
+        // Still identify tenant for proper logging
+        const tenantId = await identifyTenant(webhookData);
+        return { rulesMatched: 0, notificationsSent: 0, tenantId, skipped: true };
       }
       
       // Mark as processed

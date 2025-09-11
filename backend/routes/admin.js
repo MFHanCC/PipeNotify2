@@ -420,6 +420,23 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
   }
 });
 
+// Debug endpoint to check rules and events
+router.get('/debug/rules', async (req, res) => {
+  try {
+    const rules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, event_type');
+    const webhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id');
+    
+    res.json({
+      rules: rules.rows,
+      webhooks: webhooks.rows,
+      tenant2_rules: rules.rows.filter(r => r.tenant_id === 2),
+      tenant2_webhooks: webhooks.rows.filter(w => w.tenant_id === 2)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Fix tenant rules endpoint - no auth required for system fix
 router.post('/system/fix-tenant-rules', async (req, res) => {
   try {
