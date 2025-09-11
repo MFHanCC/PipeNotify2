@@ -370,7 +370,6 @@ const Dashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        const responseData = await response.json();
         // Refresh the dashboard data to show the new rule
         loadDashboardData();
         closeCreateModal();
