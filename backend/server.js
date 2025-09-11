@@ -740,6 +740,7 @@ async function startServer() {
       console.log('🔄 Running database migrations...');
       await runMigration();
       console.log('✅ Tenants table migration completed');
+      console.log('📋 Migration includes delayed_notifications table creation');
       
       await fixPipedriveConnectionsTable();
       console.log('✅ Pipedrive connections table migration completed');
