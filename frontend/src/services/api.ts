@@ -388,7 +388,7 @@ class ApiService {
   }
 
   async createCheckoutSession(planTier: string): Promise<{ checkout_url: string; session_id: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/billing/create-checkout`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/checkout`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ plan_tier: planTier }),
@@ -397,7 +397,7 @@ class ApiService {
   }
 
   async createPortalSession(): Promise<{ portal_url: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/billing/create-portal`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/portal`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
     });
@@ -425,7 +425,8 @@ class ApiService {
   }
 
   async getFeatureAccess(): Promise<{ [featureName: string]: { has_access: boolean; plan_required: string } }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features`, {
+    // This would need tenant ID in real implementation
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features/1`, {
       headers: this.getAuthHeaders(),
     });
     return this.handleResponse(response);
