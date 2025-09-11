@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 async function runMigration() {
@@ -53,10 +55,39 @@ async function runMigration() {
       console.log(`  - ${row.column_name}: ${row.data_type}`);
     });
 
+    // Check for and create missing delayed_notifications table
+    console.log('🔍 Checking for delayed_notifications table...');
+    
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name IN ('delayed_notifications', 'quiet_hours')
+    `);
+    
+    const existingTables = tableCheck.rows.map(r => r.table_name);
+    
+    if (!existingTables.includes('delayed_notifications') || !existingTables.includes('quiet_hours')) {
+      console.log('📋 Creating missing quiet hours tables...');
+      
+      const migrationPath = path.join(__dirname, '../migrations/007_create_quiet_hours.sql');
+      const migration = fs.readFileSync(migrationPath, 'utf8');
+      
+      await pool.query(migration);
+      console.log('✅ Created quiet_hours and delayed_notifications tables');
+    } else {
+      console.log('ℹ️  quiet_hours and delayed_notifications tables already exist');
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {
     console.error('❌ Migration failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     process.exit(1);
   } finally {
     await pool.end();

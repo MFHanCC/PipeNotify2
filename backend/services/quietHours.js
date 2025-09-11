@@ -315,6 +315,18 @@ async function queueDelayedNotification(tenantId, notificationData) {
  */
 async function processDelayedNotifications() {
   try {
+    // Check if table exists first
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'delayed_notifications'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      console.log('⚠️  delayed_notifications table does not exist. Run migration: npm run migrate');
+      return { processed: 0, error: 'Table not found' };
+    }
+    
     const now = new Date();
     
     // Get notifications ready to be sent
