@@ -227,12 +227,18 @@ const Dashboard: React.FC = () => {
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ enabled: !rule.enabled }),
+        body: JSON.stringify({ 
+          name: rule.name,
+          event_type: rule.eventType,
+          target_webhook_id: rule.targetSpace,
+          template_mode: rule.templateMode,
+          enabled: !rule.enabled 
+        }),
       });
 
       if (response.ok) {
