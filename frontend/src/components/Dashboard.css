@@ -256,17 +256,16 @@
   margin-bottom: 40px;
 }
 
-/* 2x2 Grid Layout for Overview Stats - Responsive */
+/* 2x2 Grid Layout for Overview Stats - Fully Expandable */
 .stats-2x2 {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  max-width: none;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  width: 100%;
 }
 
-/* Force 2x2 layout on larger screens */
-@media (min-width: 768px) {
+/* Ensure 2x2 layout preference on larger screens while staying expandable */
+@media (min-width: 900px) {
   .stats-2x2 {
     grid-template-columns: repeat(2, 1fr);
-    max-width: 800px;
   }
 }
 
