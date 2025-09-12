@@ -503,6 +503,8 @@
   justify-content: flex-end;
   gap: 8px;
   min-width: 200px;
+  height: 32px;
+  flex-wrap: nowrap;
 }
 
 /* Toggle Switch - Fixed appearance */
@@ -510,8 +512,9 @@
   position: relative;
   display: inline-block;
   width: 50px;
-  height: 24px;
+  height: 28px;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .toggle-switch input {
@@ -527,10 +530,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  height: 28px;
   background-color: #d1d5db;
   transition: .4s;
   border-radius: 24px;
@@ -557,9 +557,9 @@ input:checked + .toggle-slider:before {
 }
 
 /* Rule action buttons - specific to dashboard rules */
-.rule-controls .test-button,
-.rule-controls .edit-button,
-.rule-controls .delete-button {
+.rule-actions .test-button,
+.rule-actions .edit-button,
+.rule-actions .delete-button {
   background: #f3f4f6 !important;
   border: 1px solid #d1d5db !important;
   font-size: 12px !important;
@@ -581,18 +581,18 @@ input:checked + .toggle-slider:before {
   margin-left: 4px;
 }
 
-.rule-controls .test-button:hover {
+.rule-actions .test-button:hover {
   background: #e5e7eb !important;
   border-color: #9ca3af !important;
   transform: none !important;
 }
 
-.rule-controls .edit-button:hover {
+.rule-actions .edit-button:hover {
   background: #fef3c7 !important;
   border-color: #f59e0b !important;
 }
 
-.rule-controls .delete-button:hover {
+.rule-actions .delete-button:hover {
   background: #fee2e2 !important;
   border-color: #ef4444 !important;
 }
