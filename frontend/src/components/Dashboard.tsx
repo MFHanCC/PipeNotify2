@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
         // Update stats with actual rule count
         setStats(prevStats => ({
           ...prevStats,
-          activeRules: transformedRules.filter(rule => rule.enabled).length
+          activeRules: transformedRules.filter((rule: NotificationRule) => rule.enabled).length
         }));
       }
 
@@ -258,7 +258,7 @@ const Dashboard: React.FC = () => {
         // Update stats with new active rule count
         setStats(prevStats => ({
           ...prevStats,
-          activeRules: updatedRules.filter(rule => rule.enabled).length
+          activeRules: updatedRules.filter((rule: NotificationRule) => rule.enabled).length
         }));
       }
     } catch (err) {
