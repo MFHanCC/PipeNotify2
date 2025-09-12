@@ -35,20 +35,28 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify tenant exists and is active
+    // Verify tenant exists and is active (allow active, trial, or empty for backwards compatibility)
     const tenantResult = await pool.query(
-      'SELECT * FROM tenants WHERE id = $1 AND status = $2',
-      [tenant_id, 'active']
+      'SELECT * FROM tenants WHERE id = $1',
+      [tenant_id]
     );
 
     if (tenantResult.rows.length === 0) {
       return res.status(403).json({
-        error: 'Tenant not found or inactive',
-        code: 'TENANT_INACTIVE'
+        error: 'Tenant not found',
+        code: 'TENANT_NOT_FOUND'
       });
     }
 
     const tenant = tenantResult.rows[0];
+    
+    // Block only explicitly inactive tenants
+    if (tenant.subscription_status === 'inactive') {
+      return res.status(403).json({
+        error: 'Tenant subscription is inactive',
+        code: 'TENANT_INACTIVE'
+      });
+    }
 
     // Add tenant info to request object
     req.tenant = {
