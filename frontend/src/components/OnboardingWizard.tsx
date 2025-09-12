@@ -44,10 +44,21 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     template_mode: 'simple'
   });
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
+  const [isPipedriveConnected, setIsPipedriveConnected] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 
-  // Check user's current setup status
+  // Check user's current setup status and handle OAuth callback
   useEffect(() => {
-    checkSetupStatus();
+    // Handle OAuth callback if code is present
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      handleOAuthCallback(code);
+    } else {
+      checkSetupStatus();
+      checkPipedriveConnection();
+    }
   }, []);
 
   const checkSetupStatus = async () => {
@@ -71,6 +82,69 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       }
     } catch (error) {
       console.error('Error checking setup status:', error);
+    }
+  };
+
+  const checkPipedriveConnection = async () => {
+    try {
+      setIsCheckingConnection(true);
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      if (!token) {
+        setIsPipedriveConnected(false);
+        setIsCheckingConnection(false);
+        return;
+      }
+
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/v1/auth/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setIsPipedriveConnected(response.ok);
+    } catch (error) {
+      console.error('Error checking Pipedrive connection:', error);
+      setIsPipedriveConnected(false);
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
+  const handleOAuthCallback = async (code: string) => {
+    try {
+      setIsCheckingConnection(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/v1/auth/callback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('auth_token', data.token);
+        setIsPipedriveConnected(true);
+        
+        // Clean up URL by removing the code parameter
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Load setup status now that we're authenticated
+        await checkSetupStatus();
+      } else {
+        console.error('OAuth callback failed');
+        setIsPipedriveConnected(false);
+      }
+    } catch (error) {
+      console.error('Error handling OAuth callback:', error);
+      setIsPipedriveConnected(false);
+    } finally {
+      setIsCheckingConnection(false);
     }
   };
 
@@ -231,26 +305,57 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       id: 'pipedrive',
       title: 'Connect Your Pipedrive Account 🔗',
       description: 'We need access to your Pipedrive data to send notifications',
-      isCompleted: true, // Assume already connected since they're authenticated
+      isCompleted: isPipedriveConnected,
       component: (
         <div className="pipedrive-step">
-          <div className="connection-status success">
-            <div className="status-icon">✅</div>
-            <div className="status-content">
-              <h3>Pipedrive Connected Successfully!</h3>
-              <p>Your Pipedrive account is already connected and ready to send webhook notifications.</p>
+          {isCheckingConnection ? (
+            <div className="connection-status checking">
+              <div className="status-icon">⏳</div>
+              <div className="status-content">
+                <h3>Checking Pipedrive Connection...</h3>
+                <p>Please wait while we verify your authentication status.</p>
+              </div>
             </div>
-          </div>
+          ) : isPipedriveConnected ? (
+            <div className="connection-status success">
+              <div className="status-icon">✅</div>
+              <div className="status-content">
+                <h3>Pipedrive Connected Successfully!</h3>
+                <p>Your Pipedrive account is connected and ready to send webhook notifications.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="connection-status pending">
+              <div className="status-icon">🔗</div>
+              <div className="status-content">
+                <h3>Connect to Pipedrive</h3>
+                <p>To get started, we need to connect to your Pipedrive account to access deal and activity data.</p>
+                <button 
+                  className="connect-button"
+                  onClick={() => {
+                    const clientId = process.env.REACT_APP_PIPEDRIVE_CLIENT_ID;
+                    const redirectUri = encodeURIComponent(process.env.REACT_APP_PIPEDRIVE_REDIRECT_URI || `${window.location.origin}/onboarding`);
+                    const authUrl = `https://oauth.pipedrive.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
+                    window.location.href = authUrl;
+                  }}
+                >
+                  Connect Pipedrive Account
+                </button>
+              </div>
+            </div>
+          )}
           
-          <div className="connection-info">
-            <h4>What happens next:</h4>
-            <ul>
-              <li>We'll create webhook subscriptions in your Pipedrive account</li>
-              <li>When events happen in Pipedrive, we'll receive them instantly</li>
-              <li>Our system will format and route notifications to your Google Chat</li>
-              <li>You maintain full control over which events trigger notifications</li>
-            </ul>
-          </div>
+          {isPipedriveConnected && (
+            <div className="connection-info">
+              <h4>What happens next:</h4>
+              <ul>
+                <li>We'll create webhook subscriptions in your Pipedrive account</li>
+                <li>When events happen in Pipedrive, we'll receive them instantly</li>
+                <li>Our system will format and route notifications to your Google Chat</li>
+                <li>You maintain full control over which events trigger notifications</li>
+              </ul>
+            </div>
+          )}
         </div>
       )
     },
