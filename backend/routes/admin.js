@@ -6,6 +6,76 @@ const { authenticateToken, extractTenantId } = require('../middleware/auth');
 const { createRoutingRules } = require('../services/channelRouter');
 
 // DEBUG ENDPOINTS - No auth required
+
+// Clean up test data for current user
+router.post('/debug/cleanup-test-data', async (req, res) => {
+  try {
+    const { user_id, company_id } = req.body;
+    
+    if (!user_id && !company_id) {
+      return res.status(400).json({ 
+        error: 'Please provide user_id or company_id to identify tenant',
+        example: 'POST with {"user_id": 123} or {"company_id": 13887824}'
+      });
+    }
+    
+    let tenantQuery = 'SELECT id, company_name, pipedrive_user_id, pipedrive_company_id FROM tenants WHERE ';
+    let tenantParams = [];
+    
+    if (user_id) {
+      tenantQuery += 'pipedrive_user_id = $1';
+      tenantParams = [user_id];
+    } else {
+      tenantQuery += 'pipedrive_company_id = $1';
+      tenantParams = [company_id];
+    }
+    
+    const tenantResult = await pool.query(tenantQuery, tenantParams);
+    
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Tenant not found',
+        searched: user_id ? `user_id: ${user_id}` : `company_id: ${company_id}`
+      });
+    }
+    
+    const tenant = tenantResult.rows[0];
+    console.log(`🧹 Cleaning up test data for tenant ${tenant.id} (${tenant.company_name})`);
+    
+    // Get counts before cleanup
+    const webhooksBefore = await pool.query('SELECT COUNT(*) FROM chat_webhooks WHERE tenant_id = $1', [tenant.id]);
+    const rulesBefore = await pool.query('SELECT COUNT(*) FROM rules WHERE tenant_id = $1', [tenant.id]);
+    const logsBefore = await pool.query('SELECT COUNT(*) FROM logs WHERE tenant_id = $1', [tenant.id]);
+    
+    // Clean up webhooks, rules, and logs
+    await pool.query('DELETE FROM logs WHERE tenant_id = $1', [tenant.id]);
+    await pool.query('DELETE FROM rules WHERE tenant_id = $1', [tenant.id]);
+    await pool.query('DELETE FROM chat_webhooks WHERE tenant_id = $1', [tenant.id]);
+    
+    res.json({
+      message: 'Test data cleaned up successfully',
+      tenant: {
+        id: tenant.id,
+        company_name: tenant.company_name,
+        pipedrive_user_id: tenant.pipedrive_user_id,
+        pipedrive_company_id: tenant.pipedrive_company_id
+      },
+      cleaned: {
+        webhooks: parseInt(webhooksBefore.rows[0].count),
+        rules: parseInt(rulesBefore.rows[0].count),
+        logs: parseInt(logsBefore.rows[0].count)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error cleaning up test data:', error);
+    res.status(500).json({
+      error: 'Failed to clean up test data',
+      message: error.message
+    });
+  }
+});
+
 router.post('/debug/fix-tenant-rules', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Checking tenant and rules state...');
