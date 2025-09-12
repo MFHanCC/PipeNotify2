@@ -15,8 +15,9 @@ const { Pool } = require('pg');
 function routeToChannel(webhookData, rule, availableWebhooks) {
   try {
     // Priority 1: Use rule-specific target channel if set
-    if (rule.target_channel_id) {
-      const targetChannel = availableWebhooks.find(w => w.id === rule.target_channel_id);
+    if (rule.target_channel_id || rule.target_webhook_id) {
+      const targetChannelId = rule.target_channel_id || rule.target_webhook_id;
+      const targetChannel = availableWebhooks.find(w => w.id === targetChannelId);
       if (targetChannel && targetChannel.is_active) {
         console.log(`📍 Routing to rule-specific channel: ${targetChannel.name}`);
         return targetChannel;
@@ -230,7 +231,7 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
             filters: JSON.stringify({
               value_min: routingConfig.highValueThreshold
             }),
-            target_channel_id: highValueWebhook.id,
+            target_webhook_id: highValueWebhook.id,
             priority: 1
           });
         }
@@ -244,7 +245,7 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
             name: 'Won Deals Celebration',
             event_type: 'deal.won',
             filters: JSON.stringify({}),
-            target_channel_id: winsWebhook.id,
+            target_webhook_id: winsWebhook.id,
             priority: 2
           });
         }
@@ -258,7 +259,7 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
             name: 'New Leads',
             event_type: 'deal.added',
             filters: JSON.stringify({}),
-            target_channel_id: leadsWebhook.id,
+            target_webhook_id: leadsWebhook.id,
             priority: 3
           });
         }
@@ -274,7 +275,7 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
             filters: JSON.stringify({
               probability_min: 80
             }),
-            target_channel_id: urgentWebhook.id,
+            target_webhook_id: urgentWebhook.id,
             priority: 4
           });
         }
@@ -283,12 +284,12 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
       // Insert rules
       for (const rule of rules) {
         await client.query(`
-          INSERT INTO rules (tenant_id, name, event_type, filters, target_channel_id, priority, enabled, template_mode)
+          INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, priority, enabled, template_mode)
           VALUES ($1, $2, $3, $4, $5, $6, true, 'simple')
           ON CONFLICT (tenant_id, name) DO UPDATE SET
             event_type = EXCLUDED.event_type,
             filters = EXCLUDED.filters,
-            target_channel_id = EXCLUDED.target_channel_id,
+            target_webhook_id = EXCLUDED.target_webhook_id,
             priority = EXCLUDED.priority,
             updated_at = NOW()
         `, [
@@ -296,7 +297,7 @@ async function createRoutingRules(tenantId, routingConfig, pool) {
           rule.name,
           rule.event_type,
           rule.filters,
-          rule.target_channel_id,
+          rule.target_webhook_id,
           rule.priority
         ]);
       }
@@ -343,7 +344,7 @@ async function getRoutingStats(tenantId, pool, days = 30) {
         AVG(l.response_time_ms) as avg_response_time,
         COUNT(DISTINCT l.rule_id) as rules_using_channel
       FROM chat_webhooks cw
-      LEFT JOIN rules r ON cw.id = r.target_webhook_id
+      LEFT JOIN rules r ON (cw.id = r.target_webhook_id OR cw.id = r.target_channel_id)
       LEFT JOIN logs l ON r.id = l.rule_id AND l.created_at >= NOW() - INTERVAL '${days} days'
       WHERE cw.tenant_id = $1 AND cw.is_active = true
       GROUP BY cw.id, cw.name

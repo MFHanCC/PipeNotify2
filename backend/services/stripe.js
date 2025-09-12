@@ -437,19 +437,35 @@ async function handleSubscriptionCanceled(subscription) {
  * @returns {Object} Subscription details
  */
 async function getSubscription(tenantId) {
-  ensureStripeConfigured();
   try {
-    const result = await pool.query(`
-      SELECT * FROM subscriptions WHERE tenant_id = $1
-    `, [tenantId]);
-
-    if (result.rows.length === 0) {
-      // Create free subscription record
-      await pool.query(`
-        INSERT INTO subscriptions (tenant_id, plan_tier, status)
-        VALUES ($1, 'free', 'active')
-      `, [tenantId]);
-
+    // Check if subscriptions table exists first
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'subscriptions'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      console.log('⚠️  subscriptions table does not exist. Run migration: npm run migrate');
+      
+      // Check if this is the enterprise customer (tenant with company_id 13887824)
+      try {
+        const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
+        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
+          console.log('🚀 Enterprise customer detected - assigning Team plan features without table');
+          return {
+            tenant_id: tenantId,
+            plan_tier: 'team',
+            status: 'active',
+            monthly_notification_count: 0,
+            plan_config: PLAN_CONFIGS.team
+          };
+        }
+      } catch (tenantCheckError) {
+        console.error('Error checking tenant details:', tenantCheckError);
+      }
+      
+      // Return default free plan if table doesn't exist and not enterprise
       return {
         tenant_id: tenantId,
         plan_tier: 'free',
@@ -459,7 +475,80 @@ async function getSubscription(tenantId) {
       };
     }
 
+    const result = await pool.query(`
+      SELECT * FROM subscriptions WHERE tenant_id = $1
+    `, [tenantId]);
+
+    if (result.rows.length === 0) {
+      // Check if this is the enterprise customer before creating subscription
+      let planTier = 'free';
+      let planPeriodEnd = null;
+      
+      try {
+        const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
+        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
+          console.log('🚀 Enterprise customer detected - auto-upgrading to Team plan');
+          planTier = 'team';
+          planPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+        }
+      } catch (tenantCheckError) {
+        console.error('Error checking tenant details:', tenantCheckError);
+      }
+      
+      // Create subscription record with appropriate plan
+      const now = new Date();
+      await pool.query(`
+        INSERT INTO subscriptions (tenant_id, plan_tier, status, current_period_start, current_period_end)
+        VALUES ($1, $2, 'active', $3, $4)
+      `, [tenantId, planTier, now, planPeriodEnd]);
+
+      return {
+        tenant_id: tenantId,
+        plan_tier: planTier,
+        status: 'active',
+        monthly_notification_count: 0,
+        current_period_start: now,
+        current_period_end: planPeriodEnd,
+        plan_config: PLAN_CONFIGS[planTier]
+      };
+    }
+
     const subscription = result.rows[0];
+    
+    // Auto-upgrade enterprise customer if still on free plan
+    if (subscription.plan_tier === 'free') {
+      try {
+        const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
+        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
+          console.log('🚀 Enterprise customer on free plan - auto-upgrading to Team plan');
+          
+          const now = new Date();
+          const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+          
+          const upgradeResult = await pool.query(`
+            UPDATE subscriptions 
+            SET plan_tier = 'team', 
+                status = 'active',
+                current_period_start = $1,
+                current_period_end = $2,
+                updated_at = NOW()
+            WHERE tenant_id = $3
+            RETURNING *
+          `, [now, oneYearFromNow, tenantId]);
+          
+          const upgradedSubscription = upgradeResult.rows[0];
+          console.log('✅ Auto-upgraded to Team plan successfully');
+          
+          return {
+            ...upgradedSubscription,
+            plan_config: PLAN_CONFIGS.team
+          };
+        }
+      } catch (upgradeError) {
+        console.error('Error auto-upgrading enterprise customer:', upgradeError);
+      }
+    }
+    
     const planConfig = PLAN_CONFIGS[subscription.plan_tier] || PLAN_CONFIGS.free;
 
     return {

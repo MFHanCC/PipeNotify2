@@ -10,21 +10,18 @@ const {
 } = require('../services/quietHours');
 
 const { requireFeature } = require('../middleware/featureGating');
+const { authenticateToken } = require('../middleware/auth');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 /**
- * GET /api/v1/settings/quiet-hours/:tenantId
- * Get current quiet hours configuration for a tenant
+ * GET /api/v1/settings/quiet-hours
+ * Get current quiet hours configuration for authenticated tenant
  */
-router.get('/quiet-hours/:tenantId', requireFeature('quiet_hours'), async (req, res) => {
+router.get('/quiet-hours', requireFeature('quiet_hours'), async (req, res) => {
   try {
-    const tenantId = parseInt(req.params.tenantId);
-    
-    if (isNaN(tenantId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid tenant ID'
-      });
-    }
+    const tenantId = req.tenant.id; // Get from JWT token
     
     const config = await getQuietHours(tenantId);
     
@@ -43,19 +40,12 @@ router.get('/quiet-hours/:tenantId', requireFeature('quiet_hours'), async (req, 
 });
 
 /**
- * POST /api/v1/settings/quiet-hours/:tenantId
- * Set quiet hours configuration for a tenant
+ * POST /api/v1/settings/quiet-hours
+ * Set quiet hours configuration for authenticated tenant
  */
-router.post('/quiet-hours/:tenantId', requireFeature('quiet_hours'), async (req, res) => {
+router.post('/quiet-hours', requireFeature('quiet_hours'), async (req, res) => {
   try {
-    const tenantId = parseInt(req.params.tenantId);
-    
-    if (isNaN(tenantId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid tenant ID'
-      });
-    }
+    const tenantId = req.tenant.id; // Get from JWT token
     
     const { timezone, start_time, end_time, weekends_enabled, holidays } = req.body;
     
@@ -90,19 +80,12 @@ router.post('/quiet-hours/:tenantId', requireFeature('quiet_hours'), async (req,
 });
 
 /**
- * GET /api/v1/settings/quiet-hours/:tenantId/status
- * Check if current time is within quiet hours for a tenant
+ * GET /api/v1/settings/quiet-hours/status
+ * Check if current time is within quiet hours for authenticated tenant
  */
-router.get('/quiet-hours/:tenantId/status', requireFeature('quiet_hours'), async (req, res) => {
+router.get('/quiet-hours/status', requireFeature('quiet_hours'), async (req, res) => {
   try {
-    const tenantId = parseInt(req.params.tenantId);
-    
-    if (isNaN(tenantId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid tenant ID'
-      });
-    }
+    const tenantId = req.tenant.id; // Get from JWT token
     
     const checkTime = req.query.time ? new Date(req.query.time) : new Date();
     const status = await isQuietTime(tenantId, checkTime);
@@ -110,14 +93,12 @@ router.get('/quiet-hours/:tenantId/status', requireFeature('quiet_hours'), async
     
     res.json({
       success: true,
-      status: {
-        is_quiet: status.is_quiet,
-        reason: status.reason,
-        check_time: checkTime.toISOString(),
-        tenant_time: status.tenant_time,
-        next_allowed: nextAllowed.next_allowed,
-        delay_minutes: nextAllowed.delay_minutes
-      }
+      is_quiet: status.is_quiet,
+      reason: status.reason,
+      check_time: checkTime.toISOString(),
+      tenant_time: status.tenant_time,
+      next_allowed: nextAllowed.next_allowed,
+      delay_minutes: nextAllowed.delay_minutes
     });
     
   } catch (error) {
@@ -130,19 +111,12 @@ router.get('/quiet-hours/:tenantId/status', requireFeature('quiet_hours'), async
 });
 
 /**
- * DELETE /api/v1/settings/quiet-hours/:tenantId
- * Remove quiet hours configuration for a tenant (revert to default)
+ * DELETE /api/v1/settings/quiet-hours
+ * Remove quiet hours configuration for authenticated tenant (revert to default)
  */
-router.delete('/quiet-hours/:tenantId', requireFeature('quiet_hours'), async (req, res) => {
+router.delete('/quiet-hours', requireFeature('quiet_hours'), async (req, res) => {
   try {
-    const tenantId = parseInt(req.params.tenantId);
-    
-    if (isNaN(tenantId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid tenant ID'
-      });
-    }
+    const tenantId = req.tenant.id; // Get from JWT token
     
     const { pool } = require('../services/database');
     

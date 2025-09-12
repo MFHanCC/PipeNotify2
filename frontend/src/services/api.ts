@@ -172,6 +172,14 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  async testWebhook(webhookId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/admin/webhooks/${webhookId}/test`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   // Rules management
   async getRules(): Promise<NotificationRule[]> {
     const response = await fetch(`${API_BASE_URL}/api/v1/admin/rules`, {

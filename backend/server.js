@@ -105,6 +105,20 @@ try {
   });
 }
 
+// Start stalled deal monitoring system (daily cron job)
+console.log('🔄 STARTING STALLED DEAL MONITORING...');
+try {
+  require('./jobs/stalledDealMonitor');
+  console.log('✅ STALLED DEAL MONITORING STARTED - will run daily at 9 AM UTC');
+} catch (stalledError) {
+  console.error('❌ FAILED TO START STALLED DEAL MONITORING:', stalledError);
+  console.error('Stalled deal monitor error details:', {
+    message: stalledError.message,
+    code: stalledError.code,
+    stack: stalledError.stack
+  });
+}
+
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
 app.use('/api/v1/admin', adminRoutes);
@@ -113,6 +127,7 @@ app.use('/api/v1/monitoring', monitoringRoutes);
 app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/templates', templatesRoutes);
+app.use('/api/v1/analytics', require('./routes/analytics'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

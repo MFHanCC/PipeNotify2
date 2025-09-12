@@ -1,778 +1,618 @@
 import React, { useState, useEffect } from 'react';
 import './OnboardingWizard.css';
 
-interface WebhookConfig {
-  id: string;
-  name: string;
-  url: string;
-  isValid: boolean;
-  isValidating: boolean;
-}
-
-interface NotificationTemplate {
-  id: string;
-  name: string;
-  description: string;
-  eventType: string;
-  previewUrl: string;
-  modes: {
-    compact: boolean;
-    detailed: boolean;
-  };
-}
-
-interface FilterRule {
-  pipeline?: string;
-  stage?: string;
-  owner?: string;
-  minValue?: number;
-  targetWebhookId?: string;
-}
-
 interface OnboardingStep {
-  id: number;
+  id: string;
   title: string;
   description: string;
-  isComplete: boolean;
+  component: React.ReactNode;
+  isCompleted: boolean;
+  canSkip?: boolean;
 }
 
-const OnboardingWizard: React.FC = () => {
-  // State management for wizard steps
-  const [currentStep, setCurrentStep] = useState(1);
+interface OnboardingWizardProps {
+  onComplete: () => void;
+  onSkip: () => void;
+}
+
+interface WebhookFormData {
+  name: string;
+  webhook_url: string;
+  description: string;
+}
+
+interface RuleFormData {
+  name: string;
+  event_type: string;
+  target_webhook_id: string;
+  template_mode: string;
+}
+
+const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip }) => {
+  const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [integrationComplete, setIntegrationComplete] = useState(false);
+  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhookFormData, setWebhookFormData] = useState<WebhookFormData>({
+    name: '',
+    webhook_url: '',
+    description: ''
+  });
+  const [ruleFormData, setRuleFormData] = useState<RuleFormData>({
+    name: 'My First Notification Rule',
+    event_type: 'deal.won',
+    target_webhook_id: '',
+    template_mode: 'simple'
+  });
+  const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
 
-  // OAuth and connection state
-  const [pipedriveConnected, setPipedriveConnected] = useState(false);
-  const [pipedriveCompany, setPipedriveCompany] = useState<string>('');
-  const [oauthToken, setOauthToken] = useState<string>('');
-
-  // Google Chat webhook configuration
-  const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
-  const [newWebhook, setNewWebhook] = useState({ name: '', url: '' });
-
-  // Template selection
-  const [availableTemplates] = useState<NotificationTemplate[]>([
-    {
-      id: 'deal-won',
-      name: 'Deal Won',
-      description: 'Notify when deals are marked as won',
-      eventType: 'deal.won',
-      previewUrl: '/api/preview/deal-won',
-      modes: { compact: true, detailed: true }
-    },
-    {
-      id: 'deal-stage-changed',
-      name: 'Deal Stage Changed',
-      description: 'Notify when deal moves between stages',
-      eventType: 'deal.stage_changed',
-      previewUrl: '/api/preview/deal-stage-changed',
-      modes: { compact: true, detailed: true }
-    },
-    {
-      id: 'activity-assigned',
-      name: 'Activity Assigned',
-      description: 'Notify when activities are assigned',
-      eventType: 'activity.assigned',
-      previewUrl: '/api/preview/activity-assigned',
-      modes: { compact: true, detailed: true }
-    },
-    {
-      id: 'activity-overdue',
-      name: 'Activity Overdue',
-      description: 'Notify when activities become overdue',
-      eventType: 'activity.overdue',
-      previewUrl: '/api/preview/activity-overdue',
-      modes: { compact: true, detailed: true }
-    },
-    {
-      id: 'new-lead',
-      name: 'New Lead Created',
-      description: 'Notify when new leads are added',
-      eventType: 'lead.created',
-      previewUrl: '/api/preview/new-lead',
-      modes: { compact: true, detailed: true }
-    },
-    {
-      id: 'new-person',
-      name: 'New Person Added',
-      description: 'Notify when new contacts are created',
-      eventType: 'person.created',
-      previewUrl: '/api/preview/new-person',
-      modes: { compact: true, detailed: true }
-    }
-  ]);
-
-  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
-  const [templateModes, setTemplateModes] = useState<Record<string, 'compact' | 'detailed'>>({});
-
-  // Rule configuration
-  const [rules, setRules] = useState<Array<{
-    templateId: string;
-    filters: FilterRule;
-    webhookId: string;
-  }>>([]);
-
-  // Test results
-  const [testResults, setTestResults] = useState<Record<string, 'pending' | 'success' | 'error'>>({});
-
-  // Wizard steps configuration
-  const steps: OnboardingStep[] = [
-    { id: 1, title: 'Welcome & Account Verification', description: 'Confirm your Pipedrive connection', isComplete: pipedriveConnected },
-    { id: 2, title: 'Google Chat Configuration', description: 'Add your Chat webhook URLs', isComplete: webhooks.length > 0 && webhooks.every(w => w.isValid) },
-    { id: 3, title: 'Template Selection', description: 'Choose notification templates', isComplete: selectedTemplates.size > 0 },
-    { id: 4, title: 'Rule Configuration', description: 'Set up filtering and routing', isComplete: rules.length > 0 },
-    { id: 5, title: 'Testing & Activation', description: 'Test and activate notifications', isComplete: false }
-  ];
-
-  // OAuth flow initialization
+  // Check user's current setup status
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    const error = urlParams.get('error');
-
-    if (error) {
-      setError(`OAuth error: ${error}`);
-      return;
-    }
-
-    if (code && state) {
-      handleOAuthCallback(code, state);
-    }
+    checkSetupStatus();
   }, []);
 
-  const handleOAuthCallback = async (code: string, state: string) => {
-    setIsLoading(true);
-    setError(null);
-
+  const checkSetupStatus = async () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/oauth/callback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code, state }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setOauthToken(data.token);
-      // Store token for Dashboard and other components to use
-      localStorage.setItem('auth_token', data.token);
-      setPipedriveConnected(true);
-      setPipedriveCompany(data.user.company);
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const initiatePipedriveOAuth = () => {
-    const clientId = process.env.REACT_APP_PIPEDRIVE_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/onboarding`;
-    const state = Math.random().toString(36).substring(2, 15);
-    
-    // Store state for CSRF protection
-    sessionStorage.setItem('oauth_state', state);
-    
-    const authUrl = `https://oauth.pipedrive.com/oauth/authorize?` +
-      `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `response_type=code&` +
-      `state=${state}&` +
-      `scope=deals:read+activities:read+leads:read+users:read+webhooks:full`;
-
-    window.location.href = authUrl;
-  };
-
-  const addWebhook = async () => {
-    if (!newWebhook.name || !newWebhook.url) {
-      setError('Please provide both webhook name and URL');
-      return;
-    }
-
-    const webhookId = Math.random().toString(36).substring(2, 15);
-    const webhook: WebhookConfig = {
-      id: webhookId,
-      name: newWebhook.name,
-      url: newWebhook.url,
-      isValid: false,
-      isValidating: true,
-    };
-
-    const newWebhooksList = [...webhooks, webhook];
-    setWebhooks(newWebhooksList);
-    setNewWebhook({ name: '', url: '' });
-
-    // Validate webhook
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/webhooks/validate`, {
-        method: 'POST',
+      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks`, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${oauthToken}`,
-        },
-        body: JSON.stringify({ url: webhook.url }),
-      });
-
-      const updatedWebhooks = newWebhooksList.map(w => 
-        w.id === webhookId 
-          ? { ...w, isValid: response.ok, isValidating: false }
-          : w
-      );
-      setWebhooks(updatedWebhooks);
-
-      if (!response.ok) {
-        setError('Webhook validation failed. Please check the URL and permissions.');
-      }
-    } catch (err) {
-      const updatedWebhooks = newWebhooksList.map(w => 
-        w.id === webhookId 
-          ? { ...w, isValid: false, isValidating: false }
-          : w
-      );
-      setWebhooks(updatedWebhooks);
-      setError('Failed to validate webhook. Please try again.');
-    }
-  };
-
-  const removeWebhook = (id: string) => {
-    setWebhooks(webhooks.filter(w => w.id !== id));
-  };
-
-  const toggleTemplate = (templateId: string) => {
-    const newSelected = new Set(selectedTemplates);
-    if (newSelected.has(templateId)) {
-      newSelected.delete(templateId);
-      const newModes = { ...templateModes };
-      delete newModes[templateId];
-      setTemplateModes(newModes);
-    } else {
-      newSelected.add(templateId);
-      setTemplateModes({
-        ...templateModes,
-        [templateId]: 'compact'
-      });
-    }
-    setSelectedTemplates(newSelected);
-    
-    // Auto-generate default rules when templates change
-    generateDefaultRules(newSelected);
-  };
-
-  const setTemplateMode = (templateId: string, mode: 'compact' | 'detailed') => {
-    setTemplateModes({
-      ...templateModes,
-      [templateId]: mode
-    });
-  };
-
-  const generateDefaultRules = (selectedTemplateIds: Set<string>) => {
-    // Get the first valid webhook as default target
-    const defaultWebhook = webhooks.find(w => w.isValid);
-    if (!defaultWebhook || selectedTemplateIds.size === 0) {
-      setRules([]);
-      return;
-    }
-
-    const defaultRules = Array.from(selectedTemplateIds).map(templateId => ({
-      templateId,
-      filters: {
-        pipeline: '', // All pipelines
-        stage: '',    // All stages
-        owner: '',    // All owners
-        minValue: 0,  // No minimum value
-        targetWebhookId: defaultWebhook.id
-      },
-      webhookId: defaultWebhook.id
-    }));
-
-    setRules(defaultRules);
-  };
-
-  const updateRuleFilter = (templateId: string, filterKey: keyof FilterRule, value: any) => {
-    setRules(rules.map(rule => 
-      rule.templateId === templateId 
-        ? { ...rule, filters: { ...rule.filters, [filterKey]: value } }
-        : rule
-    ));
-  };
-
-  const testAllRules = async () => {
-    setIsLoading(true);
-    const newTestResults: Record<string, 'pending' | 'success' | 'error'> = {};
-    
-    for (const rule of rules) {
-      newTestResults[`${rule.templateId}-${rule.webhookId}`] = 'pending';
-    }
-    setTestResults(newTestResults);
-
-    try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      
-      for (const rule of rules) {
-        const ruleKey = `${rule.templateId}-${rule.webhookId}`;
-        
-        try {
-          const response = await fetch(`${apiUrl}/api/v1/test/notification`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${oauthToken}`,
-            },
-            body: JSON.stringify({
-              templateId: rule.templateId,
-              webhookId: rule.webhookId,
-              filters: rule.filters,
-            }),
-          });
-
-          newTestResults[ruleKey] = response.ok ? 'success' : 'error';
-        } catch (err) {
-          newTestResults[ruleKey] = 'error';
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-        
-        setTestResults({ ...newTestResults });
-        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWebhooks(data.webhooks || []);
+        if (data.webhooks && data.webhooks.length > 0) {
+          setRuleFormData(prev => ({ ...prev, target_webhook_id: data.webhooks[0].id }));
+        }
       }
-    } catch (err) {
-      setError('Test failed. Please try again.');
+    } catch (error) {
+      console.error('Error checking setup status:', error);
+    }
+  };
+
+  const createWebhook = async () => {
+    try {
+      setIsLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(webhookFormData)
+      });
+
+      if (response.ok) {
+        await checkSetupStatus(); // Refresh webhooks list
+        return true;
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create webhook');
+      }
+    } catch (error) {
+      console.error('Error creating webhook:', error);
+      alert(`❌ Failed to create webhook: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const activateIntegration = async () => {
-    setIsLoading(true);
-    setError(null);
-
+  const createRule = async () => {
     try {
+      setIsLoading(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/integration/activate`, {
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      const response = await fetch(`${apiUrl}/api/v1/admin/rules`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${oauthToken}`,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          webhooks: webhooks,
-          templates: Array.from(selectedTemplates).map(id => ({
-            id,
-            mode: templateModes[id]
-          })),
-          rules: rules,
-        }),
+          ...ruleFormData,
+          filters: {},
+          enabled: true
+        })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to activate integration');
+      if (response.ok) {
+        return true;
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create rule');
       }
-
-      // Integration activated successfully - don't auto-redirect
-      setIntegrationComplete(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Activation failed');
+    } catch (error) {
+      console.error('Error creating rule:', error);
+      alert(`❌ Failed to create rule: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const nextStep = () => {
-    if (currentStep < steps.length) {
-      // Generate default rules when entering step 4
-      if (currentStep === 3) {
-        generateDefaultRules(selectedTemplates);
+  const testNotification = async () => {
+    try {
+      setIsLoading(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      
+      const selectedWebhook = webhooks.find(w => w.id === ruleFormData.target_webhook_id);
+      if (!selectedWebhook) {
+        throw new Error('No webhook selected');
       }
-      setCurrentStep(currentStep + 1);
+
+      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks/${selectedWebhook.id}/test`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setTestResult({
+          success: true,
+          message: 'Test notification sent successfully! Check your Google Chat.'
+        });
+        return true;
+      } else {
+        const errorData = await response.json();
+        setTestResult({
+          success: false,
+          message: errorData.error || 'Test notification failed'
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error testing notification:', error);
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Test notification failed'
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="step-content">
-            <h2>Welcome to Pipedrive → Google Chat Integration</h2>
-            <p>Connect your Pipedrive account to get started with real-time notifications in Google Chat.</p>
-            
-            {!pipedriveConnected ? (
-              <div className="oauth-section">
-                <p>Click below to securely connect your Pipedrive account:</p>
-                <button 
-                  className="oauth-button primary"
-                  onClick={initiatePipedriveOAuth}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Connecting...' : 'Connect Pipedrive Account'}
-                </button>
-              </div>
-            ) : (
-              <div className="connection-success">
-                <div className="success-icon">✅</div>
-                <h3>Successfully Connected!</h3>
-                <p><strong>Company:</strong> {pipedriveCompany}</p>
-                <p>Your Pipedrive account is now connected and ready for integration.</p>
-              </div>
-            )}
+  const steps: OnboardingStep[] = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Pipenotify! 🎉',
+      description: 'Get real-time Pipedrive notifications in Google Chat',
+      isCompleted: true,
+      component: (
+        <div className="welcome-step">
+          <div className="welcome-hero">
+            <div className="welcome-icon">🚀</div>
+            <h2>Transform Your Sales Workflow</h2>
+            <p>Pipenotify bridges your Pipedrive CRM with Google Chat, delivering real-time notifications about deals, activities, and important sales events directly to your team.</p>
           </div>
-        );
-
-      case 2:
-        return (
-          <div className="step-content">
-            <h2>Google Chat Configuration</h2>
-            <p>Add your Google Chat webhook URLs to receive notifications.</p>
-            
-            <div className="webhook-form">
-              <div className="form-group">
-                <label htmlFor="webhook-name">Space Name</label>
-                <input
-                  id="webhook-name"
-                  type="text"
-                  placeholder="e.g., Sales Team, Deal Alerts"
-                  value={newWebhook.name}
-                  onChange={(e) => setNewWebhook({ ...newWebhook, name: e.target.value })}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="webhook-url">Webhook URL</label>
-                <input
-                  id="webhook-url"
-                  type="url"
-                  placeholder="https://chat.googleapis.com/v1/spaces/..."
-                  value={newWebhook.url}
-                  onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
-                />
-              </div>
-              
-              <button 
-                className="add-webhook-button"
-                onClick={addWebhook}
-                disabled={!newWebhook.name || !newWebhook.url || isLoading}
-              >
-                Add Webhook
-              </button>
+          
+          <div className="feature-grid">
+            <div className="feature-card">
+              <div className="feature-icon">⚡</div>
+              <h4>Real-time Notifications</h4>
+              <p>Get instant alerts when deals change, close, or need attention</p>
             </div>
-
-            <div className="webhooks-list">
-              {webhooks.map((webhook) => (
-                <div key={webhook.id} className="webhook-item">
-                  <div className="webhook-info">
-                    <strong>{webhook.name}</strong>
-                    <span className="webhook-url">{webhook.url}</span>
-                  </div>
-                  <div className="webhook-status">
-                    {webhook.isValidating ? (
-                      <span className="validating">Validating...</span>
-                    ) : webhook.isValid ? (
-                      <span className="valid">✅ Valid</span>
-                    ) : (
-                      <span className="invalid">❌ Invalid</span>
-                    )}
-                    <button 
-                      className="remove-button"
-                      onClick={() => removeWebhook(webhook.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+            <div className="feature-card">
+              <div className="feature-icon">🎯</div>
+              <h4>Smart Routing</h4>
+              <p>Route different notifications to specific channels automatically</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">🔕</div>
+              <h4>Quiet Hours</h4>
+              <p>Respect your team's time with configurable quiet periods</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">📊</div>
+              <h4>Rich Templates</h4>
+              <p>Customizable message formats with 50+ data variables</p>
+            </div>
+          </div>
+          
+          <div className="setup-time">
+            <div className="time-badge">⏱️ Setup takes 5 minutes</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'pipedrive',
+      title: 'Connect Your Pipedrive Account 🔗',
+      description: 'We need access to your Pipedrive data to send notifications',
+      isCompleted: true, // Assume already connected since they're authenticated
+      component: (
+        <div className="pipedrive-step">
+          <div className="connection-status success">
+            <div className="status-icon">✅</div>
+            <div className="status-content">
+              <h3>Pipedrive Connected Successfully!</h3>
+              <p>Your Pipedrive account is already connected and ready to send webhook notifications.</p>
+            </div>
+          </div>
+          
+          <div className="connection-info">
+            <h4>What happens next:</h4>
+            <ul>
+              <li>We'll create webhook subscriptions in your Pipedrive account</li>
+              <li>When events happen in Pipedrive, we'll receive them instantly</li>
+              <li>Our system will format and route notifications to your Google Chat</li>
+              <li>You maintain full control over which events trigger notifications</li>
+            </ul>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'webhook',
+      title: 'Add Your Google Chat Webhook 💬',
+      description: 'Connect a Google Chat space to receive notifications',
+      isCompleted: webhooks.length > 0,
+      component: (
+        <div className="webhook-step">
+          {webhooks.length > 0 ? (
+            <div className="existing-webhooks">
+              <div className="connection-status success">
+                <div className="status-icon">✅</div>
+                <div className="status-content">
+                  <h3>Google Chat Already Connected!</h3>
+                  <p>You have {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''} configured:</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="step-content">
-            <h2>Notification Templates</h2>
-            <p>Choose which events you want to receive notifications for.</p>
-            
-            <div className="templates-grid">
-              {availableTemplates.map((template) => (
-                <div 
-                  key={template.id} 
-                  className={`template-card ${selectedTemplates.has(template.id) ? 'selected' : ''}`}
-                >
-                  <div className="template-header">
-                    <input
-                      type="checkbox"
-                      checked={selectedTemplates.has(template.id)}
-                      onChange={() => toggleTemplate(template.id)}
-                    />
-                    <h3>{template.name}</h3>
-                  </div>
-                  <p>{template.description}</p>
-                  
-                  {selectedTemplates.has(template.id) && (
-                    <div className="template-modes">
-                      <label>
-                        <input
-                          type="radio"
-                          name={`mode-${template.id}`}
-                          value="compact"
-                          checked={templateModes[template.id] === 'compact'}
-                          onChange={() => setTemplateMode(template.id, 'compact')}
-                        />
-                        Compact
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`mode-${template.id}`}
-                          value="detailed"
-                          checked={templateModes[template.id] === 'detailed'}
-                          onChange={() => setTemplateMode(template.id, 'detailed')}
-                        />
-                        Detailed
-                      </label>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="step-content">
-            <h2>Rule Configuration</h2>
-            <p>Configure filters and routing for each selected template.</p>
-            
-            <div className="rules-configuration">
-              {Array.from(selectedTemplates).map((templateId) => {
-                const template = availableTemplates.find(t => t.id === templateId);
-                const rule = rules.find(r => r.templateId === templateId);
-                if (!template || !rule) return null;
-
-                return (
-                  <div key={templateId} className="rule-config-card">
-                    <h3>{template.name}</h3>
-                    <p className="rule-status">✅ Default configuration applied - customize if needed</p>
-                    <div className="rule-filters">
-                      <div className="filter-group">
-                        <label>Pipeline</label>
-                        <select 
-                          value={rule.filters.pipeline || ""}
-                          onChange={(e) => updateRuleFilter(templateId, 'pipeline', e.target.value)}
-                        >
-                          <option value="">All Pipelines (Default)</option>
-                          <option value="sales">Sales Pipeline</option>
-                          <option value="marketing">Marketing Pipeline</option>
-                        </select>
-                      </div>
-                      
-                      <div className="filter-group">
-                        <label>Stage</label>
-                        <select 
-                          value={rule.filters.stage || ""}
-                          onChange={(e) => updateRuleFilter(templateId, 'stage', e.target.value)}
-                        >
-                          <option value="">All Stages (Default)</option>
-                          <option value="qualified">Qualified</option>
-                          <option value="proposal">Proposal</option>
-                          <option value="negotiation">Negotiation</option>
-                        </select>
-                      </div>
-                      
-                      <div className="filter-group">
-                        <label>Minimum Deal Value</label>
-                        <input 
-                          type="number" 
-                          placeholder="0" 
-                          min="0"
-                          value={rule.filters.minValue || 0}
-                          onChange={(e) => updateRuleFilter(templateId, 'minValue', parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-                      
-                      <div className="filter-group">
-                        <label>Target Chat Space</label>
-                        <select 
-                          value={rule.webhookId}
-                          onChange={(e) => updateRuleFilter(templateId, 'targetWebhookId', e.target.value)}
-                        >
-                          {webhooks.filter(w => w.isValid).map(webhook => (
-                            <option key={webhook.id} value={webhook.id}>
-                              {webhook.name} {webhook.id === rule.webhookId ? '(Default)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {selectedTemplates.size > 0 && rules.length > 0 && (
-                <div className="default-config-notice">
-                  <p>ℹ️ <strong>Default Configuration Applied:</strong> All selected templates will notify your first Google Chat space for any pipeline activity. You can customize these settings above or proceed with defaults.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="step-content">
-            <h2>Testing & Activation</h2>
-            <p>Test your configuration before going live.</p>
-            
-            <div className="test-section">
-              <button 
-                className="test-button primary"
-                onClick={testAllRules}
-                disabled={isLoading || rules.length === 0}
-              >
-                {isLoading ? 'Testing...' : 'Test All Rules'}
-              </button>
-              
-              <div className="test-results">
-                {Object.entries(testResults).map(([ruleKey, status]) => (
-                  <div key={ruleKey} className={`test-result ${status}`}>
-                    <span className="rule-name">{ruleKey}</span>
-                    <span className="status">
-                      {status === 'pending' && '⏳ Testing...'}
-                      {status === 'success' && '✅ Success'}
-                      {status === 'error' && '❌ Failed'}
-                    </span>
+              </div>
+              <div className="webhook-list">
+                {webhooks.map(webhook => (
+                  <div key={webhook.id} className="webhook-item">
+                    <span className="webhook-name">{webhook.name}</span>
+                    <span className="webhook-status active">Active</span>
                   </div>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="webhook-form">
+              <div className="form-instructions">
+                <h4>How to get your Google Chat webhook URL:</h4>
+                <ol>
+                  <li>Open Google Chat and go to the space where you want notifications</li>
+                  <li>Click the space name → "Apps & integrations" → "Add webhooks"</li>
+                  <li>Name it "Pipenotify" and copy the webhook URL</li>
+                  <li>Paste the URL below</li>
+                </ol>
+              </div>
               
-              {Object.values(testResults).every(status => status === 'success') && !integrationComplete && (
-                <div className="activation-section">
-                  <h3>Ready to Activate!</h3>
-                  <p>All tests passed. Click below to activate your integration.</p>
-                  <button 
-                    className="activate-button success"
-                    onClick={activateIntegration}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Activating...' : 'Activate Integration'}
-                  </button>
+              <div className="form-fields">
+                <div className="form-field">
+                  <label>Webhook Name *</label>
+                  <input
+                    type="text"
+                    value={webhookFormData.name}
+                    onChange={(e) => setWebhookFormData({...webhookFormData, name: e.target.value})}
+                    placeholder="e.g., Sales Team Notifications"
+                  />
                 </div>
-              )}
-
-              {integrationComplete && (
-                <div className="completion-section">
-                  <div className="success-icon">🎉</div>
-                  <h3>Integration Activated Successfully!</h3>
-                  <p>Your Pipedrive → Google Chat integration is now live. Choose where to go next:</p>
-                  
-                  <div className="completion-buttons">
-                    <button 
-                      className="completion-button primary"
-                      onClick={() => window.location.href = '/dashboard'}
-                    >
-                      📊 View Integration Dashboard
-                    </button>
-                    
-                    <button 
-                      className="completion-button secondary"
-                      onClick={() => window.open('https://app.pipedrive.com', '_blank')}
-                    >
-                      🔗 Go to Pipedrive
-                    </button>
-                  </div>
-
-                  <div className="next-steps">
-                    <h4>What's Next?</h4>
-                    <ul>
-                      <li>Create deals in Pipedrive to test notifications</li>
-                      <li>Monitor delivery logs in the dashboard</li>
-                      <li>Adjust rules and templates as needed</li>
-                    </ul>
-                  </div>
+                
+                <div className="form-field">
+                  <label>Google Chat Webhook URL *</label>
+                  <input
+                    type="url"
+                    value={webhookFormData.webhook_url}
+                    onChange={(e) => setWebhookFormData({...webhookFormData, webhook_url: e.target.value})}
+                    placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."
+                  />
                 </div>
+                
+                <div className="form-field">
+                  <label>Description (Optional)</label>
+                  <input
+                    type="text"
+                    value={webhookFormData.description}
+                    onChange={(e) => setWebhookFormData({...webhookFormData, description: e.target.value})}
+                    placeholder="Notifications for sales team"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'rule',
+      title: 'Create Your First Notification Rule ⚙️',
+      description: 'Set up a rule to get notified about important events',
+      isCompleted: false,
+      component: (
+        <div className="rule-step">
+          <div className="rule-explanation">
+            <h4>Let's create your first notification rule!</h4>
+            <p>We'll start with a simple rule to notify you when deals are won - a great way to celebrate victories with your team.</p>
+          </div>
+          
+          <div className="rule-form">
+            <div className="form-field">
+              <label>Rule Name</label>
+              <input
+                type="text"
+                value={ruleFormData.name}
+                onChange={(e) => setRuleFormData({...ruleFormData, name: e.target.value})}
+                placeholder="My First Notification Rule"
+              />
+            </div>
+            
+            <div className="form-field">
+              <label>When should this rule trigger?</label>
+              <select
+                value={ruleFormData.event_type}
+                onChange={(e) => setRuleFormData({...ruleFormData, event_type: e.target.value})}
+              >
+                <option value="deal.won">🎉 When a deal is won</option>
+                <option value="deal.added">🆕 When a deal is created</option>
+                <option value="deal.change">📝 When a deal is updated</option>
+                <option value="activity.added">📞 When an activity is added</option>
+              </select>
+            </div>
+            
+            <div className="form-field">
+              <label>Send notifications to</label>
+              <select
+                value={ruleFormData.target_webhook_id}
+                onChange={(e) => setRuleFormData({...ruleFormData, target_webhook_id: e.target.value})}
+              >
+                <option value="">Select a webhook...</option>
+                {webhooks.map(webhook => (
+                  <option key={webhook.id} value={webhook.id}>
+                    {webhook.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="form-field">
+              <label>Message Style</label>
+              <div className="template-options">
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="template_mode"
+                    value="simple"
+                    checked={ruleFormData.template_mode === 'simple'}
+                    onChange={(e) => setRuleFormData({...ruleFormData, template_mode: e.target.value})}
+                  />
+                  <span>Simple - Clean and concise</span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="template_mode"
+                    value="detailed"
+                    checked={ruleFormData.template_mode === 'detailed'}
+                    onChange={(e) => setRuleFormData({...ruleFormData, template_mode: e.target.value})}
+                  />
+                  <span>Detailed - Rich information</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div className="rule-preview">
+            <h5>Preview:</h5>
+            <div className="preview-message">
+              {ruleFormData.event_type === 'deal.won' ? (
+                <>🎉 <strong>Deal Won!</strong><br/>
+                "Example Deal" ($5,000) has been marked as won by John Doe</>
+              ) : ruleFormData.event_type === 'deal.added' ? (
+                <>🆕 <strong>New Deal Created</strong><br/>
+                "Example Deal" ($5,000) created by John Doe</>
+              ) : (
+                <>📝 <strong>Deal Updated</strong><br/>
+                "Example Deal" has been updated by John Doe</>
               )}
             </div>
           </div>
-        );
+        </div>
+      )
+    },
+    {
+      id: 'test',
+      title: 'Test Your Setup 🧪',
+      description: 'Send a test notification to make sure everything works',
+      isCompleted: false,
+      component: (
+        <div className="test-step">
+          <div className="test-explanation">
+            <h4>Let's test your setup!</h4>
+            <p>We'll send a test notification to your Google Chat to make sure everything is working correctly.</p>
+          </div>
+          
+          {testResult && (
+            <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+              <div className="result-icon">
+                {testResult.success ? '✅' : '❌'}
+              </div>
+              <div className="result-message">{testResult.message}</div>
+            </div>
+          )}
+          
+          <div className="test-actions">
+            <button 
+              className="test-button"
+              onClick={testNotification}
+              disabled={isLoading || !ruleFormData.target_webhook_id}
+            >
+              {isLoading ? '⏳ Sending...' : '🚀 Send Test Notification'}
+            </button>
+          </div>
+          
+          <div className="test-info">
+            <h5>What happens when you click test:</h5>
+            <ul>
+              <li>A test message will be sent to your selected Google Chat space</li>
+              <li>You should see it appear within a few seconds</li>
+              <li>This confirms your webhook URL is working correctly</li>
+              <li>Real notifications will look similar but with actual Pipedrive data</li>
+            </ul>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'success',
+      title: 'All Set! 🎊',
+      description: 'Your Pipenotify integration is ready to go',
+      isCompleted: false,
+      component: (
+        <div className="success-step">
+          <div className="success-hero">
+            <div className="success-icon">🎊</div>
+            <h2>Congratulations!</h2>
+            <p>Your Pipenotify integration is now active and ready to keep your team informed about important Pipedrive events.</p>
+          </div>
+          
+          <div className="next-steps">
+            <h4>What's Next?</h4>
+            <div className="next-actions">
+              <div className="action-card">
+                <div className="action-icon">🎯</div>
+                <h5>Smart Channel Routing</h5>
+                <p>Set up automatic routing to send different types of notifications to specific channels</p>
+              </div>
+              <div className="action-card">
+                <div className="action-icon">🔕</div>
+                <h5>Configure Quiet Hours</h5>
+                <p>Set up quiet periods to avoid notifications during off-hours and weekends</p>
+              </div>
+              <div className="action-card">
+                <div className="action-icon">📊</div>
+                <h5>Create More Rules</h5>
+                <p>Add more notification rules for different events and customize message templates</p>
+              </div>
+              <div className="action-card">
+                <div className="action-icon">🔧</div>
+                <h5>Advanced Filters</h5>
+                <p>Use filters to only get notified about deals above certain values or specific pipelines</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="success-actions">
+            <button className="complete-button" onClick={onComplete}>
+              🚀 Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )
+    }
+  ];
 
+  const nextStep = async () => {
+    const current = steps[currentStep];
+    
+    // Handle step-specific actions
+    if (current.id === 'webhook' && webhooks.length === 0) {
+      const success = await createWebhook();
+      if (!success) return;
+    } else if (current.id === 'rule') {
+      const success = await createRule();
+      if (!success) return;
+    }
+    
+    setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
+  };
+
+  const prevStep = () => {
+    setCurrentStep(Math.max(currentStep - 1, 0));
+  };
+
+  const canProceed = () => {
+    const current = steps[currentStep];
+    
+    switch (current.id) {
+      case 'webhook':
+        return webhooks.length > 0 || (webhookFormData.name && webhookFormData.webhook_url);
+      case 'rule':
+        return ruleFormData.name && ruleFormData.event_type && ruleFormData.target_webhook_id;
       default:
-        return null;
+        return true;
     }
   };
 
+  const currentStepData = steps[currentStep];
+
   return (
     <div className="onboarding-wizard">
-      {error && (
-        <div className="error-banner">
-          <span className="error-icon">⚠️</span>
-          <span className="error-message">{error}</span>
-          <button 
-            className="error-close"
-            onClick={() => setError(null)}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      
       <div className="wizard-header">
-        <div className="progress-bar">
-          {steps.map((step, index) => (
+        <div className="wizard-progress">
+          <div className="progress-bar">
             <div 
-              key={step.id}
-              className={`progress-step ${currentStep === step.id ? 'active' : ''} ${step.isComplete ? 'complete' : ''}`}
-            >
-              <div className="step-number">
-                {step.isComplete ? '✓' : step.id}
-              </div>
-              <div className="step-info">
-                <div className="step-title">{step.title}</div>
-                <div className="step-description">{step.description}</div>
-              </div>
-            </div>
-          ))}
+              className="progress-fill" 
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            ></div>
+          </div>
+          <div className="progress-text">
+            Step {currentStep + 1} of {steps.length}
+          </div>
+        </div>
+        
+        <button className="skip-button" onClick={onSkip}>
+          Skip Setup
+        </button>
+      </div>
+
+      <div className="wizard-content">
+        <div className="step-header">
+          <h1>{currentStepData.title}</h1>
+          <p>{currentStepData.description}</p>
+        </div>
+
+        <div className="step-content">
+          {currentStepData.component}
         </div>
       </div>
-      
-      <div className="wizard-content">
-        {renderStepContent()}
-      </div>
-      
+
       <div className="wizard-footer">
-        {currentStep > 1 && (
+        <div className="step-navigation">
           <button 
-            className="nav-button secondary"
+            className="nav-button prev"
             onClick={prevStep}
-            disabled={isLoading}
+            disabled={currentStep === 0}
           >
-            Previous
+            ← Previous
           </button>
-        )}
-        
-        {currentStep < steps.length && (
-          <button 
-            className="nav-button primary"
-            onClick={nextStep}
-            disabled={!steps[currentStep - 1].isComplete || isLoading}
-          >
-            Next
-          </button>
-        )}
+          
+          <div className="step-indicators">
+            {steps.map((_, index) => (
+              <div 
+                key={index} 
+                className={`step-indicator ${index <= currentStep ? 'completed' : ''}`}
+              />
+            ))}
+          </div>
+          
+          {currentStep === steps.length - 1 ? (
+            <button className="nav-button next complete" onClick={onComplete}>
+              Complete Setup →
+            </button>
+          ) : (
+            <button 
+              className="nav-button next"
+              onClick={nextStep}
+              disabled={!canProceed() || isLoading}
+            >
+              {isLoading ? '⏳ Loading...' : 'Next →'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,12 +1,9 @@
 const express = require('express');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
+const { pool } = require('../services/database');
+const { generateToken } = require('../middleware/auth');
 const router = express.Router();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 // OAuth 2.0 callback endpoint - exchanges authorization code for access token
 router.post('/callback', async (req, res) => {
@@ -92,28 +89,28 @@ router.post('/callback', async (req, res) => {
       ]
     );
 
-    // Generate JWT token for frontend
-    const jwtToken = jwt.sign(
-      { 
-        tenantId,
-        userId,
-        companyName,
-        apiDomain: api_domain
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate JWT token using the new auth middleware
+    const tokenData = generateToken({
+      tenant_id: tenantId,
+      user_id: userId,
+      company_id: companyId,
+      company_name: companyName
+    });
 
     res.json({
       success: true,
-      token: jwtToken,
+      ...tokenData,
       user: {
         id: userId,
         name: userName,
         company: companyName,
         apiDomain: api_domain,
       },
-      tenantId,
+      tenant: {
+        id: tenantId,
+        company_id: companyId,
+        company_name: companyName
+      }
     });
 
   } catch (error) {

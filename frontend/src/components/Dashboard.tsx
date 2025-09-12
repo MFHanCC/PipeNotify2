@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Dashboard.css';
+import WebhookManager from './WebhookManager';
+import RuleFilters from './RuleFilters';
+import TemplateEditor from './TemplateEditor';
+import ChannelRouting from './ChannelRouting';
+import QuietHours from './QuietHours';
+import AnalyticsDashboard from './AnalyticsDashboard';
+import NotificationPreview from './NotificationPreview';
+import BulkRuleManager from './BulkRuleManager';
+import OnboardingWizard from './OnboardingWizard';
+import StalledDealMonitor from './StalledDealMonitor';
 
 interface NotificationRule {
   id: string;
@@ -75,7 +85,7 @@ const Dashboard: React.FC = () => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding'>('overview');
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{name: string; enabled: boolean}>({name: '', enabled: true});
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -83,8 +93,10 @@ const Dashboard: React.FC = () => {
     name: '',
     event_type: 'deal.updated',
     target_webhook_id: '',
-    template_mode: 'compact',
+    template_mode: 'compact' as 'simple' | 'compact' | 'detailed' | 'custom',
+    custom_template: undefined as string | undefined,
     enabled: true,
+    filters: {},
   });
   const [availableWebhooks, setAvailableWebhooks] = useState<Array<{id: string; name: string}>>([]);
 
@@ -335,7 +347,9 @@ const Dashboard: React.FC = () => {
       event_type: 'deal.updated',
       target_webhook_id: availableWebhooks[0]?.id || '',
       template_mode: 'compact',
+      custom_template: undefined,
       enabled: true,
+      filters: {},
     });
     setShowCreateModal(true);
   };
@@ -347,7 +361,9 @@ const Dashboard: React.FC = () => {
       event_type: 'deal.updated',
       target_webhook_id: '',
       template_mode: 'compact',
+      custom_template: undefined,
       enabled: true,
+      filters: {},
     });
   };
 
@@ -367,8 +383,9 @@ const Dashboard: React.FC = () => {
           event_type: createFormData.event_type,
           target_webhook_id: parseInt(createFormData.target_webhook_id),
           template_mode: createFormData.template_mode,
+          custom_template: createFormData.custom_template,
           enabled: createFormData.enabled,
-          filters: {},
+          filters: createFormData.filters,
         }),
       });
 
@@ -728,6 +745,54 @@ const Dashboard: React.FC = () => {
             📋 Logs
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'webhooks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('webhooks')}
+          >
+            🔗 Webhooks ({availableWebhooks.length})
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'routing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('routing')}
+          >
+            🎯 Smart Routing
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'quiet-hours' ? 'active' : ''}`}
+            onClick={() => setActiveTab('quiet-hours')}
+          >
+            🔕 Quiet Hours
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'stalled-deals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stalled-deals')}
+          >
+            📊 Stalled Deals
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            📊 Analytics
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'testing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('testing')}
+          >
+            🧪 Testing
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
+            onClick={() => setActiveTab('bulk-management')}
+          >
+            📋 Bulk Management
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'onboarding' ? 'active' : ''}`}
+            onClick={() => setActiveTab('onboarding')}
+          >
+            🎓 Onboarding
+          </button>
+          <button 
             className="nav-tab"
             onClick={() => window.location.href = '/billing'}
           >
@@ -746,6 +811,51 @@ const Dashboard: React.FC = () => {
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'rules' && renderRules()}
         {activeTab === 'logs' && renderLogs()}
+        {activeTab === 'webhooks' && (
+          <WebhookManager 
+            onWebhooksChange={(webhooks) => {
+              setAvailableWebhooks(webhooks.map(w => ({ id: w.id, name: w.name })));
+            }}
+          />
+        )}
+        {activeTab === 'routing' && (
+          <ChannelRouting 
+            webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'quiet-hours' && (
+          <QuietHours 
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'stalled-deals' && (
+          <StalledDealMonitor 
+            webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'analytics' && (
+          <AnalyticsDashboard 
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'testing' && (
+          <NotificationPreview 
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'bulk-management' && (
+          <BulkRuleManager 
+            onRefresh={loadDashboardData}
+          />
+        )}
+        {activeTab === 'onboarding' && (
+          <OnboardingWizard 
+            onComplete={() => setActiveTab('overview')}
+            onSkip={() => setActiveTab('overview')}
+          />
+        )}
       </div>
 
       {/* Create Rule Modal */}
@@ -820,17 +930,19 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
 
-              <div className="form-group">
-                <label>Template Mode</label>
-                <select
-                  value={createFormData.template_mode}
-                  onChange={(e) => setCreateFormData({...createFormData, template_mode: e.target.value})}
-                  className="form-select"
-                >
-                  <option value="compact">Compact</option>
-                  <option value="detailed">Detailed</option>
-                </select>
-              </div>
+              {/* Message Template Editor */}
+              <TemplateEditor
+                value={{
+                  template_mode: createFormData.template_mode,
+                  custom_template: createFormData.custom_template
+                }}
+                onChange={(templateData) => setCreateFormData({
+                  ...createFormData,
+                  template_mode: templateData.template_mode,
+                  custom_template: templateData.custom_template
+                })}
+                eventType={createFormData.event_type}
+              />
 
               <div className="form-group">
                 <label className="checkbox-label">
@@ -842,6 +954,12 @@ const Dashboard: React.FC = () => {
                   <span>Enable rule immediately</span>
                 </label>
               </div>
+              
+              {/* Advanced Filters */}
+              <RuleFilters
+                filters={createFormData.filters}
+                onChange={(filters) => setCreateFormData({...createFormData, filters})}
+              />
             </div>
 
             <div className="modal-footer">

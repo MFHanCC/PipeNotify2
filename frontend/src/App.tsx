@@ -12,7 +12,12 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
-          <Route path="/onboarding" element={<OnboardingWizard />} />
+          <Route path="/onboarding" element={
+            <OnboardingWizard 
+              onComplete={() => window.location.href = '/dashboard'} 
+              onSkip={() => window.location.href = '/dashboard'} 
+            />
+          } />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/billing" element={<BillingDashboard onNavigateToPricing={() => window.location.href = '/pricing'} />} />
