@@ -442,7 +442,7 @@ const Dashboard: React.FC = () => {
 
   const renderOverview = () => (
     <div className="overview-section">
-      <div className="stats-grid">
+      <div className="stats-grid stats-2x2">
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
@@ -724,7 +724,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="dashboard">
+    <div className="dashboard dashboard-with-sidebar">
       {error && (
         <div className="error-banner">
           <span className="error-icon">⚠️</span>
@@ -738,13 +738,13 @@ const Dashboard: React.FC = () => {
         </div>
       )}
       
-      <div className="dashboard-header">
-        <div className="header-content">
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-header">
           <h1>Pipedrive → Google Chat</h1>
           <p>Monitor and manage your notification rules and delivery logs</p>
         </div>
         
-        <nav className="dashboard-nav">
+        <nav className="sidebar-nav">
           <button 
             className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
@@ -824,58 +824,60 @@ const Dashboard: React.FC = () => {
             💎 Pricing
           </button>
         </nav>
-      </div>
+      </aside>
       
-      <div className="dashboard-content">
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'rules' && renderRules()}
-        {activeTab === 'logs' && renderLogs()}
-        {activeTab === 'webhooks' && (
-          <WebhookManager 
-            onWebhooksChange={(webhooks) => {
-              setAvailableWebhooks(webhooks.map(w => ({ id: w.id, name: w.name })));
-            }}
-          />
-        )}
-        {activeTab === 'routing' && (
-          <ChannelRouting 
-            webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'quiet-hours' && (
-          <QuietHours 
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'stalled-deals' && (
-          <StalledDealMonitor 
-            webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'analytics' && (
-          <AnalyticsDashboard 
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'testing' && (
-          <NotificationPreview 
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'bulk-management' && (
-          <BulkRuleManager 
-            onRefresh={loadDashboardData}
-          />
-        )}
-        {activeTab === 'onboarding' && (
-          <OnboardingWizard 
-            onComplete={() => setActiveTab('overview')}
-            onSkip={() => setActiveTab('overview')}
-          />
-        )}
-      </div>
+      <main className="dashboard-main">
+        <div className="dashboard-content">
+          {activeTab === 'overview' && renderOverview()}
+          {activeTab === 'rules' && renderRules()}
+          {activeTab === 'logs' && renderLogs()}
+          {activeTab === 'webhooks' && (
+            <WebhookManager 
+              onWebhooksChange={(webhooks) => {
+                setAvailableWebhooks(webhooks.map(w => ({ id: w.id, name: w.name })));
+              }}
+            />
+          )}
+          {activeTab === 'routing' && (
+            <ChannelRouting 
+              webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'quiet-hours' && (
+            <QuietHours 
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'stalled-deals' && (
+            <StalledDealMonitor 
+              webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'analytics' && (
+            <AnalyticsDashboard 
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'testing' && (
+            <NotificationPreview 
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'bulk-management' && (
+            <BulkRuleManager 
+              onRefresh={loadDashboardData}
+            />
+          )}
+          {activeTab === 'onboarding' && (
+            <OnboardingWizard 
+              onComplete={() => setActiveTab('overview')}
+              onSkip={() => setActiveTab('overview')}
+            />
+          )}
+        </div>
+      </main>
 
       {/* Create Rule Modal */}
       {showCreateModal && (
