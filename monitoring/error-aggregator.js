@@ -27,10 +27,15 @@ class ErrorAggregator {
   monitorRailwayLogs() {
     const { spawn } = require('child_process');
     try {
-      const railway = spawn('railway', ['logs', '--follow'], { stdio: 'pipe' });
+      const railway = spawn('railway', ['logs'], { stdio: 'pipe', cwd: '../backend' });
       
       railway.stdout.on('data', (data) => {
-        const logEntry = this.parseLogEntry(data.toString(), 'railway');
+        const logText = data.toString();
+        const logEntry = this.parseLogEntry(logText, 'railway');
+        
+        // Check for critical notification issues
+        this.checkCriticalPatterns(logText);
+        
         if (logEntry.level === 'error') {
           this.handleError(logEntry);
         }
@@ -42,6 +47,48 @@ class ErrorAggregator {
       });
     } catch (error) {
       console.log('Railway monitoring setup failed:', error.message);
+    }
+  }
+
+  checkCriticalPatterns(logText) {
+    // Check for tenant 2 rules_matched: 0 pattern
+    if (logText.includes('rules_matched: 0') && logText.includes('tenant_id: 2')) {
+      this.handleError({
+        source: 'railway',
+        type: 'critical_tenant_issue',
+        message: 'Tenant 2 has no notification rules - all webhooks failing to send notifications',
+        severity: 'critical',
+        timestamp: new Date().toISOString(),
+        auto_fix: true,
+        suggested_action: 'create_default_rules_for_tenant_2'
+      });
+    }
+
+    // Check for Redis connection issues
+    if (logText.includes('Stream isn\'t writeable') || 
+        logText.includes('enableOfflineQueue options is false')) {
+      this.handleError({
+        source: 'railway',
+        type: 'redis_connection_error',
+        message: 'Redis connection issues causing worker failures',
+        severity: 'high',
+        timestamp: new Date().toISOString(),
+        auto_fix: true,
+        suggested_action: 'restart_redis_connection'
+      });
+    }
+
+    // Check for database connection issues
+    if (logText.includes('Cannot read properties of undefined (reading \'searchParams\')')) {
+      this.handleError({
+        source: 'railway',
+        type: 'database_connection_error',
+        message: 'Database connection string parsing issues',
+        severity: 'high',
+        timestamp: new Date().toISOString(),
+        auto_fix: true,
+        suggested_action: 'fix_database_connection_string'
+      });
     }
   }
 

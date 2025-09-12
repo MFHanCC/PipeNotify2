@@ -49,12 +49,37 @@ class BrowserMonitor {
   }
 
   async runTestSuite() {
+    let config;
+    
     if (!fs.existsSync('./.claude/browser-config.json')) {
-      console.log('Browser config not found, skipping tests');
-      return;
+      console.log('⚠️ Browser config not found, using production URLs for testing');
+      config = {
+        browser_testing: {
+          test_scenarios: [
+            {
+              name: "Frontend Health Check",
+              url: "https://pipenotify-frontend.vercel.app",
+              actions: ["navigate"],
+              assertions: ["no_errors", "loads_successfully"]
+            },
+            {
+              name: "Dashboard Load", 
+              url: "https://pipenotify-frontend.vercel.app/dashboard",
+              actions: ["navigate"],
+              assertions: ["no_console_errors", "page_renders"]
+            },
+            {
+              name: "Backend Health Check",
+              url: "https://pipenotify.up.railway.app/health",
+              actions: ["api_call"],
+              assertions: ["responds_200", "json_response"]
+            }
+          ]
+        }
+      };
+    } else {
+      config = JSON.parse(fs.readFileSync('./.claude/browser-config.json'));
     }
-
-    const config = JSON.parse(fs.readFileSync('./.claude/browser-config.json'));
     
     for (const scenario of config.browser_testing.test_scenarios) {
       for (const [browserType, browser] of Object.entries(this.browsers)) {

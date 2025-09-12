@@ -1,33 +1,96 @@
 {
   "browser_testing": {
+    "enabled": true,
     "browsers": ["chromium", "firefox", "webkit"],
     "viewports": [
-      {"width": 1920, "height": 1080},
-      {"width": 1366, "height": 768},
-      {"width": 375, "height": 667}
+      {"name": "desktop", "width": 1920, "height": 1080},
+      {"name": "laptop", "width": 1366, "height": 768},
+      {"name": "tablet", "width": 768, "height": 1024},
+      {"name": "mobile", "width": 375, "height": 667}
     ],
     "test_scenarios": [
       {
-        "name": "OAuth Flow",
-        "url": "http://localhost:3000/auth/pipedrive",
-        "actions": ["click", "fill", "submit"],
-        "assertions": ["no_errors", "redirect_success"]
+        "name": "Frontend Home Page",
+        "priority": "critical",
+        "url": "https://pipenotify-frontend.vercel.app/",
+        "actions": ["navigate"],
+        "assertions": ["no_console_errors", "page_loads"],
+        "timeout": 10000
       },
       {
-        "name": "Dashboard Load",
-        "url": "http://localhost:3000/dashboard",
-        "actions": ["login", "navigate"],
-        "assertions": ["data_loads", "no_console_errors"]
+        "name": "Backend Health Check",
+        "priority": "high", 
+        "url": "https://pipenotify.up.railway.app/health",
+        "actions": ["api_call"],
+        "assertions": ["responds_200", "json_response"],
+        "timeout": 10000
       },
       {
-        "name": "Rule Creation",
-        "url": "http://localhost:3000/rules/new",
-        "actions": ["fill_form", "save", "test"],
-        "assertions": ["rule_saved", "notification_sent"]
+        "name": "Static Resource Check",
+        "priority": "medium",
+        "url": "https://pipenotify-frontend.vercel.app/static/css/main.css",
+        "actions": ["api_call"],
+        "assertions": ["responds_200", "css_content"],
+        "timeout": 5000
+      },
+      {
+        "name": "Public API Status",
+        "priority": "high",
+        "url": "https://pipenotify.up.railway.app/api/v1/status",
+        "actions": ["api_call"],
+        "assertions": ["responds_200", "status_ok"],
+        "timeout": 10000
       }
     ],
-    "continuous_monitoring": true,
-    "screenshot_on_error": true,
-    "video_recording": true
+    "continuous_monitoring": {
+      "enabled": true,
+      "interval_minutes": 30,
+      "failure_threshold": 2,
+      "recovery_actions": ["retry_test", "alert_dev", "capture_diagnostics"]
+    },
+    "screenshot_settings": {
+      "on_error": true,
+      "on_success": false,
+      "full_page": false,
+      "quality": 80,
+      "path": "./logs/browser/"
+    },
+    "video_recording": {
+      "enabled": false,
+      "on_failure_only": true,
+      "quality": "720p",
+      "path": "./logs/videos/"
+    },
+    "performance_monitoring": {
+      "lighthouse": true,
+      "core_web_vitals": true,
+      "network_conditions": "fast3g",
+      "thresholds": {
+        "first_contentful_paint": 2000,
+        "largest_contentful_paint": 4000,
+        "cumulative_layout_shift": 0.1
+      }
+    },
+    "accessibility_testing": {
+      "enabled": true,
+      "wcag_level": "AA",
+      "tools": ["axe-core"],
+      "include_color_contrast": true
+    },
+    "error_handling": {
+      "retry_attempts": 3,
+      "retry_delay": 5000,
+      "capture_console_errors": true,
+      "capture_network_failures": true,
+      "fail_fast": false
+    }
+  },
+  "local_development": {
+    "frontend_url": "http://localhost:3000",
+    "backend_url": "http://localhost:3001",
+    "test_user": {
+      "email": "test@example.com",
+      "tenant_id": "test_tenant"
+    }
   }
 }

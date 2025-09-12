@@ -4,32 +4,111 @@
       "Bash(*)",
       "Write(*)",
       "Read(*)",
-      "Update(*)",
-      "Execute(*)",
-      "Network(*)",
-      "Process(*)",
-      "FileSystem(*)"
+      "Edit(*)",
+      "MultiEdit(*)",
+      "LS(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "TodoWrite(*)",
+      "Task(*)",
+      "BashOutput(*)",
+      "KillBash(*)",
+      "mcp__*"
     ],
     "deny": [
       "Bash(rm -rf /)",
       "Bash(sudo systemctl)",
-      "Bash(format)"
+      "Bash(format)",
+      "Bash(shutdown)",
+      "Bash(reboot)"
     ],
     "autonomous": true,
-    "real_time_monitoring": true
+    "real_time_monitoring": true,
+    "auto_fix": true,
+    "deployment_automation": true
   },
   "project": {
-    "name": "pipedrive-google-chat-integration",
-    "type": "marketplace-app",
-    "architecture": "railway-vercel",
+    "name": "Pipenotify2 - Pipedrive Google Chat Integration",
+    "type": "marketplace-saas-app",
+    "architecture": "fullstack-railway-vercel",
+    "tech_stack": {
+      "backend": "nodejs-express-postgresql-redis-bullmq",
+      "frontend": "react-typescript-tailwind",
+      "deployment": "railway-vercel",
+      "monitoring": "sentry-custom"
+    },
     "monitoring_level": "maximum",
-    "auto_fix": true
+    "environment": {
+      "development": "http://localhost:3000",
+      "staging": "https://pipenotify-frontend-git-staging.vercel.app",
+      "production": {
+        "frontend": "https://pipenotify-frontend.vercel.app",
+        "backend": "https://pipenotify.up.railway.app"
+      }
+    }
   },
   "tools": {
     "github_cli": true,
     "railway_cli": true,
     "vercel_cli": true,
     "browser_automation": true,
-    "error_aggregation": true
+    "error_aggregation": true,
+    "performance_monitoring": true,
+    "security_scanning": true
+  },
+  "development": {
+    "auto_test": true,
+    "auto_lint": true,
+    "auto_format": false,
+    "build_validation": true,
+    "deployment_validation": true,
+    "rollback_on_failure": true
+  },
+  "quality_gates": {
+    "test_coverage_threshold": 80,
+    "performance_budget_ms": 3000,
+    "bundle_size_limit_mb": 5,
+    "accessibility_score_min": 90,
+    "lighthouse_performance_min": 85
+  },
+  "notification_channels": {
+    "critical_errors": "console",
+    "deployment_status": "console",
+    "performance_alerts": "console",
+    "security_alerts": "console"
+  },
+  "current_issues": {
+    "tenant_2_zero_rules": {
+      "description": "Tenant 2 has no notification rules causing webhooks to fail silently",
+      "severity": "critical",
+      "status": "identified_pending_fix",
+      "auto_fix_enabled": true,
+      "fix_action": "create_default_rules_for_tenant_2",
+      "priority": 1
+    }
+  },
+  "mcp_servers": {
+    "context7": {
+      "enabled": true,
+      "use_for": ["library_docs", "framework_patterns", "api_references"]
+    },
+    "sequential_thinking": {
+      "enabled": true,
+      "use_for": ["complex_debugging", "architecture_analysis", "multi_step_reasoning"]
+    },
+    "magic": {
+      "enabled": true,
+      "use_for": ["ui_components", "react_patterns", "design_system"]
+    },
+    "morphllm": {
+      "enabled": true,
+      "use_for": ["bulk_edits", "code_transformations", "pattern_enforcement"]
+    },
+    "playwright": {
+      "enabled": true,
+      "use_for": ["e2e_testing", "browser_automation", "visual_testing"]
+    }
   }
 }

@@ -1,0 +1,186 @@
+{
+  "project_context": {
+    "overview": {
+      "name": "Pipenotify2 - Pipedrive Google Chat Integration",
+      "description": "SaaS marketplace application that bridges Pipedrive CRM events to Google Chat notifications with real-time processing and tenant management",
+      "version": "2.0",
+      "status": "production_ready",
+      "last_updated": "2025-01-12"
+    },
+    "architecture": {
+      "pattern": "microservices",
+      "deployment": "split_stack",
+      "frontend": {
+        "platform": "vercel",
+        "url": "https://pipenotify-frontend.vercel.app",
+        "tech_stack": ["react", "typescript", "tailwindcss", "react-router-v6"],
+        "build_command": "npm run build",
+        "framework": "create-react-app"
+      },
+      "backend": {
+        "platform": "railway",
+        "url": "https://pipenotify.up.railway.app",
+        "tech_stack": ["nodejs", "express", "postgresql", "redis", "bullmq"],
+        "entry_point": "server.js",
+        "health_endpoint": "/health"
+      },
+      "database": {
+        "type": "postgresql",
+        "hosting": "railway_managed",
+        "schema_path": "./backend/db/schema.sql",
+        "migrations_path": "./backend/migrations/"
+      },
+      "message_queue": {
+        "type": "redis_bullmq",
+        "hosting": "railway_managed",
+        "queues": ["notification-processing", "webhook-processing"]
+      }
+    },
+    "integrations": {
+      "pipedrive": {
+        "type": "oauth2_webhook",
+        "purpose": "crm_event_source",
+        "webhook_endpoint": "/api/webhook/pipedrive",
+        "auth_endpoint": "/api/auth/pipedrive",
+        "marketplace_app": true
+      },
+      "google_chat": {
+        "type": "incoming_webhook",
+        "purpose": "notification_destination",
+        "setup_flow": "manual_webhook_configuration"
+      },
+      "stripe": {
+        "type": "payment_processor",
+        "purpose": "billing_subscription_management",
+        "webhook_endpoint": "/api/webhook/stripe",
+        "products": ["professional", "enterprise"]
+      },
+      "sentry": {
+        "type": "error_monitoring",
+        "purpose": "production_error_tracking",
+        "environments": ["production", "staging"]
+      }
+    },
+    "key_features": {
+      "tenant_management": {
+        "multi_tenant": true,
+        "isolation": "tenant_id_column",
+        "onboarding": "oauth_wizard"
+      },
+      "notification_rules": {
+        "engine": "jsonb_filters",
+        "customization": "advanced_conditions",
+        "testing": "real_time_preview"
+      },
+      "webhook_processing": {
+        "verification": "hmac_signature",
+        "reliability": "queue_based_retry",
+        "monitoring": "delivery_tracking"
+      },
+      "billing_system": {
+        "tiers": ["free", "professional", "enterprise"],
+        "metering": "notification_count",
+        "quotas": "usage_based_limits"
+      }
+    },
+    "critical_paths": {
+      "user_onboarding": [
+        "pipedrive_oauth",
+        "webhook_configuration",
+        "rule_creation",
+        "test_notification"
+      ],
+      "webhook_processing": [
+        "hmac_verification",
+        "tenant_identification",
+        "rule_evaluation",
+        "notification_delivery"
+      ],
+      "billing_flow": [
+        "usage_tracking",
+        "quota_enforcement",
+        "subscription_management",
+        "payment_processing"
+      ]
+    },
+    "known_issues": {
+      "tenant_2_zero_rules": {
+        "description": "Specific tenant (ID: 2) has no notification rules causing silent webhook failures",
+        "impact": "critical",
+        "detection": "monitoring_alerts",
+        "fix_priority": "immediate",
+        "auto_fix_available": true
+      },
+      "stalled_queue_jobs": {
+        "description": "Background jobs occasionally stall in Redis queue",
+        "impact": "medium",
+        "detection": "queue_monitoring",
+        "fix_priority": "medium",
+        "auto_fix_available": true
+      }
+    },
+    "development_workflow": {
+      "git_strategy": "feature_branches",
+      "main_branch": "main",
+      "deployment_trigger": "push_to_main",
+      "testing_strategy": "unit_integration_e2e",
+      "review_process": "automated_pr_checks"
+    },
+    "monitoring_strategy": {
+      "levels": ["infrastructure", "application", "business"],
+      "tools": ["sentry", "custom_monitoring", "railway_metrics", "vercel_analytics"],
+      "alerting": "threshold_based",
+      "dashboards": "./monitoring/dashboard.html"
+    },
+    "security_considerations": {
+      "data_encryption": "tls_in_transit_pgcrypto_at_rest",
+      "authentication": "oauth2_jwt",
+      "authorization": "tenant_based_rbac",
+      "webhook_security": "hmac_signature_verification",
+      "secrets_management": "railway_environment_variables"
+    }
+  },
+  "development_preferences": {
+    "code_style": {
+      "javascript": "standard_with_semicolons",
+      "typescript": "strict_mode",
+      "css": "tailwindcss_utility_first",
+      "file_organization": "feature_based"
+    },
+    "testing_approach": {
+      "unit_tests": "jest",
+      "integration_tests": "supertest",
+      "e2e_tests": "playwright",
+      "coverage_target": 80
+    },
+    "deployment_philosophy": {
+      "approach": "continuous_deployment",
+      "rollback_strategy": "automated_on_failure",
+      "environment_parity": "dev_staging_prod",
+      "zero_downtime": "blue_green_via_railway"
+    }
+  },
+  "claude_instructions": {
+    "priorities": [
+      "fix_critical_tenant_issues_first",
+      "maintain_production_stability",
+      "follow_existing_code_patterns",
+      "comprehensive_testing",
+      "documentation_updates"
+    ],
+    "preferred_actions": [
+      "analyze_before_implementing",
+      "create_feature_branches",
+      "run_tests_after_changes",
+      "validate_deployments",
+      "monitor_post_deployment"
+    ],
+    "avoid": [
+      "direct_main_branch_commits",
+      "untested_production_changes",
+      "breaking_existing_integrations",
+      "ignoring_monitoring_alerts",
+      "bypassing_quality_gates"
+    ]
+  }
+}

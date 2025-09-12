@@ -1,0 +1,114 @@
+{
+  "hooks": {
+    "pre_execution": {
+      "enabled": true,
+      "commands": [
+        {
+          "name": "git_status_check",
+          "command": "git status --porcelain",
+          "description": "Check for uncommitted changes before major operations",
+          "fail_on_error": false,
+          "output_to_log": true
+        },
+        {
+          "name": "branch_check",
+          "command": "git branch --show-current",
+          "description": "Verify current branch before deployment operations",
+          "fail_on_error": false,
+          "output_to_log": true
+        }
+      ]
+    },
+    "post_execution": {
+      "enabled": true,
+      "commands": [
+        {
+          "name": "test_validation",
+          "command": "npm test --passWithNoTests",
+          "description": "Run tests after code changes",
+          "fail_on_error": false,
+          "working_directory": "./backend",
+          "timeout": 30000
+        },
+        {
+          "name": "build_validation",
+          "command": "npm run build",
+          "description": "Validate build after changes",
+          "fail_on_error": false,
+          "working_directory": "./frontend",
+          "timeout": 60000
+        }
+      ]
+    },
+    "pre_deployment": {
+      "enabled": true,
+      "commands": [
+        {
+          "name": "health_check",
+          "command": "curl -f https://pipenotify.up.railway.app/health",
+          "description": "Check backend health before deployment",
+          "fail_on_error": true,
+          "timeout": 10000
+        },
+        {
+          "name": "database_connection",
+          "command": "./scripts/test-deployment.sh --db-only",
+          "description": "Verify database connectivity",
+          "fail_on_error": true,
+          "timeout": 15000
+        }
+      ]
+    },
+    "post_deployment": {
+      "enabled": true,
+      "commands": [
+        {
+          "name": "deployment_verification",
+          "command": "./scripts/validate-deployment.sh",
+          "description": "Comprehensive deployment validation",
+          "fail_on_error": true,
+          "timeout": 120000
+        },
+        {
+          "name": "browser_smoke_test",
+          "command": "cd monitoring && npm run smoke-test",
+          "description": "Run critical browser tests",
+          "fail_on_error": false,
+          "timeout": 60000
+        }
+      ]
+    },
+    "error_recovery": {
+      "enabled": true,
+      "commands": [
+        {
+          "name": "service_restart",
+          "command": "railway service restart",
+          "description": "Restart Railway service on critical errors",
+          "fail_on_error": false,
+          "timeout": 30000
+        },
+        {
+          "name": "cache_clear",
+          "command": "railway run node -e \"require('./services/database.js').clearCache()\"",
+          "description": "Clear application cache",
+          "fail_on_error": false,
+          "timeout": 15000,
+          "working_directory": "./backend"
+        }
+      ]
+    }
+  },
+  "notifications": {
+    "slack_webhook": null,
+    "email": null,
+    "console": true,
+    "file_log": true,
+    "log_path": "./logs/claude-hooks.log"
+  },
+  "conditions": {
+    "run_tests_on": ["file_changes", "deployment"],
+    "restart_service_on": ["critical_error", "high_error_rate"],
+    "notify_on": ["hook_failure", "deployment_success", "critical_error"]
+  }
+}

@@ -1,44 +1,263 @@
 {
   "monitoring": {
-    "browser": {
+    "global_settings": {
       "enabled": true,
-      "headless": false,
-      "capture_screenshots": true,
-      "record_network": true,
-      "detect_errors": true,
-      "auto_retry": true
+      "environment": "production",
+      "alert_channels": ["console", "file"],
+      "log_retention_days": 30,
+      "aggregation_interval_minutes": 5
     },
     "backend": {
-      "railway_logs": true,
-      "database_monitoring": true,
-      "api_performance": true,
-      "queue_monitoring": true
+      "railway_monitoring": {
+        "enabled": true,
+        "service_name": "pipenotify",
+        "log_streaming": true,
+        "metrics": ["cpu", "memory", "disk", "network"],
+        "database_monitoring": true,
+        "redis_monitoring": true,
+        "queue_monitoring": {
+          "enabled": true,
+          "queues": ["notification-processing", "webhook-processing"],
+          "alert_on_stalled": true,
+          "max_stalled_jobs": 5
+        }
+      },
+      "api_monitoring": {
+        "enabled": true,
+        "endpoints": [
+          "/health",
+          "/api/webhook/pipedrive",
+          "/api/rules",
+          "/api/auth/pipedrive",
+          "/api/billing/usage"
+        ],
+        "response_time_thresholds": {
+          "warning": 2000,
+          "critical": 5000
+        },
+        "error_rate_thresholds": {
+          "warning": 5,
+          "critical": 10
+        }
+      },
+      "database_monitoring": {
+        "enabled": true,
+        "connection_pool": true,
+        "slow_query_threshold": 1000,
+        "deadlock_detection": true,
+        "backup_verification": true
+      }
     },
     "frontend": {
-      "vercel_logs": true,
-      "console_errors": true,
-      "performance_metrics": true,
-      "bundle_analysis": true
+      "vercel_monitoring": {
+        "enabled": true,
+        "project_name": "pipenotify-frontend",
+        "deployment_monitoring": true,
+        "edge_function_monitoring": false,
+        "analytics": true
+      },
+      "client_side_monitoring": {
+        "enabled": true,
+        "console_error_tracking": true,
+        "unhandled_promise_rejections": true,
+        "network_error_tracking": true,
+        "performance_monitoring": {
+          "web_vitals": true,
+          "bundle_analysis": true,
+          "resource_timing": true
+        }
+      },
+      "sentry_integration": {
+        "enabled": true,
+        "environment": "production",
+        "sample_rate": 0.1,
+        "traces_sample_rate": 0.1
+      }
+    },
+    "business_metrics": {
+      "tenant_health": {
+        "enabled": true,
+        "metrics": [
+          "active_rules_per_tenant",
+          "webhook_success_rate",
+          "notification_delivery_rate",
+          "rule_execution_time"
+        ],
+        "alerts": {
+          "zero_rules_alert": {
+            "enabled": true,
+            "threshold": 0,
+            "action": "auto_create_default_rule"
+          },
+          "low_delivery_rate": {
+            "enabled": true,
+            "threshold": 0.9,
+            "action": "investigate_and_alert"
+          }
+        }
+      },
+      "usage_tracking": {
+        "enabled": true,
+        "metrics": [
+          "monthly_notifications_sent",
+          "api_calls_per_tenant",
+          "storage_usage",
+          "bandwidth_usage"
+        ],
+        "quota_enforcement": true,
+        "overage_alerts": true
+      }
     },
     "deployment": {
-      "github_actions": true,
-      "railway_deploys": true,
-      "vercel_deploys": true,
-      "rollback_detection": true
+      "github_actions": {
+        "enabled": true,
+        "workflow_monitoring": true,
+        "deployment_success_rate": true,
+        "build_time_tracking": true
+      },
+      "railway_deployments": {
+        "enabled": true,
+        "auto_rollback": true,
+        "health_check_endpoint": "/health",
+        "deployment_timeout": 600
+      },
+      "vercel_deployments": {
+        "enabled": true,
+        "preview_deployments": true,
+        "build_optimization": true,
+        "edge_config_monitoring": false
+      }
     }
   },
   "autonomous_actions": {
-    "fix_errors": true,
-    "optimize_performance": true,
-    "update_dependencies": true,
-    "deploy_fixes": true,
-    "create_issues": true,
-    "notify_critical": true
+    "error_recovery": {
+      "enabled": true,
+      "actions": {
+        "service_restart": {
+          "enabled": true,
+          "max_attempts": 3,
+          "conditions": ["high_error_rate", "service_unresponsive"]
+        },
+        "database_connection_reset": {
+          "enabled": true,
+          "trigger": "connection_pool_exhausted"
+        },
+        "cache_clear": {
+          "enabled": true,
+          "trigger": "stale_data_detected"
+        },
+        "queue_purge": {
+          "enabled": false,
+          "trigger": "too_many_failed_jobs"
+        }
+      }
+    },
+    "performance_optimization": {
+      "enabled": true,
+      "actions": {
+        "auto_scale": {
+          "enabled": false,
+          "trigger": "high_cpu_usage"
+        },
+        "query_optimization": {
+          "enabled": true,
+          "trigger": "slow_query_detected"
+        },
+        "cache_warming": {
+          "enabled": true,
+          "trigger": "cache_miss_rate_high"
+        }
+      }
+    },
+    "data_integrity": {
+      "enabled": true,
+      "actions": {
+        "fix_orphaned_records": {
+          "enabled": true,
+          "schedule": "daily"
+        },
+        "validate_tenant_rules": {
+          "enabled": true,
+          "schedule": "hourly",
+          "auto_fix": true
+        },
+        "backup_verification": {
+          "enabled": true,
+          "schedule": "daily"
+        }
+      }
+    }
   },
   "thresholds": {
-    "error_rate": 5,
-    "response_time": 3000,
-    "build_failures": 2,
-    "test_failures": 0
+    "error_rates": {
+      "warning": 5,
+      "critical": 15,
+      "measurement_window_minutes": 15
+    },
+    "response_times": {
+      "api_warning_ms": 2000,
+      "api_critical_ms": 5000,
+      "database_warning_ms": 500,
+      "database_critical_ms": 2000
+    },
+    "resource_usage": {
+      "cpu_warning_percent": 70,
+      "cpu_critical_percent": 90,
+      "memory_warning_percent": 80,
+      "memory_critical_percent": 95,
+      "disk_warning_percent": 85,
+      "disk_critical_percent": 95
+    },
+    "business_metrics": {
+      "webhook_success_rate_warning": 0.95,
+      "webhook_success_rate_critical": 0.90,
+      "notification_delivery_rate_warning": 0.98,
+      "notification_delivery_rate_critical": 0.95
+    }
+  },
+  "critical_issues": {
+    "tenant_rule_validation": {
+      "description": "Monitor and auto-fix tenants with zero notification rules",
+      "severity": "critical",
+      "auto_fix": true,
+      "detection": {
+        "query": "SELECT tenant_id FROM tenants LEFT JOIN rules ON tenants.id = rules.tenant_id WHERE rules.id IS NULL",
+        "frequency": "every_30_minutes"
+      },
+      "fix_action": {
+        "type": "create_default_rule",
+        "template": "default_deal_update_rule",
+        "notify": true
+      }
+    },
+    "webhook_delivery_failures": {
+      "description": "Track and alert on consecutive webhook delivery failures",
+      "severity": "high",
+      "auto_fix": false,
+      "detection": {
+        "consecutive_failures": 5,
+        "time_window_minutes": 60
+      },
+      "action": "alert_and_investigate"
+    }
+  },
+  "reporting": {
+    "daily_summary": {
+      "enabled": true,
+      "recipients": ["console"],
+      "metrics": [
+        "total_notifications_sent",
+        "webhook_success_rate",
+        "error_count",
+        "response_time_p95",
+        "active_tenants",
+        "new_signups"
+      ]
+    },
+    "weekly_trends": {
+      "enabled": true,
+      "recipients": ["console"],
+      "include_recommendations": true
+    }
   }
 }

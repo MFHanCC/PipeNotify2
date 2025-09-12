@@ -33,37 +33,60 @@ class DeploymentMonitor {
   }
 
   setupRailwayMonitoring() {
-    // Monitor Railway deployments
-    try {
-      const railway = spawn('railway', ['status', '--json'], { stdio: 'pipe' });
-      
-      railway.stdout.on('data', (data) => {
-        try {
-          const status = JSON.parse(data.toString());
-          if (status.deployment && status.deployment.status === 'FAILED') {
-            this.notifyError({
-              source: 'railway',
-              type: 'deployment_failure',
-              message: 'Railway deployment failed',
-              details: status,
-              timestamp: new Date().toISOString()
-            });
+    // Monitor Railway deployments with proper error handling
+    setInterval(async () => {
+      try {
+        // Check Railway service status
+        exec('railway status --json', { cwd: '../backend' }, (error, stdout, stderr) => {
+          if (error) {
+            console.log('Railway CLI error:', error.message);
+            return;
           }
-        } catch (e) {
-          // Handle JSON parse errors silently
-        }
-      });
-
-      railway.stderr.on('data', (data) => {
-        console.log('Railway monitoring error:', data.toString());
-      });
-
-      railway.on('error', (error) => {
-        console.log('Railway CLI not available:', error.message);
-      });
-    } catch (error) {
-      console.log('Railway monitoring setup failed:', error.message);
-    }
+          
+          try {
+            const status = JSON.parse(stdout);
+            if (status.deployment && status.deployment.status === 'FAILED') {
+              this.notifyError({
+                source: 'railway',
+                type: 'deployment_failure',
+                message: 'Railway deployment failed',
+                details: status,
+                timestamp: new Date().toISOString()
+              });
+            }
+          } catch (e) {
+            console.log('Railway status parse error:', e.message);
+          }
+        });
+        
+        // Monitor recent Railway logs for errors
+        exec('railway logs --num 50', { cwd: '../backend' }, (error, stdout, stderr) => {
+          if (!error && stdout) {
+            const logs = stdout.toString();
+            
+            // Check for critical errors in logs
+            if (logs.includes('Error') || logs.includes('ERROR') || logs.includes('FATAL')) {
+              const errorLines = logs.split('\n').filter(line => 
+                line.toLowerCase().includes('error') || 
+                line.toLowerCase().includes('fatal')
+              );
+              
+              errorLines.forEach(line => {
+                this.notifyError({
+                  source: 'railway',
+                  type: 'service_error',
+                  message: line.trim(),
+                  timestamp: new Date().toISOString()
+                });
+              });
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.log('Railway monitoring cycle error:', error.message);
+      }
+    }, 30000); // Check every 30 seconds
   }
 
   setupVercelMonitoring() {
