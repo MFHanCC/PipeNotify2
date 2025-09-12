@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getChatWebhooks, createChatWebhook, pool } = require('../services/database');
+const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getChatWebhooks, createWebhook, pool } = require('../services/database');
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
 const { createRoutingRules } = require('../services/channelRouter');
@@ -881,7 +881,7 @@ router.post('/webhooks', async (req, res) => {
       });
     }
 
-    const newWebhook = await createChatWebhook(tenantId, {
+    const newWebhook = await createWebhook(tenantId, {
       name,
       webhook_url,
       description
