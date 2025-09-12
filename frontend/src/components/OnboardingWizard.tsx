@@ -128,7 +128,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_token', data.access_token);
         setIsPipedriveConnected(true);
         
         // Clean up URL by removing the code parameter

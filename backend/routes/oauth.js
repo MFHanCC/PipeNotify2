@@ -141,7 +141,7 @@ router.get('/profile', async (req, res) => {
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const tenantId = decoded.tenantId;
+    const tenantId = decoded.tenant_id;
 
     // Get tenant and connection info
     const tenantResult = await pool.query(`
@@ -190,7 +190,7 @@ router.post('/refresh', async (req, res) => {
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const tenantId = decoded.tenantId;
+    const tenantId = decoded.tenant_id;
 
     // Get current refresh token
     const connectionResult = await pool.query(
@@ -270,7 +270,7 @@ router.get('/status', async (req, res) => {
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const tenantId = decoded.tenantId;
+    const tenantId = decoded.tenant_id;
 
     // Get connection status
     const connectionResult = await pool.query(
