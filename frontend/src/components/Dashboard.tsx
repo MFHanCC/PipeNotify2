@@ -353,7 +353,9 @@ const Dashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        setRules(rules.filter(r => r.id !== ruleId));
+        const updatedRules = rules.filter(r => r.id !== ruleId);
+        setRules(updatedRules);
+        setStats(prev => ({ ...prev, activeRules: updatedRules.filter(r => r.enabled).length }));
       }
     } catch (err) {
       setError('Failed to delete rule');
@@ -411,6 +413,7 @@ const Dashboard: React.FC = () => {
       if (response.ok) {
         // Refresh the dashboard data to show the new rule
         await loadDashboardData();
+        setStats(prev => ({ ...prev, activeRules: prev.activeRules + 1 }));
         closeCreateModal();
       } else {
         const errorData = await response.json();

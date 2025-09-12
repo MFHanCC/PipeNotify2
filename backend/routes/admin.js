@@ -820,7 +820,7 @@ router.delete('/rules/:id', async (req, res) => {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
 
-    const deletedRule = await deleteRule(ruleId, tenantId);
+    const deletedRule = await deleteRule(tenantId, ruleId);
 
     res.json({
       message: 'Rule deleted successfully',
