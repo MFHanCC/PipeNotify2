@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getChatWebhooks, createWebhook, pool } = require('../services/database');
+const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getWebhooks, createWebhook, pool } = require('../services/database');
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
 const { createRoutingRules } = require('../services/channelRouter');
@@ -844,7 +844,7 @@ router.get('/stats', async (req, res) => {
 router.get('/webhooks', async (req, res) => {
   try {
     const tenantId = req.tenant.id;
-    const webhooks = await getChatWebhooks(tenantId);
+    const webhooks = await getWebhooks(tenantId);
     
     res.json({
       webhooks,
@@ -907,7 +907,7 @@ router.post('/webhooks/:id/test', async (req, res) => {
     const webhookId = req.params.id;
 
     // Get webhook details
-    const webhooks = await getChatWebhooks(tenantId);
+    const webhooks = await getWebhooks(tenantId);
     const webhook = webhooks.find(w => w.id === parseInt(webhookId));
     
     if (!webhook) {
