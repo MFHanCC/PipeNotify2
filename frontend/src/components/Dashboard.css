@@ -84,15 +84,25 @@
 
 .dashboard-nav {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-tab {
-  padding: 12px 20px;
+  padding: 10px 12px;
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
   color: #6b7280;
   cursor: pointer;
   border-radius: 8px;
@@ -409,13 +419,13 @@ input:checked + .toggle-slider:before {
 .test-button, .edit-button, .delete-button {
   background: none;
   border: none;
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
   transition: background 0.3s ease;
-  min-width: 32px;
-  height: 32px;
+  min-width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

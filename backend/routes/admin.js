@@ -1041,16 +1041,81 @@ router.post('/rules/:id/test', async (req, res) => {
   try {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
-
-    // This would typically send a test notification
-    // For now, return success
+    
+    // Get rule details
+    const ruleResult = await pool.query(`
+      SELECT r.*, cw.webhook_url, cw.name as webhook_name
+      FROM rules r
+      JOIN chat_webhooks cw ON r.target_webhook_id = cw.id
+      WHERE r.id = $1 AND r.tenant_id = $2
+    `, [ruleId, tenantId]);
+    
+    if (ruleResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Rule not found or webhook not configured'
+      });
+    }
+    
+    const rule = ruleResult.rows[0];
+    
+    // Send test notification to Google Chat
+    const axios = require('axios');
+    const testMessage = `🧪 **Test Notification**\n\n**Rule:** ${rule.name}\n**Event Type:** ${rule.event_type}\n**Template Mode:** ${rule.template_mode}\n\n*This is a test message from Pipenotify*`;
+    
+    const startTime = Date.now();
+    
+    const response = await axios.post(rule.webhook_url, {
+      text: testMessage
+    }, {
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const responseTime = Date.now() - startTime;
+    
+    // Log the test
+    await pool.query(`
+      INSERT INTO logs (tenant_id, rule_id, webhook_id, event_type, status, formatted_message, response_time_ms, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+    `, [
+      tenantId,
+      ruleId,
+      rule.target_webhook_id,
+      'test.notification',
+      'success',
+      testMessage,
+      responseTime
+    ]);
+    
     res.json({
       message: 'Test notification sent successfully',
       rule_id: ruleId,
+      webhook_name: rule.webhook_name,
+      response_time_ms: responseTime,
       sent_at: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error sending test notification:', error);
+    
+    // Log the error
+    try {
+      await pool.query(`
+        INSERT INTO logs (tenant_id, rule_id, event_type, status, formatted_message, error_message, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `, [
+        req.tenant.id,
+        req.params.id,
+        'test.notification',
+        'error',
+        'Test notification failed',
+        error.message
+      ]);
+    } catch (logError) {
+      console.error('Failed to log test error:', logError);
+    }
+    
     res.status(500).json({
       error: 'Failed to send test notification',
       message: error.message
