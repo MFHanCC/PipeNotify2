@@ -623,7 +623,9 @@ app.get('/api/v1/debug/system-status', async (req, res) => {
     const { Queue } = require('bullmq');
     const { redisConfig } = require('./jobs/queue');
     const testQueue = new Queue('test', redisConfig);
-    await testQueue.ping();
+    
+    // Test by checking queue waiting jobs (this tests Redis connectivity)
+    await testQueue.getWaiting();
     status.redis.status = 'connected';
     status.bullmq.status = 'running';
     await testQueue.close();
