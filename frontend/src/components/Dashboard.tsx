@@ -1,15 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
-import WebhookManager from './WebhookManager';
-import RuleFilters from './RuleFilters';
-import TemplateEditor from './TemplateEditor';
-import ChannelRouting from './ChannelRouting';
-import QuietHours from './QuietHours';
-import AnalyticsDashboard from './AnalyticsDashboard';
-import NotificationPreview from './NotificationPreview';
-import BulkRuleManager from './BulkRuleManager';
-import OnboardingWizard from './OnboardingWizard';
-import StalledDealMonitor from './StalledDealMonitor';
+
+// Lazy load heavy components to improve initial bundle size
+const WebhookManager = lazy(() => import('./WebhookManager'));
+const RuleFilters = lazy(() => import('./RuleFilters'));
+const TemplateEditor = lazy(() => import('./TemplateEditor'));
+const ChannelRouting = lazy(() => import('./ChannelRouting'));
+const QuietHours = lazy(() => import('./QuietHours'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const NotificationPreview = lazy(() => import('./NotificationPreview'));
+const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
+const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
+const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
+
+// Loading component for Suspense fallback
+const ComponentLoader: React.FC = () => (
+  <div className="component-loading">
+    <div className="loading-spinner"></div>
+    <p>Loading...</p>
+  </div>
+);
 
 interface NotificationRule {
   id: string;
@@ -63,7 +73,60 @@ const decodeJWTPayload = (token: string): any => {
   }
 };
 
-const Dashboard: React.FC = () => {
+const Dashboard: React.FC = React.memo(() => {
+  // Memoize JWT decode function to prevent recreation on every render
+  const decodeJWTPayloadMemo = React.useMemo(() => decodeJWTPayload, []);
+
+  // Network status detection
+  React.useEffect(() => {
+    const handleOnline = () => setNetworkStatus('online');
+    const handleOffline = () => setNetworkStatus('offline');
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Form validation
+  const validateCreateForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!createFormData.name.trim()) {
+      errors.name = 'Rule name is required';
+    } else if (createFormData.name.length < 3) {
+      errors.name = 'Rule name must be at least 3 characters';
+    }
+    
+    if (!createFormData.target_webhook_id) {
+      errors.target_webhook_id = 'Please select a webhook';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Enhanced error handling with retry capability
+  const handleApiError = (error: any, operation: string) => {
+    let message = `Failed to ${operation}`;
+    
+    if (networkStatus === 'offline') {
+      message = 'Network connection lost. Please check your internet connection.';
+    } else if (error?.status === 401) {
+      message = 'Session expired. Please log in again.';
+    } else if (error?.status === 403) {
+      message = 'Permission denied. Please check your account permissions.';
+    } else if (error?.status === 429) {
+      message = 'Too many requests. Please wait a moment and try again.';
+    } else if (error?.status >= 500) {
+      message = 'Server error. Our team has been notified.';
+    }
+    
+    setError(message);
+  };
   // State management
   const [stats, setStats] = useState<DashboardStats>({
     totalNotifications: 0,
@@ -76,6 +139,10 @@ const Dashboard: React.FC = () => {
   const [logs, setLogs] = useState<DeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
   
   // Filters and pagination
   const [ruleFilter, setRuleFilter] = useState<string>('all');
@@ -100,6 +167,19 @@ const Dashboard: React.FC = () => {
   });
   const [availableWebhooks, setAvailableWebhooks] = useState<Array<{id: string; name: string}>>([]);
 
+  // Retry mechanism
+  const retryOperation = async (operation: () => Promise<void>, operationName: string) => {
+    setIsRetrying(true);
+    setError(null);
+    try {
+      await operation();
+    } catch (error) {
+      handleApiError(error, operationName);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -116,17 +196,43 @@ const Dashboard: React.FC = () => {
       // Get tenant ID from JWT token
       let tenantId = '1'; // Fallback
       if (token) {
-        const payload = decodeJWTPayload(token);
+        const payload = decodeJWTPayloadMemo(token);
         if (payload && payload.tenantId) {
           tenantId = payload.tenantId.toString();
         }
       }
 
-      // Load stats from monitoring dashboard
-      const statsResponse = await fetch(`${apiUrl}/api/v1/monitoring/dashboard/${tenantId}?days=${dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 1}`, { headers });
-      if (statsResponse.ok) {
+      // Parallel API calls for better performance
+      const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 1;
+      const logsParams = new URLSearchParams({
+        page: logsPage.toString(),
+        limit: logsPerPage.toString(),
+        status: statusFilter !== 'all' ? statusFilter : '',
+        rule_id: ruleFilter !== 'all' ? ruleFilter : '',
+      });
+
+      const [statsResponse, rulesResponse, logsResponse, webhooksResponse] = await Promise.all([
+        fetch(`${apiUrl}/api/v1/monitoring/dashboard/${tenantId}?days=${days}`, { 
+          headers,
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }).catch(() => null),
+        fetch(`${apiUrl}/api/v1/admin/rules`, { 
+          headers,
+          signal: AbortSignal.timeout(10000)
+        }).catch(() => null),
+        fetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { 
+          headers,
+          signal: AbortSignal.timeout(10000)
+        }).catch(() => null),
+        fetch(`${apiUrl}/api/v1/admin/webhooks`, { 
+          headers,
+          signal: AbortSignal.timeout(10000)
+        }).catch(() => null),
+      ]);
+
+      // Process stats response
+      if (statsResponse?.ok) {
         const statsData = await statsResponse.json();
-        // Transform monitoring data to dashboard stats format
         setStats({
           totalNotifications: statsData.summary?.channel_routing?.total_notifications || 0,
           successRate: statsData.summary?.channel_routing?.avg_success_rate || 0,
@@ -135,7 +241,6 @@ const Dashboard: React.FC = () => {
         });
       } else {
         console.warn('Failed to load stats, using fallback data');
-        // Set fallback stats if monitoring endpoint fails
         setStats({
           totalNotifications: 0,
           successRate: 0,
@@ -144,11 +249,9 @@ const Dashboard: React.FC = () => {
         });
       }
 
-      // Load rules from admin endpoint
-      const rulesResponse = await fetch(`${apiUrl}/api/v1/admin/rules`, { headers });
-      if (rulesResponse.ok) {
+      // Process rules response
+      if (rulesResponse?.ok) {
         const rulesData = await rulesResponse.json();
-        // Transform backend rule format to frontend format
         const transformedRules = (rulesData.rules || []).map((rule: any) => ({
           id: rule.id,
           name: rule.name,
@@ -170,18 +273,9 @@ const Dashboard: React.FC = () => {
         }));
       }
 
-      // Load logs from admin endpoint
-      const logsParams = new URLSearchParams({
-        page: logsPage.toString(),
-        limit: logsPerPage.toString(),
-        status: statusFilter !== 'all' ? statusFilter : '',
-        rule_id: ruleFilter !== 'all' ? ruleFilter : '',
-      });
-      
-      const logsResponse = await fetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { headers });
-      if (logsResponse.ok) {
+      // Process logs response
+      if (logsResponse?.ok) {
         const logsData = await logsResponse.json();
-        // Transform backend log format to frontend format
         const transformedLogs = (logsData.logs || []).map((log: any) => ({
           id: log.id,
           ruleId: log.rule_id,
@@ -199,9 +293,8 @@ const Dashboard: React.FC = () => {
         setLogs([]);
       }
 
-      // Load webhooks for create rule form
-      const webhooksResponse = await fetch(`${apiUrl}/api/v1/admin/webhooks`, { headers });
-      if (webhooksResponse.ok) {
+      // Process webhooks response
+      if (webhooksResponse?.ok) {
         const webhooksData = await webhooksResponse.json();
         console.log('🔗 Webhooks response:', webhooksData);
         setAvailableWebhooks((webhooksData.webhooks || []).map((webhook: any) => ({
@@ -209,11 +302,11 @@ const Dashboard: React.FC = () => {
           name: webhook.name || webhook.url || 'Unnamed Webhook',
         })));
       } else {
-        console.error('❌ Failed to load webhooks:', webhooksResponse.status, await webhooksResponse.text());
+        console.error('❌ Failed to load webhooks:', webhooksResponse?.status || 'Network error');
       }
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      handleApiError(err, 'load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -389,6 +482,15 @@ const Dashboard: React.FC = () => {
   };
 
   const createNewRule = async () => {
+    // Clear previous validation errors
+    setValidationErrors({});
+    
+    // Validate form
+    if (!validateCreateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
@@ -400,7 +502,7 @@ const Dashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: createFormData.name,
+          name: createFormData.name.trim(),
           event_type: createFormData.event_type,
           target_webhook_id: parseInt(createFormData.target_webhook_id),
           template_mode: createFormData.template_mode,
@@ -408,6 +510,7 @@ const Dashboard: React.FC = () => {
           enabled: createFormData.enabled,
           filters: createFormData.filters,
         }),
+        signal: AbortSignal.timeout(15000) // 15 second timeout for create operations
       });
 
       if (response.ok) {
@@ -416,11 +519,17 @@ const Dashboard: React.FC = () => {
         setStats(prev => ({ ...prev, activeRules: prev.activeRules + 1 }));
         closeCreateModal();
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to create rule');
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 422 && errorData.validation_errors) {
+          setValidationErrors(errorData.validation_errors);
+        } else {
+          handleApiError({ status: response.status }, 'create rule');
+        }
       }
     } catch (err) {
-      setError('Failed to create rule');
+      handleApiError(err, 'create rule');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -512,6 +621,8 @@ const Dashboard: React.FC = () => {
         <button 
           className="create-rule-button"
           onClick={openCreateModal}
+          aria-label="Create new notification rule"
+          type="button"
         >
           + Create Rule
         </button>
@@ -536,12 +647,16 @@ const Dashboard: React.FC = () => {
                         className="save-button"
                         onClick={() => saveEditRule(rule.id)}
                         disabled={!editFormData.name.trim()}
+                        aria-label={`Save changes to rule ${rule.name}`}
+                        type="button"
                       >
                         ✓ Save
                       </button>
                       <button
                         className="cancel-button"
                         onClick={cancelEditRule}
+                        aria-label={`Cancel editing rule ${rule.name}`}
+                        type="button"
                       >
                         ✕ Cancel
                       </button>
@@ -577,6 +692,7 @@ const Dashboard: React.FC = () => {
                       type="checkbox"
                       checked={rule.enabled}
                       onChange={() => toggleRule(rule.id)}
+                      aria-label={`Toggle rule ${rule.name} ${rule.enabled ? 'on' : 'off'}`}
                     />
                     <span className="toggle-slider"></span>
                   </label>
@@ -584,7 +700,8 @@ const Dashboard: React.FC = () => {
                   <button
                     className="test-button"
                     onClick={() => testRule(rule.id)}
-                    title="Send test notification"
+                    aria-label={`Test rule ${rule.name}`}
+                    type="button"
                   >
                     Test
                   </button>
@@ -592,8 +709,9 @@ const Dashboard: React.FC = () => {
                   <button
                     className="edit-button"
                     onClick={() => startEditRule(rule)}
-                    title="Edit rule"
+                    aria-label={`Edit rule ${rule.name}`}
                     disabled={editingRule !== null}
+                    type="button"
                   >
                     Edit
                   </button>
@@ -601,7 +719,8 @@ const Dashboard: React.FC = () => {
                   <button
                     className="delete-button"
                     onClick={() => deleteRule(rule.id)}
-                    title="Delete rule"
+                    aria-label={`Delete rule ${rule.name}`}
+                    type="button"
                   >
                     Delete
                   </button>
@@ -628,6 +747,8 @@ const Dashboard: React.FC = () => {
           <button 
             className="create-first-rule"
             onClick={openCreateModal}
+            aria-label="Create your first notification rule"
+            type="button"
           >
             Create First Rule
           </button>
@@ -731,13 +852,33 @@ const Dashboard: React.FC = () => {
       {error && (
         <div className="error-banner">
           <span className="error-icon">⚠️</span>
-          <span className="error-message">{error}</span>
-          <button 
-            className="error-close"
-            onClick={() => setError(null)}
-          >
-            ×
-          </button>
+          <div className="error-content">
+            <span className="error-message">{error}</span>
+            {networkStatus === 'offline' && (
+              <div className="network-status">
+                📶 You're currently offline. Check your connection and try again.
+              </div>
+            )}
+          </div>
+          <div className="error-actions">
+            <button 
+              className="retry-button"
+              onClick={() => retryOperation(loadDashboardData, 'reload dashboard')}
+              disabled={isRetrying}
+              aria-label="Retry loading dashboard data"
+              type="button"
+            >
+              {isRetrying ? '⏳' : '🔄'} Retry
+            </button>
+            <button 
+              className="error-close"
+              onClick={() => setError(null)}
+              aria-label="Close error message"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
       
@@ -747,168 +888,245 @@ const Dashboard: React.FC = () => {
           <p>Monitor and manage your notification rules and delivery logs</p>
         </div>
         
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" role="navigation" aria-label="Dashboard navigation">
           <button 
             className={`nav-tab ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
+            aria-label="Overview dashboard"
+            aria-current={activeTab === 'overview' ? 'page' : undefined}
+            type="button"
           >
-            📊 Overview
+            <span aria-hidden="true">📊</span> Overview
           </button>
           <button 
             className={`nav-tab ${activeTab === 'rules' ? 'active' : ''}`}
             onClick={() => setActiveTab('rules')}
+            aria-label={`Rules management, ${stats.activeRules} active rules`}
+            aria-current={activeTab === 'rules' ? 'page' : undefined}
+            type="button"
           >
-            ⚙️ Rules ({stats.activeRules})
+            <span aria-hidden="true">⚙️</span> Rules ({stats.activeRules})
           </button>
           <button 
             className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('logs')}
+            aria-label="View notification logs"
+            aria-current={activeTab === 'logs' ? 'page' : undefined}
+            type="button"
           >
-            📋 Logs
+            <span aria-hidden="true">📋</span> Logs
           </button>
           <button 
             className={`nav-tab ${activeTab === 'webhooks' ? 'active' : ''}`}
             onClick={() => setActiveTab('webhooks')}
+            aria-label={`Webhook management, ${availableWebhooks.length} webhooks`}
+            aria-current={activeTab === 'webhooks' ? 'page' : undefined}
+            type="button"
           >
-            🔗 Webhooks ({availableWebhooks.length})
+            <span aria-hidden="true">🔗</span> Webhooks ({availableWebhooks.length})
           </button>
           <button 
             className={`nav-tab ${activeTab === 'routing' ? 'active' : ''}`}
             onClick={() => setActiveTab('routing')}
+            aria-label="Smart routing configuration"
+            aria-current={activeTab === 'routing' ? 'page' : undefined}
+            type="button"
           >
-            🎯 Smart Routing
+            <span aria-hidden="true">🎯</span> Smart Routing
           </button>
           <button 
             className={`nav-tab ${activeTab === 'quiet-hours' ? 'active' : ''}`}
             onClick={() => setActiveTab('quiet-hours')}
+            aria-label="Quiet hours settings"
+            aria-current={activeTab === 'quiet-hours' ? 'page' : undefined}
+            type="button"
           >
-            🔕 Quiet Hours
+            <span aria-hidden="true">🔕</span> Quiet Hours
           </button>
           <button 
             className={`nav-tab ${activeTab === 'stalled-deals' ? 'active' : ''}`}
             onClick={() => setActiveTab('stalled-deals')}
+            aria-label="Stalled deals monitoring"
+            aria-current={activeTab === 'stalled-deals' ? 'page' : undefined}
+            type="button"
           >
-            📊 Stalled Deals
+            <span aria-hidden="true">📊</span> Stalled Deals
           </button>
           <button 
             className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
+            aria-label="Analytics and reporting"
+            aria-current={activeTab === 'analytics' ? 'page' : undefined}
+            type="button"
           >
-            📊 Analytics
+            <span aria-hidden="true">📊</span> Analytics
           </button>
           <button 
             className={`nav-tab ${activeTab === 'testing' ? 'active' : ''}`}
             onClick={() => setActiveTab('testing')}
+            aria-label="Notification testing"
+            aria-current={activeTab === 'testing' ? 'page' : undefined}
+            type="button"
           >
-            🧪 Testing
+            <span aria-hidden="true">🧪</span> Testing
           </button>
           <button 
             className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
             onClick={() => setActiveTab('bulk-management')}
+            aria-label="Bulk rule management"
+            aria-current={activeTab === 'bulk-management' ? 'page' : undefined}
+            type="button"
           >
-            📋 Bulk Management
+            <span aria-hidden="true">📋</span> Bulk Management
           </button>
           <button 
             className={`nav-tab ${activeTab === 'onboarding' ? 'active' : ''}`}
             onClick={() => setActiveTab('onboarding')}
+            aria-label="Setup and onboarding"
+            aria-current={activeTab === 'onboarding' ? 'page' : undefined}
+            type="button"
           >
-            🎓 Onboarding
+            <span aria-hidden="true">🎓</span> Onboarding
           </button>
           <button 
             className="nav-tab"
             onClick={() => window.location.href = '/billing'}
+            aria-label="Billing and subscription management"
+            type="button"
           >
-            💳 Billing
+            <span aria-hidden="true">💳</span> Billing
           </button>
           <button 
             className="nav-tab"
             onClick={() => window.location.href = '/pricing'}
+            aria-label="View pricing plans"
+            type="button"
           >
-            💎 Pricing
+            <span aria-hidden="true">💎</span> Pricing
           </button>
         </nav>
       </aside>
       
-      <main className="dashboard-main">
+      <main className="dashboard-main" role="main" aria-label="Dashboard content">
         <div className="dashboard-content">
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'rules' && renderRules()}
           {activeTab === 'logs' && renderLogs()}
           {activeTab === 'webhooks' && (
-            <WebhookManager 
-              onWebhooksChange={(webhooks) => {
-                setAvailableWebhooks(webhooks.map(w => ({ id: w.id, name: w.name })));
-              }}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <WebhookManager 
+                onWebhooksChange={(webhooks) => {
+                  setAvailableWebhooks(webhooks.map(w => ({ id: w.id, name: w.name })));
+                }}
+              />
+            </Suspense>
           )}
           {activeTab === 'routing' && (
-            <ChannelRouting 
-              webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <ChannelRouting 
+                webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'quiet-hours' && (
-            <QuietHours 
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <QuietHours 
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'stalled-deals' && (
-            <StalledDealMonitor 
-              webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <StalledDealMonitor 
+                webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'analytics' && (
-            <AnalyticsDashboard 
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <AnalyticsDashboard 
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'testing' && (
-            <NotificationPreview 
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <NotificationPreview 
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'bulk-management' && (
-            <BulkRuleManager 
-              onRefresh={loadDashboardData}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <BulkRuleManager 
+                onRefresh={loadDashboardData}
+              />
+            </Suspense>
           )}
           {activeTab === 'onboarding' && (
-            <OnboardingWizard 
-              onComplete={() => setActiveTab('overview')}
-              onSkip={() => setActiveTab('overview')}
-            />
+            <Suspense fallback={<ComponentLoader />}>
+              <OnboardingWizard 
+                onComplete={() => setActiveTab('overview')}
+                onSkip={() => setActiveTab('overview')}
+              />
+            </Suspense>
           )}
         </div>
       </main>
 
       {/* Create Rule Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={closeCreateModal}>
+        <div 
+          className="modal-overlay" 
+          onClick={closeCreateModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          aria-describedby="modal-description"
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Create New Rule</h3>
-              <button className="modal-close" onClick={closeCreateModal}>×</button>
+              <h3 id="modal-title">Create New Rule</h3>
+              <button 
+                className="modal-close" 
+                onClick={closeCreateModal}
+                aria-label="Close dialog"
+                type="button"
+              >×</button>
             </div>
             
-            <div className="modal-body">
+            <div className="modal-body" id="modal-description">
               <div className="form-group">
-                <label>Rule Name *</label>
+                <label htmlFor="rule-name">Rule Name *</label>
                 <input
+                  id="rule-name"
                   type="text"
                   value={createFormData.name}
                   onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
                   placeholder="e.g., Deal Won Notifications"
                   className="form-input"
+                  aria-required="true"
+                  aria-describedby="rule-name-help"
                 />
+                <div id="rule-name-help" className="sr-only">Enter a descriptive name for your notification rule</div>
+                {validationErrors.name && (
+                  <div className="validation-error" role="alert">
+                    {validationErrors.name}
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
-                <label>Event Type *</label>
+                <label htmlFor="event-type">Event Type *</label>
                 <select
+                  id="event-type"
                   value={createFormData.event_type}
                   onChange={(e) => setCreateFormData({...createFormData, event_type: e.target.value})}
                   className="form-select"
+                  aria-required="true"
+                  aria-describedby="event-type-help"
                 >
                   <option value="deal.updated">Deal Updated</option>
                   <option value="deal.won">Deal Won</option>
@@ -921,14 +1139,18 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Target Google Chat *</label>
+                <label htmlFor="target-webhook">Target Google Chat *</label>
                 <select
+                  id="target-webhook"
                   value={createFormData.target_webhook_id}
                   onChange={(e) => setCreateFormData({...createFormData, target_webhook_id: e.target.value})}
                   className="form-select"
+                  aria-required="true"
+                  aria-describedby="target-webhook-help"
                 >
+                  <option value="">Select a webhook</option>
                   {availableWebhooks.length === 0 ? (
-                    <option value="">No webhooks available - go through onboarding first</option>
+                    <option value="" disabled>No webhooks available - go through onboarding first</option>
                   ) : (
                     availableWebhooks.map(webhook => (
                       <option key={webhook.id} value={webhook.id}>
@@ -937,6 +1159,12 @@ const Dashboard: React.FC = () => {
                     ))
                   )}
                 </select>
+                <div id="target-webhook-help" className="sr-only">Select the Google Chat webhook where notifications will be sent</div>
+                {validationErrors.target_webhook_id && (
+                  <div className="validation-error" role="alert">
+                    {validationErrors.target_webhook_id}
+                  </div>
+                )}
                 {availableWebhooks.length === 0 && (
                   <div className="form-help">
                     <p style={{fontSize: '12px', color: '#6b7280', marginTop: '4px'}}>
@@ -993,9 +1221,17 @@ const Dashboard: React.FC = () => {
               <button 
                 className="button-primary" 
                 onClick={createNewRule}
-                disabled={!createFormData.name.trim() || !createFormData.target_webhook_id}
+                disabled={isSubmitting || !createFormData.name.trim() || !createFormData.target_webhook_id}
+                type="button"
               >
-                Create Rule
+                {isSubmitting ? (
+                  <>
+                    <span className="loading-spinner-inline"></span>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Rule'
+                )}
               </button>
             </div>
           </div>
@@ -1003,6 +1239,8 @@ const Dashboard: React.FC = () => {
       )}
     </div>
   );
-};
+});
+
+Dashboard.displayName = 'Dashboard';
 
 export default Dashboard;
