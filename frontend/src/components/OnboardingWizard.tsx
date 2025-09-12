@@ -511,17 +511,55 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
           </div>
           
           <div className="rule-preview">
-            <h5>Preview:</h5>
+            <h5>Preview ({ruleFormData.template_mode}):</h5>
             <div className="preview-message">
-              {ruleFormData.event_type === 'deal.won' ? (
-                <>🎉 <strong>Deal Won!</strong><br/>
-                "Example Deal" ($5,000) has been marked as won by John Doe</>
-              ) : ruleFormData.event_type === 'deal.added' ? (
-                <>🆕 <strong>New Deal Created</strong><br/>
-                "Example Deal" ($5,000) created by John Doe</>
+              {ruleFormData.template_mode === 'simple' ? (
+                // Simple template previews
+                ruleFormData.event_type === 'deal.won' ? (
+                  <>🎉 <strong>Deal Won!</strong><br/>
+                  "Example Deal" ($5,000) won by John Doe</>
+                ) : ruleFormData.event_type === 'deal.added' ? (
+                  <>🆕 <strong>New Deal</strong><br/>
+                  "Example Deal" ($5,000) created by John Doe</>
+                ) : ruleFormData.event_type === 'deal.change' ? (
+                  <>📝 <strong>Deal Updated</strong><br/>
+                  "Example Deal" updated by John Doe</>
+                ) : (
+                  <>📞 <strong>Activity Added</strong><br/>
+                  "Follow-up call" scheduled by John Doe</>
+                )
               ) : (
-                <>📝 <strong>Deal Updated</strong><br/>
-                "Example Deal" has been updated by John Doe</>
+                // Detailed template previews
+                ruleFormData.event_type === 'deal.won' ? (
+                  <>🎉 <strong>Deal Won!</strong><br/>
+                  <strong>Deal:</strong> "Example Deal"<br/>
+                  <strong>Value:</strong> $5,000<br/>
+                  <strong>Owner:</strong> John Doe<br/>
+                  <strong>Pipeline:</strong> Sales Pipeline<br/>
+                  <strong>Won Date:</strong> {new Date().toLocaleDateString()}</>
+                ) : ruleFormData.event_type === 'deal.added' ? (
+                  <>🆕 <strong>New Deal Created</strong><br/>
+                  <strong>Deal:</strong> "Example Deal"<br/>
+                  <strong>Value:</strong> $5,000<br/>
+                  <strong>Owner:</strong> John Doe<br/>
+                  <strong>Pipeline:</strong> Sales Pipeline<br/>
+                  <strong>Stage:</strong> Qualified<br/>
+                  <strong>Created:</strong> {new Date().toLocaleDateString()}</>
+                ) : ruleFormData.event_type === 'deal.change' ? (
+                  <>📝 <strong>Deal Updated</strong><br/>
+                  <strong>Deal:</strong> "Example Deal"<br/>
+                  <strong>Value:</strong> $5,000 → $7,500<br/>
+                  <strong>Owner:</strong> John Doe<br/>
+                  <strong>Stage:</strong> Qualified → Proposal Made<br/>
+                  <strong>Updated:</strong> {new Date().toLocaleDateString()}</>
+                ) : (
+                  <>📞 <strong>Activity Added</strong><br/>
+                  <strong>Activity:</strong> "Follow-up call"<br/>
+                  <strong>Deal:</strong> "Example Deal" ($5,000)<br/>
+                  <strong>Owner:</strong> John Doe<br/>
+                  <strong>Due Date:</strong> {new Date(Date.now() + 86400000).toLocaleDateString()}<br/>
+                  <strong>Added:</strong> {new Date().toLocaleDateString()}</>
+                )
               )}
             </div>
           </div>
