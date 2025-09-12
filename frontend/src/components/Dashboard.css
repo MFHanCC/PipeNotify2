@@ -422,28 +422,41 @@ input:checked + .toggle-slider:before {
 .rule-controls .test-button,
 .rule-controls .edit-button,
 .rule-controls .delete-button {
-  background: none !important;
-  border: none !important;
-  font-size: 12px !important;
+  background: #f3f4f6 !important;
+  border: 1px solid #d1d5db !important;
+  font-size: 11px !important;
   cursor: pointer;
-  padding: 4px 6px !important;
+  padding: 4px 8px !important;
   border-radius: 4px !important;
-  transition: background 0.3s ease;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  width: 28px !important;
+  transition: all 0.2s ease;
+  min-width: auto !important;
+  max-width: none !important;
+  width: auto !important;
   height: 28px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  color: #6b7280;
+  color: #374151 !important;
+  font-weight: 500;
   box-shadow: none !important;
   transform: none !important;
+  margin-left: 4px;
 }
 
 .rule-controls .test-button:hover {
-  background: #f3f4f6 !important;
+  background: #e5e7eb !important;
+  border-color: #9ca3af !important;
   transform: none !important;
+}
+
+.rule-controls .edit-button:hover {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
+}
+
+.rule-controls .delete-button:hover {
+  background: #fee2e2 !important;
+  border-color: #ef4444 !important;
 }
 
 .edit-button:hover {

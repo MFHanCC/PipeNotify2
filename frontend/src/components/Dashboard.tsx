@@ -583,7 +583,7 @@ const Dashboard: React.FC = () => {
                     onClick={() => testRule(rule.id)}
                     title="Send test notification"
                   >
-                    🧪
+                    Test
                   </button>
                   
                   <button
@@ -592,7 +592,7 @@ const Dashboard: React.FC = () => {
                     title="Edit rule"
                     disabled={editingRule !== null}
                   >
-                    ✏️
+                    Edit
                   </button>
                   
                   <button
@@ -600,7 +600,7 @@ const Dashboard: React.FC = () => {
                     onClick={() => deleteRule(rule.id)}
                     title="Delete rule"
                   >
-                    🗑️
+                    Delete
                   </button>
                 </div>
               </div>
