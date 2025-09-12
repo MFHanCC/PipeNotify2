@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipenotify API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Pipenotify Testing Dashboard</h1>
+    <p>This page will help us test the Pipenotify system step by step.</p>
+    
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <h2>📋 Testing Checklist</h2>
+    <div id="checklist">
+        <h3>Phase 1: Free Plan Testing</h3>
+        <div>
+            <input type="checkbox" id="frontend-load"> <label for="frontend-load">Frontend loads correctly</label><br>
+            <input type="checkbox" id="backend-health"> <label for="backend-health">Backend health check passes</label><br>
+            <input type="checkbox" id="oauth-flow"> <label for="oauth-flow">OAuth flow works</label><br>
+            <input type="checkbox" id="webhook-add"> <label for="webhook-add">Can add 1 webhook (free limit)</label><br>
+            <input type="checkbox" id="rule-create"> <label for="rule-create">Can create 3 rules (free limit)</label><br>
+            <input type="checkbox" id="notifications-basic"> <label for="notifications-basic">Basic notifications work</label><br>
+            <input type="checkbox" id="feature-blocking"> <label for="feature-blocking">Feature blocking works</label><br>
+        </div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+
+        function showStatus(message, type = 'success') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            statusDiv.appendChild(div);
+        }
+
+        function showResult(title, data) {
+            const div = document.createElement('div');
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            resultsDiv.appendChild(div);
+        }
+
+        // Test functions
+        async function testFrontend() {
+            try {
+                showStatus('🔍 Testing frontend accessibility...', 'warning');
+                const response = await fetch('https://pipenotify-frontend.vercel.app');
+                if (response.ok) {
+                    showStatus('✅ Frontend is accessible', 'success');
+                    document.getElementById('frontend-load').checked = true;
+                } else {
+                    showStatus('❌ Frontend returned error: ' + response.status, 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Frontend unreachable: ' + error.message, 'error');
+            }
+        }
+
+        async function testBackend() {
+            try {
+                showStatus('🔍 Searching for backend health endpoint...', 'warning');
+                // We'll need to find the Railway backend URL
+                showStatus('⚠️ Need Railway backend URL for health check', 'warning');
+            } catch (error) {
+                showStatus('❌ Backend test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Run initial tests
+        window.onload = async function() {
+            showStatus('🎯 Starting Pipenotify comprehensive testing...', 'warning');
+            await testFrontend();
+            await testBackend();
+            showStatus('📋 Ready for manual testing - open browser DevTools and navigate to the frontend', 'success');
+        };
+
+        // Helper function to check API endpoints
+        async function testAPI(url, description) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                showResult(description + ` (${response.status})`, data);
+                return { success: response.ok, data };
+            } catch (error) {
+                showResult(description + ' (Error)', { error: error.message });
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Export test functions for manual use
+        window.testAPI = testAPI;
+        window.showStatus = showStatus;
+        window.showResult = showResult;
+    </script>
+</body>
+</html>

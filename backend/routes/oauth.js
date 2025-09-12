@@ -131,6 +131,55 @@ router.post('/callback', async (req, res) => {
   }
 });
 
+// Get authenticated user profile
+router.get('/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'JWT token required' });
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const tenantId = decoded.tenantId;
+
+    // Get tenant and connection info
+    const tenantResult = await pool.query(`
+      SELECT t.*, pc.api_domain, pc.status as connection_status
+      FROM tenants t
+      LEFT JOIN pipedrive_connections pc ON t.id = pc.tenant_id
+      WHERE t.id = $1
+    `, [tenantId]);
+
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const tenant = tenantResult.rows[0];
+    
+    res.json({
+      success: true,
+      tenant: {
+        id: tenant.id,
+        company_name: tenant.company_name,
+        pipedrive_company_id: tenant.pipedrive_company_id,
+        pipedrive_user_id: tenant.pipedrive_user_id,
+        pipedrive_user_name: tenant.pipedrive_user_name,
+        api_domain: tenant.api_domain,
+        connection_status: tenant.connection_status || 'unknown',
+        subscription_status: tenant.subscription_status
+      }
+    });
+
+  } catch (error) {
+    console.error('Profile endpoint error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Refresh token endpoint
 router.post('/refresh', async (req, res) => {
   try {

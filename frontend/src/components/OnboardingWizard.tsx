@@ -97,7 +97,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       }
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/auth/profile`, {
+      const response = await fetch(`${apiUrl}/api/v1/oauth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -118,7 +118,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       setIsCheckingConnection(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       
-      const response = await fetch(`${apiUrl}/api/v1/auth/callback`, {
+      const response = await fetch(`${apiUrl}/api/v1/oauth/callback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
