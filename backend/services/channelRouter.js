@@ -343,7 +343,7 @@ async function getRoutingStats(tenantId, pool, days = 30) {
         AVG(l.response_time_ms) as avg_response_time,
         COUNT(DISTINCT l.rule_id) as rules_using_channel
       FROM chat_webhooks cw
-      LEFT JOIN rules r ON cw.id = r.target_channel_id
+      LEFT JOIN rules r ON cw.id = r.target_webhook_id
       LEFT JOIN logs l ON r.id = l.rule_id AND l.created_at >= NOW() - INTERVAL '${days} days'
       WHERE cw.tenant_id = $1 AND cw.is_active = true
       GROUP BY cw.id, cw.name

@@ -1,4 +1,11 @@
-const { pool } = require('./database');
+// Safely import database pool with error handling
+let pool;
+try {
+  ({ pool } = require('./database'));
+} catch (error) {
+  console.log('⚠️ Database service not available for quietHours:', error.message);
+  pool = null;
+}
 
 /**
  * Quiet Hours Scheduling Service
@@ -315,6 +322,12 @@ async function queueDelayedNotification(tenantId, notificationData) {
  */
 async function processDelayedNotifications() {
   try {
+    // Check if pool is available
+    if (!pool) {
+      console.log('⚠️ Database pool not available, skipping delayed notification processing');
+      return { processed: 0, error: 'Database not available' };
+    }
+
     // Check if table exists first
     const tableCheck = await pool.query(`
       SELECT table_name 

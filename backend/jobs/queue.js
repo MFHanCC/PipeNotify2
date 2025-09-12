@@ -49,28 +49,49 @@ if (process.env.REDIS_URL) {
 
 console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
 
-// Create notification queue
-const notificationQueue = new Queue('notification', redisConfig);
+// Create notification queue with error handling
+let notificationQueue;
 
-// Queue event listeners for monitoring
-notificationQueue.on('waiting', (job) => {
-  console.log(`Job ${job.id} is waiting`);
-});
+try {
+  notificationQueue = new Queue('notification', redisConfig);
 
-notificationQueue.on('active', (job) => {
-  console.log(`Job ${job.id} is now active`);
-});
+  // Queue event listeners for monitoring
+  notificationQueue.on('waiting', (job) => {
+    console.log(`Job ${job.id} is waiting`);
+  });
 
-notificationQueue.on('completed', (job, result) => {
-  console.log(`Job ${job.id} completed with result:`, result);
-});
+  notificationQueue.on('active', (job) => {
+    console.log(`Job ${job.id} is now active`);
+  });
 
-notificationQueue.on('failed', (job, err) => {
-  console.error(`Job ${job.id} failed:`, err.message);
-});
+  notificationQueue.on('completed', (job, result) => {
+    console.log(`Job ${job.id} completed with result:`, result);
+  });
+
+  notificationQueue.on('failed', (job, err) => {
+    console.error(`Job ${job.id} failed:`, err.message);
+  });
+
+  notificationQueue.on('error', (err) => {
+    console.error('Queue error:', err.message);
+  });
+
+  console.log('✅ Notification queue initialized successfully');
+} catch (error) {
+  console.error('❌ Failed to initialize notification queue:', error.message);
+  console.log('⚠️ Running in degraded mode without queue functionality');
+  notificationQueue = null;
+}
 
 // Helper function to add notification job
 async function addNotificationJob(webhookData, options = {}) {
+  if (!notificationQueue) {
+    console.warn('⚠️ Queue not available - processing notification synchronously');
+    // Fallback to synchronous processing
+    const processor = require('./processor');
+    return await processor.processNotification(webhookData);
+  }
+
   try {
     const job = await notificationQueue.add('processNotification', webhookData, {
       delay: options.delay || 0,
@@ -87,12 +108,26 @@ async function addNotificationJob(webhookData, options = {}) {
     return job;
   } catch (error) {
     console.error('Failed to add notification job:', error);
-    throw error;
+    console.log('⚠️ Falling back to synchronous processing');
+    // Fallback to synchronous processing
+    const processor = require('./processor');
+    return await processor.processNotification(webhookData);
   }
 }
 
 // Helper function to get queue stats
 async function getQueueStats() {
+  if (!notificationQueue) {
+    return {
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      total: 0,
+      status: 'unavailable'
+    };
+  }
+
   try {
     const [waiting, active, completed, failed] = await Promise.all([
       notificationQueue.getWaiting(),
@@ -106,11 +141,20 @@ async function getQueueStats() {
       active: active.length,
       completed: completed.length,
       failed: failed.length,
-      total: waiting.length + active.length + completed.length + failed.length
+      total: waiting.length + active.length + completed.length + failed.length,
+      status: 'connected'
     };
   } catch (error) {
     console.error('Failed to get queue stats:', error);
-    return null;
+    return {
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      total: 0,
+      status: 'error',
+      error: error.message
+    };
   }
 }
 

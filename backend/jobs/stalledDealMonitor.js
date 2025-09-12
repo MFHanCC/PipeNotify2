@@ -43,7 +43,7 @@ async function findStalledDeals(tenantId) {
         NOW() - MAX(l.created_at) as days_since_activity
       FROM logs l
       WHERE l.tenant_id = $1 
-        AND l.event_type LIKE 'deal.%'
+        AND l.payload->>'event' LIKE 'deal.%'
         AND l.status = 'success'
         AND l.payload->>'object'->>'id' IS NOT NULL
         AND l.created_at >= NOW() - INTERVAL '30 days'  -- Only check deals active in last 30 days

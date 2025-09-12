@@ -390,6 +390,31 @@ notificationWorker.on('failed', (job, err) => {
 
 notificationWorker.on('error', (err) => {
   console.error('Worker error:', err);
+  
+  // Handle Redis connection issues specifically
+  if (err.message.includes('Stream isn\'t writeable') || 
+      err.message.includes('Connection is closed') ||
+      err.message.includes('ENOTFOUND') ||
+      err.message.includes('ECONNREFUSED')) {
+    console.log('🔄 Redis connection issue detected, attempting graceful degradation');
+    
+    // Log to file for Claude autonomous monitoring
+    require('fs').appendFileSync('./logs/claude-alerts/redis-connection-error.txt', 
+      `${new Date().toISOString()}: Redis connection error: ${err.message}\n`);
+  }
+});
+
+// Additional connection monitoring
+notificationWorker.on('ioredis:connect', () => {
+  console.log('✅ Redis connection established for worker');
+});
+
+notificationWorker.on('ioredis:close', () => {
+  console.log('⚠️ Redis connection closed for worker');
+});
+
+notificationWorker.on('ioredis:reconnecting', () => {
+  console.log('🔄 Redis reconnecting for worker');
 });
 
 // Graceful shutdown
