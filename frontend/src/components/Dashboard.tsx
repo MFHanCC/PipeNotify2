@@ -162,6 +162,12 @@ const Dashboard: React.FC = () => {
           createdAt: rule.created_at,
         }));
         setRules(transformedRules);
+        
+        // Update stats with actual rule count
+        setStats(prevStats => ({
+          ...prevStats,
+          activeRules: transformedRules.filter(rule => rule.enabled).length
+        }));
       }
 
       // Load logs from admin endpoint
@@ -242,11 +248,18 @@ const Dashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        setRules(rules.map(r => 
+        const updatedRules = rules.map(r => 
           r.id === ruleId 
             ? { ...r, enabled: !r.enabled }
             : r
-        ));
+        );
+        setRules(updatedRules);
+        
+        // Update stats with new active rule count
+        setStats(prevStats => ({
+          ...prevStats,
+          activeRules: updatedRules.filter(rule => rule.enabled).length
+        }));
       }
     } catch (err) {
       setError('Failed to toggle rule');
@@ -397,7 +410,7 @@ const Dashboard: React.FC = () => {
 
       if (response.ok) {
         // Refresh the dashboard data to show the new rule
-        loadDashboardData();
+        await loadDashboardData();
         closeCreateModal();
       } else {
         const errorData = await response.json();
