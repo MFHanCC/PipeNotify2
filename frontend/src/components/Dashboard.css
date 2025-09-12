@@ -256,10 +256,17 @@
   margin-bottom: 32px;
 }
 
-/* 2x2 Grid Layout for Overview Stats */
+/* 2x2 Grid Layout for Overview Stats - Responsive */
 .stats-2x2 {
-  grid-template-columns: repeat(2, 1fr);
-  max-width: 600px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  max-width: none;
+}
+
+/* Force 2x2 layout on larger screens */
+@media (min-width: 768px) {
+  .stats-2x2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .stat-card {
@@ -493,15 +500,18 @@
 .rule-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 200px;
 }
 
-/* Toggle Switch */
+/* Toggle Switch - Fixed appearance */
 .toggle-switch {
   position: relative;
   display: inline-block;
   width: 50px;
   height: 24px;
+  margin-right: 8px;
 }
 
 .toggle-switch input {
@@ -513,6 +523,10 @@
 .toggle-slider {
   position: absolute;
   cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   top: 0;
   left: 0;
   right: 0;
@@ -548,18 +562,18 @@ input:checked + .toggle-slider:before {
 .rule-controls .delete-button {
   background: #f3f4f6 !important;
   border: 1px solid #d1d5db !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   cursor: pointer;
-  padding: 4px 8px !important;
+  padding: 6px 12px !important;
   border-radius: 4px !important;
   transition: all 0.2s ease;
-  min-width: auto !important;
-  max-width: none !important;
-  width: auto !important;
+  min-width: 60px !important;
   height: 28px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  max-width: none !important;
+  width: auto !important;
   color: #374151 !important;
   font-weight: 500;
   box-shadow: none !important;
