@@ -489,6 +489,107 @@ router.post('/system/fix-tenant-rules', async (req, res) => {
   }
 });
 
+// Fix missing subscriptions table endpoint - no auth required for system fix
+router.post('/system/create-subscriptions-table', async (req, res) => {
+  try {
+    console.log('🔧 Creating missing subscriptions table via API...');
+    
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Read the migration file
+    const migrationPath = path.join(__dirname, '../migrations/006_create_subscriptions.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    
+    console.log('📄 Running migration: 006_create_subscriptions.sql');
+    
+    // Execute the migration
+    await pool.query(migrationSQL);
+    
+    console.log('✅ Subscriptions table created successfully');
+    
+    // Verify the table was created
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'subscriptions'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Subscriptions table was not created'
+      });
+    }
+    
+    // Check how many subscriptions were created
+    const subscriptionCount = await pool.query('SELECT COUNT(*) as count FROM subscriptions');
+    
+    // Get the subscriptions
+    const subscriptions = await pool.query(`
+      SELECT s.id, s.tenant_id, s.plan_tier, s.status, t.company_name
+      FROM subscriptions s
+      JOIN tenants t ON s.tenant_id = t.id
+      ORDER BY s.tenant_id
+    `);
+    
+    console.log(`📊 Created ${subscriptionCount.rows[0].count} subscriptions`);
+    
+    res.json({
+      success: true,
+      message: 'Subscriptions table created successfully',
+      subscriptions_created: parseInt(subscriptionCount.rows[0].count),
+      subscriptions: subscriptions.rows.map(sub => ({
+        tenant_id: sub.tenant_id,
+        company_name: sub.company_name,
+        plan_tier: sub.plan_tier,
+        status: sub.status
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating subscriptions table:', error);
+    
+    if (error.message.includes('already exists')) {
+      console.log('ℹ️ Table already exists, checking data...');
+      
+      try {
+        const subscriptionCount = await pool.query('SELECT COUNT(*) as count FROM subscriptions');
+        const subscriptions = await pool.query(`
+          SELECT s.id, s.tenant_id, s.plan_tier, s.status, t.company_name
+          FROM subscriptions s
+          JOIN tenants t ON s.tenant_id = t.id
+          ORDER BY s.tenant_id
+        `);
+        
+        return res.json({
+          success: true,
+          message: 'Subscriptions table already exists',
+          subscriptions_found: parseInt(subscriptionCount.rows[0].count),
+          subscriptions: subscriptions.rows.map(sub => ({
+            tenant_id: sub.tenant_id,
+            company_name: sub.company_name,
+            plan_tier: sub.plan_tier,
+            status: sub.status
+          }))
+        });
+      } catch (checkError) {
+        return res.status(500).json({
+          success: false,
+          error: 'Error checking existing subscriptions',
+          message: checkError.message
+        });
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create subscriptions table',
+      message: error.message
+    });
+  }
+});
+
 // Apply authentication to all other admin routes
 router.use(authenticateToken);
 
