@@ -140,7 +140,21 @@ const Dashboard: React.FC = React.memo(() => {
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding'>('overview');
   const [editingRule, setEditingRule] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState<{name: string; enabled: boolean}>({name: '', enabled: true});
+  const [editFormData, setEditFormData] = useState<{
+    name: string; 
+    enabled: boolean;
+    event_type: string;
+    template_mode: string;
+    target_webhook_id: string;
+    filters: any;
+  }>({
+    name: '', 
+    enabled: true,
+    event_type: 'deal.updated',
+    template_mode: 'simple',
+    target_webhook_id: '',
+    filters: {}
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createFormData, setCreateFormData] = useState({
     name: '',
@@ -309,9 +323,10 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          target_webhook_id: rule.targetSpace,
+          target_webhook_id: parseInt(rule.targetSpace),
           template_mode: rule.templateMode,
-          enabled: !rule.enabled 
+          enabled: !rule.enabled,
+          filters: rule.filters || {}
         }),
       });
 
@@ -328,6 +343,9 @@ const Dashboard: React.FC = React.memo(() => {
           ...prevStats,
           activeRules: updatedRules.filter((rule: NotificationRule) => rule.enabled).length
         }));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(`Failed to toggle rule: ${errorData.message || 'Unknown error'}`);
       }
     } catch (err) {
       setError('Failed to toggle rule');
