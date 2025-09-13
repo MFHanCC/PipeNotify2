@@ -848,7 +848,28 @@ router.post('/rules', async (req, res) => {
 // PUT /api/v1/admin/rules/:id - Update rule
 router.put('/rules/:id', async (req, res) => {
   try {
+    console.log('🔧 PUT /rules/:id - Request received');
+    console.log('🔧 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔧 Params:', JSON.stringify(req.params, null, 2));
+    console.log('🔧 Body:', JSON.stringify(req.body, null, 2));
+    console.log('🔧 req.tenant:', JSON.stringify(req.tenant, null, 2));
+    
     const ruleId = req.params.id;
+    
+    if (!req.tenant) {
+      return res.status(401).json({
+        error: 'Authentication required - req.tenant is null',
+        code: 'NO_TENANT'
+      });
+    }
+    
+    if (!req.tenant.id) {
+      return res.status(401).json({
+        error: 'Invalid tenant data - missing tenant ID',
+        code: 'INVALID_TENANT'
+      });
+    }
+    
     const tenantId = req.tenant.id;
     const updates = req.body;
 
@@ -856,16 +877,20 @@ router.put('/rules/:id', async (req, res) => {
     console.log('🔧 Backend: Updates received:', JSON.stringify(updates, null, 2));
 
     const updatedRule = await updateRule(tenantId, ruleId, updates);
+    
+    console.log('🔧 Backend: Rule updated successfully:', JSON.stringify(updatedRule, null, 2));
 
     res.json({
       message: 'Rule updated successfully',
       rule: updatedRule
     });
   } catch (error) {
-    console.error('Error updating rule:', error);
+    console.error('❌ Error updating rule:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to update rule',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

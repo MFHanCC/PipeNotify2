@@ -195,12 +195,31 @@ const Dashboard: React.FC = React.memo(() => {
 
   // Settings state
   const [settings, setSettings] = useState({
+    // Notification Preferences
     emailNotifications: true,
-    dailyDigest: true,
-    timezone: 'UTC',
-    dateFormat: 'MM/DD/YYYY',
     webhookRetries: true,
     maxRetryAttempts: '3',
+    retryDelay: '30',
+    
+    // Google Chat Settings
+    messageFormat: 'compact',
+    includeCustomFields: false,
+    mentionUsers: false,
+    
+    // Pipeline Settings
+    eventPriority: 'all',
+    minimumDealValue: '0',
+    excludeTestDeals: true,
+    
+    // Display Settings
+    timezone: 'UTC',
+    dateFormat: 'MM/DD/YYYY',
+    currencyDisplay: 'symbol',
+    
+    // Advanced Settings
+    debugMode: false,
+    logRetention: '30',
+    rateLimiting: true,
   });
 
   // Retry mechanism
@@ -550,27 +569,48 @@ const Dashboard: React.FC = React.memo(() => {
     console.log('🔧 Settings: Reset button clicked!');
     if (window.confirm('Are you sure you want to reset all settings to defaults?')) {
       setSettings({
+        // Notification Preferences
         emailNotifications: true,
-        dailyDigest: true,
-        timezone: 'UTC',
-        dateFormat: 'MM/DD/YYYY',
         webhookRetries: true,
         maxRetryAttempts: '3',
+        retryDelay: '30',
+        
+        // Google Chat Settings
+        messageFormat: 'compact',
+        includeCustomFields: false,
+        mentionUsers: false,
+        
+        // Pipeline Settings
+        eventPriority: 'all',
+        minimumDealValue: '0',
+        excludeTestDeals: true,
+        
+        // Display Settings
+        timezone: 'UTC',
+        dateFormat: 'MM/DD/YYYY',
+        currencyDisplay: 'symbol',
+        
+        // Advanced Settings
+        debugMode: false,
+        logRetention: '30',
+        rateLimiting: true,
       });
       alert('Settings reset to defaults successfully! 🔄');
     }
   };
 
-  const handleChangePassword = () => {
-    alert('🔑 Change Password\n\nThis would typically open a secure password change form.\nFor demo purposes, this is just a placeholder.');
+  const handleTestConnection = () => {
+    alert('🔌 Connection Test\n\nTesting Pipedrive → Google Chat connection...\nThis would verify webhooks, API access, and message delivery.');
   };
 
-  const handleTwoFactor = () => {
-    alert('📱 Two-Factor Authentication\n\nThis would typically guide you through 2FA setup.\nFor demo purposes, this is just a placeholder.');
+  const handleExportLogs = () => {
+    alert('📊 Export Logs\n\nThis would export notification logs and analytics data as CSV.\nUseful for compliance and performance analysis.');
   };
 
-  const handleExportData = () => {
-    alert('📊 Export Data\n\nThis would typically generate a data export file.\nFor demo purposes, this is just a placeholder.');
+  const handleClearCache = () => {
+    if (window.confirm('Clear cached data? This will refresh webhook configurations and rule cache.')) {
+      alert('🧹 Cache Cleared\n\nWebhook cache and rule configurations refreshed.');
+    }
   };
 
   const testFullPipeline = async () => {
@@ -1344,12 +1384,12 @@ const Dashboard: React.FC = React.memo(() => {
             <div className="settings-section">
               <div className="section-header">
                 <h3>⚙️ Settings</h3>
-                <p>Configure your application preferences and account settings</p>
+                <p>Configure your Pipedrive → Google Chat integration preferences</p>
               </div>
               
               <div className="settings-content">
                 <div className="settings-category">
-                  <h4>Notification Preferences</h4>
+                  <h4>🔔 Notification Preferences</h4>
                   <div className="setting-item">
                     <label className="checkbox-label">
                       <input 
@@ -1361,19 +1401,32 @@ const Dashboard: React.FC = React.memo(() => {
                     </label>
                   </div>
                   <div className="setting-item">
+                    <label htmlFor="message-format">Default message format</label>
+                    <select 
+                      id="message-format" 
+                      className="form-select"
+                      value={settings.messageFormat}
+                      onChange={(e) => handleSettingsChange('messageFormat', e.target.value)}
+                    >
+                      <option value="simple">Simple</option>
+                      <option value="compact">Compact</option>
+                      <option value="detailed">Detailed</option>
+                    </select>
+                  </div>
+                  <div className="setting-item">
                     <label className="checkbox-label">
                       <input 
                         type="checkbox" 
-                        checked={settings.dailyDigest}
-                        onChange={(e) => handleSettingsChange('dailyDigest', e.target.checked)}
+                        checked={settings.includeCustomFields}
+                        onChange={(e) => handleSettingsChange('includeCustomFields', e.target.checked)}
                       />
-                      <span>Send daily digest of notification activity</span>
+                      <span>Include custom fields in notifications</span>
                     </label>
                   </div>
                 </div>
 
                 <div className="settings-category">
-                  <h4>Display Options</h4>
+                  <h4>🌐 Display & Formatting</h4>
                   <div className="setting-item">
                     <label htmlFor="timezone-select">Timezone</label>
                     <select 
@@ -1383,48 +1436,44 @@ const Dashboard: React.FC = React.memo(() => {
                       onChange={(e) => handleSettingsChange('timezone', e.target.value)}
                     >
                       <option value="UTC">UTC</option>
-                      <option value="America/New_York">Eastern Time</option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
+                      <option value="America/New_York">Eastern Time (EST/EDT)</option>
+                      <option value="America/Chicago">Central Time (CST/CDT)</option>
+                      <option value="America/Denver">Mountain Time (MST/MDT)</option>
+                      <option value="America/Los_Angeles">Pacific Time (PST/PDT)</option>
+                      <option value="Europe/London">London (GMT/BST)</option>
+                      <option value="Europe/Berlin">Central Europe (CET/CEST)</option>
                     </select>
                   </div>
                   <div className="setting-item">
-                    <label htmlFor="date-format">Date Format</label>
+                    <label htmlFor="date-format">Date format</label>
                     <select 
                       id="date-format" 
                       className="form-select"
                       value={settings.dateFormat}
                       onChange={(e) => handleSettingsChange('dateFormat', e.target.value)}
                     >
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY (EU)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                    </select>
+                  </div>
+                  <div className="setting-item">
+                    <label htmlFor="currency-display">Currency display</label>
+                    <select 
+                      id="currency-display" 
+                      className="form-select"
+                      value={settings.currencyDisplay}
+                      onChange={(e) => handleSettingsChange('currencyDisplay', e.target.value)}
+                    >
+                      <option value="symbol">Symbol ($1,234)</option>
+                      <option value="code">Code (USD 1,234)</option>
+                      <option value="name">Name (1,234 dollars)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="settings-category">
-                  <h4>Account & Security</h4>
-                  <div className="setting-item">
-                    <button className="button-secondary" onClick={handleChangePassword}>
-                      🔑 Change Password
-                    </button>
-                  </div>
-                  <div className="setting-item">
-                    <button className="button-secondary" onClick={handleTwoFactor}>
-                      📱 Two-Factor Authentication
-                    </button>
-                  </div>
-                  <div className="setting-item">
-                    <button className="button-secondary" onClick={handleExportData}>
-                      📊 Export Data
-                    </button>
-                  </div>
-                </div>
-
-                <div className="settings-category">
-                  <h4>Integration Settings</h4>
+                  <h4>🔧 Integration Settings</h4>
                   <div className="setting-item">
                     <label className="checkbox-label">
                       <input 
@@ -1432,7 +1481,7 @@ const Dashboard: React.FC = React.memo(() => {
                         checked={settings.webhookRetries}
                         onChange={(e) => handleSettingsChange('webhookRetries', e.target.checked)}
                       />
-                      <span>Enable webhook retries on failure</span>
+                      <span>Enable webhook retries on delivery failure</span>
                     </label>
                   </div>
                   <div className="setting-item">
@@ -1443,16 +1492,53 @@ const Dashboard: React.FC = React.memo(() => {
                       value={settings.maxRetryAttempts}
                       onChange={(e) => handleSettingsChange('maxRetryAttempts', e.target.value)}
                     >
+                      <option value="1">1 attempt</option>
                       <option value="3">3 attempts</option>
                       <option value="5">5 attempts</option>
                       <option value="10">10 attempts</option>
                     </select>
                   </div>
+                  <div className="setting-item">
+                    <label htmlFor="retry-delay">Retry delay (seconds)</label>
+                    <select 
+                      id="retry-delay" 
+                      className="form-select"
+                      value={settings.retryDelay}
+                      onChange={(e) => handleSettingsChange('retryDelay', e.target.value)}
+                    >
+                      <option value="10">10 seconds</option>
+                      <option value="30">30 seconds</option>
+                      <option value="60">1 minute</option>
+                      <option value="300">5 minutes</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="settings-category">
+                  <h4>🛠️ Tools & Maintenance</h4>
+                  <div className="setting-item">
+                    <button className="button-secondary" onClick={handleTestConnection}>
+                      🔌 Test Connection
+                    </button>
+                    <span className="setting-description">Test Pipedrive → Google Chat connectivity</span>
+                  </div>
+                  <div className="setting-item">
+                    <button className="button-secondary" onClick={handleExportLogs}>
+                      📊 Export Logs
+                    </button>
+                    <span className="setting-description">Download notification logs and analytics</span>
+                  </div>
+                  <div className="setting-item">
+                    <button className="button-secondary" onClick={handleClearCache}>
+                      🧹 Clear Cache
+                    </button>
+                    <span className="setting-description">Refresh webhook cache and configurations</span>
+                  </div>
                 </div>
 
                 <div className="settings-actions">
                   <button className="button-primary" onClick={handleSaveSettings}>
-                    ✅ Save Settings
+                    💾 Save Settings
                   </button>
                   <button className="button-secondary" onClick={handleResetSettings}>
                     🔄 Reset to Defaults
