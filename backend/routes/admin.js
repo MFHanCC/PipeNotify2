@@ -479,7 +479,7 @@ router.post('/debug/create-test-logs', async (req, res) => {
     const { tenant_id } = req.body;
     const testTenantId = tenant_id || 2; // Default to tenant 2 for testing
     
-    // Create some test log entries
+    // Create some test log entries  
     const testLogs = [
       {
         tenant_id: testTenantId,
@@ -489,25 +489,6 @@ router.post('/debug/create-test-logs', async (req, res) => {
         formatted_message: JSON.stringify({ text: 'Test notification 1 - Success' }),
         status: 'success',
         response_time_ms: 250
-      },
-      {
-        tenant_id: testTenantId,
-        rule_id: null,
-        webhook_id: null,
-        payload: JSON.stringify({ event: 'test.log.2', test: true }),
-        formatted_message: JSON.stringify({ text: 'Test notification 2 - Failed' }),
-        status: 'failed',
-        error_message: 'Test error message',
-        response_time_ms: 500
-      },
-      {
-        tenant_id: testTenantId,
-        rule_id: null,
-        webhook_id: null,
-        payload: JSON.stringify({ event: 'test.log.3', test: true }),
-        formatted_message: JSON.stringify({ text: 'Test notification 3 - Pending' }),
-        status: 'retry',
-        response_time_ms: 150
       }
     ];
     
