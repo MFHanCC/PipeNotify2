@@ -96,6 +96,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
   const checkSetupStatus = async () => {
     try {
+      // Only check setup status if user is authenticated
+      const token = getAuthToken();
+      if (!token) {
+        console.log('No auth token found, skipping setup status check');
+        return;
+      }
+
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`);
