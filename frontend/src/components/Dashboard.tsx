@@ -138,7 +138,7 @@ const Dashboard: React.FC = React.memo(() => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding' | 'settings'>('overview');
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     name: string; 
@@ -639,18 +639,92 @@ const Dashboard: React.FC = React.memo(() => {
               <div className="rule-info">
                 {editingRule === rule.id ? (
                   <div className="edit-form">
-                    <input
-                      type="text"
-                      value={editFormData.name}
-                      onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                      className="edit-name-input"
-                      placeholder="Rule name"
+                    <div className="form-group">
+                      <label htmlFor="edit-rule-name">Rule Name *</label>
+                      <input
+                        id="edit-rule-name"
+                        type="text"
+                        value={editFormData.name}
+                        onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                        placeholder="e.g., Deal Won Notifications"
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="edit-event-type">Event Type *</label>
+                      <select
+                        id="edit-event-type"
+                        value={editFormData.event_type}
+                        onChange={(e) => setEditFormData({...editFormData, event_type: e.target.value})}
+                        className="form-select"
+                      >
+                        <option value="deal.updated">Deal Updated</option>
+                        <option value="deal.won">Deal Won</option>
+                        <option value="deal.lost">Deal Lost</option>
+                        <option value="deal.added">Deal Added</option>
+                        <option value="person.added">Person Added</option>
+                        <option value="person.updated">Person Updated</option>
+                        <option value="activity.added">Activity Added</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="edit-target-webhook">Target Google Chat *</label>
+                      <select
+                        id="edit-target-webhook"
+                        value={editFormData.target_webhook_id}
+                        onChange={(e) => setEditFormData({...editFormData, target_webhook_id: e.target.value})}
+                        className="form-select"
+                      >
+                        <option value="">Select a webhook</option>
+                        {availableWebhooks.length === 0 ? (
+                          <option value="" disabled>No webhooks available - go through onboarding first</option>
+                        ) : (
+                          availableWebhooks.map(webhook => (
+                            <option key={webhook.id} value={webhook.id}>
+                              {webhook.name}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+
+                    {/* Message Template Editor */}
+                    <TemplateEditor
+                      value={{
+                        template_mode: editFormData.template_mode,
+                        custom_template: undefined
+                      }}
+                      onChange={(templateData) => setEditFormData({
+                        ...editFormData,
+                        template_mode: templateData.template_mode
+                      })}
+                      eventType={editFormData.event_type}
                     />
+
+                    <div className="form-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={editFormData.enabled}
+                          onChange={(e) => setEditFormData({...editFormData, enabled: e.target.checked})}
+                        />
+                        <span>Enable rule</span>
+                      </label>
+                    </div>
+                    
+                    {/* Advanced Filters */}
+                    <RuleFilters
+                      filters={editFormData.filters}
+                      onChange={(filters) => setEditFormData({...editFormData, filters})}
+                    />
+
                     <div className="edit-actions">
                       <button
                         className="save-button"
                         onClick={() => saveEditRule(rule.id)}
-                        disabled={!editFormData.name.trim()}
+                        disabled={!editFormData.name.trim() || !editFormData.target_webhook_id}
                         aria-label={`Save changes to rule ${rule.name}`}
                         type="button"
                       >
@@ -1019,6 +1093,15 @@ const Dashboard: React.FC = React.memo(() => {
           >
             <span aria-hidden="true">💎</span> Pricing
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+            aria-label="Application settings and preferences"
+            aria-current={activeTab === 'settings' ? 'page' : undefined}
+            type="button"
+          >
+            <span aria-hidden="true">⚙️</span> Settings
+          </button>
         </nav>
       </aside>
       
@@ -1089,6 +1172,100 @@ const Dashboard: React.FC = React.memo(() => {
                 onSkip={() => setActiveTab('overview')}
               />
             </Suspense>
+          )}
+          {activeTab === 'settings' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h3>⚙️ Settings</h3>
+                <p>Configure your application preferences and account settings</p>
+              </div>
+              
+              <div className="settings-content">
+                <div className="settings-category">
+                  <h4>Notification Preferences</h4>
+                  <div className="setting-item">
+                    <label className="checkbox-label">
+                      <input type="checkbox" defaultChecked />
+                      <span>Enable email notifications for system alerts</span>
+                    </label>
+                  </div>
+                  <div className="setting-item">
+                    <label className="checkbox-label">
+                      <input type="checkbox" defaultChecked />
+                      <span>Send daily digest of notification activity</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="settings-category">
+                  <h4>Display Options</h4>
+                  <div className="setting-item">
+                    <label htmlFor="timezone-select">Timezone</label>
+                    <select id="timezone-select" className="form-select">
+                      <option value="UTC">UTC</option>
+                      <option value="America/New_York">Eastern Time</option>
+                      <option value="America/Chicago">Central Time</option>
+                      <option value="America/Denver">Mountain Time</option>
+                      <option value="America/Los_Angeles">Pacific Time</option>
+                    </select>
+                  </div>
+                  <div className="setting-item">
+                    <label htmlFor="date-format">Date Format</label>
+                    <select id="date-format" className="form-select">
+                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="settings-category">
+                  <h4>Account & Security</h4>
+                  <div className="setting-item">
+                    <button className="button-secondary">
+                      🔑 Change Password
+                    </button>
+                  </div>
+                  <div className="setting-item">
+                    <button className="button-secondary">
+                      📱 Two-Factor Authentication
+                    </button>
+                  </div>
+                  <div className="setting-item">
+                    <button className="button-secondary">
+                      📊 Export Data
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-category">
+                  <h4>Integration Settings</h4>
+                  <div className="setting-item">
+                    <label className="checkbox-label">
+                      <input type="checkbox" defaultChecked />
+                      <span>Enable webhook retries on failure</span>
+                    </label>
+                  </div>
+                  <div className="setting-item">
+                    <label htmlFor="retry-attempts">Maximum retry attempts</label>
+                    <select id="retry-attempts" className="form-select">
+                      <option value="3">3 attempts</option>
+                      <option value="5">5 attempts</option>
+                      <option value="10">10 attempts</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="settings-actions">
+                  <button className="button-primary">
+                    ✅ Save Settings
+                  </button>
+                  <button className="button-secondary">
+                    🔄 Reset to Defaults
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </main>
