@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
+import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError } from '../utils/auth';
 
 // Lazy load heavy components to improve initial bundle size
 const WebhookManager = lazy(() => import('./WebhookManager'));
@@ -7,7 +8,7 @@ const RuleFilters = lazy(() => import('./RuleFilters'));
 const TemplateEditor = lazy(() => import('./TemplateEditor'));
 const ChannelRouting = lazy(() => import('./ChannelRouting'));
 const QuietHours = lazy(() => import('./QuietHours'));
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsPanel = lazy(() => import('./AnalyticsPanel'));
 const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
@@ -58,24 +59,8 @@ interface DashboardStats {
   avgDeliveryTime: number;
 }
 
-// JWT Token utilities
-const decodeJWTPayload = (token: string): any => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Error decoding JWT:', error);
-    return null;
-  }
-};
 
 const Dashboard: React.FC = React.memo(() => {
-  // Memoize JWT decode function to prevent recreation on every render
-  const decodeJWTPayloadMemo = React.useMemo(() => decodeJWTPayload, []);
 
   // Network status detection
   React.useEffect(() => {
@@ -143,6 +128,7 @@ const Dashboard: React.FC = React.memo(() => {
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
+  const [tenantId, setTenantId] = useState<string>('1');
   
   // Filters and pagination
   const [ruleFilter, setRuleFilter] = useState<string>('all');
@@ -185,22 +171,20 @@ const Dashboard: React.FC = React.memo(() => {
     setError(null);
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
+      const token = getAuthToken();
       
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      };
+      if (!token) {
+        setError('No authentication token found. Please log in again.');
+        window.location.href = '/onboarding';
+        return;
+      }
+
+      const headers = getAuthHeaders();
 
       // Get tenant ID from JWT token
-      let tenantId = '1'; // Fallback
-      if (token) {
-        const payload = decodeJWTPayloadMemo(token);
-        if (payload && payload.tenantId) {
-          tenantId = payload.tenantId.toString();
-        }
-      }
+      const currentTenantId = getTenantId() || '1'; // Fallback
+      setTenantId(currentTenantId);
 
       // Parallel API calls for better performance
       const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 1;
@@ -212,20 +196,16 @@ const Dashboard: React.FC = React.memo(() => {
       });
 
       const [statsResponse, rulesResponse, logsResponse, webhooksResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/monitoring/dashboard/${tenantId}?days=${days}`, { 
-          headers,
+        authenticatedFetch(`${apiUrl}/api/v1/monitoring/dashboard/${currentTenantId}?days=${days}`, { 
           signal: AbortSignal.timeout(10000) // 10 second timeout
         }).catch(() => null),
-        fetch(`${apiUrl}/api/v1/admin/rules`, { 
-          headers,
+        authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
-        fetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { 
-          headers,
+        authenticatedFetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
-        fetch(`${apiUrl}/api/v1/admin/webhooks`, { 
-          headers,
+        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
       ]);
@@ -322,15 +302,10 @@ const Dashboard: React.FC = React.memo(() => {
       const rule = rules.find(r => r.id === ruleId);
       if (!rule) return;
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
@@ -361,15 +336,10 @@ const Dashboard: React.FC = React.memo(() => {
 
   const testRule = async (ruleId: string) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}/test`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}/test`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
       });
 
       if (response.ok) {
@@ -398,15 +368,10 @@ const Dashboard: React.FC = React.memo(() => {
 
   const saveEditRule = async (ruleId: string) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: editFormData.name,
           enabled: editFormData.enabled,
@@ -435,14 +400,10 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
       });
 
       if (response.ok) {
@@ -492,15 +453,10 @@ const Dashboard: React.FC = React.memo(() => {
 
     setIsSubmitting(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: createFormData.name.trim(),
           event_type: createFormData.event_type,
@@ -1046,8 +1002,10 @@ const Dashboard: React.FC = React.memo(() => {
           )}
           {activeTab === 'analytics' && (
             <Suspense fallback={<ComponentLoader />}>
-              <AnalyticsDashboard 
-                onRefresh={loadDashboardData}
+              <AnalyticsPanel 
+                tenantId={tenantId}
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
               />
             </Suspense>
           )}

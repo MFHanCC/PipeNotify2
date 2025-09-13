@@ -22,7 +22,7 @@ if (process.env.SENTRY_DSN) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // Sentry middleware (if properly configured)
 // Note: Sentry handlers will be enabled when a valid SENTRY_DSN is provided
@@ -42,8 +42,8 @@ app.use(helmet({
 
 // CORS configuration for Railway backend + Vercel frontend
 const allowedOrigins = [
-  'http://localhost:3000', // Development frontend
-  'https://your-app.vercel.app', // Production Vercel
+  process.env.FRONTEND_URL || 'http://localhost:3000', // Frontend URL
+  'http://localhost:3000', // Development fallback
   process.env.FRONTEND_URL, // Dynamic production URL
 ];
 
@@ -63,6 +63,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Raw body preservation for webhook signature validation
+app.use('/api/v1/webhook', express.raw({ type: 'application/json' }));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

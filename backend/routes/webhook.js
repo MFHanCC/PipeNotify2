@@ -1,16 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const { addNotificationJob } = require('../jobs/queue');
+const { validatePipedriveSignature } = require('../middleware/webhookValidation');
 
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks  
-router.post('/pipedrive', async (req, res) => {
+router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
   console.log('🔥 WEBHOOK RECEIVED');
   
   try {
     let webhookData = req.body;
     
-    // Handle potential JSON parsing issues with control characters
-    if (typeof webhookData === 'string') {
+    // Handle raw body from webhook signature validation middleware
+    if (Buffer.isBuffer(webhookData)) {
+      try {
+        const bodyString = webhookData.toString('utf8');
+        // Clean control characters before parsing
+        const cleanedData = bodyString.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        webhookData = JSON.parse(cleanedData);
+        console.log('✅ Successfully parsed buffer body');
+      } catch (parseError) {
+        console.error('❌ JSON parsing error:', parseError.message);
+        console.error('Raw data sample:', webhookData.toString().substring(0, 500));
+        return res.status(400).json({
+          error: 'Invalid JSON payload',
+          message: 'Unable to parse webhook data'
+        });
+      }
+    } else if (typeof webhookData === 'string') {
       console.log('Body is string, attempting to parse...');
       try {
         // Clean control characters before parsing
@@ -83,7 +99,7 @@ router.post('/pipedrive', async (req, res) => {
       });
     }
 
-    // TODO: Add webhook signature validation for security
+    // ✅ Webhook signature validation completed by middleware
     
     console.log('🚀 QUEUING JOB for', webhookData.event);
     

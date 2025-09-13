@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './OnboardingWizard.css';
+import { getAuthToken, setAuthToken, getAuthHeaders, authenticatedFetch } from '../utils/auth';
 
 interface OnboardingStep {
   id: string;
@@ -31,6 +32,7 @@ interface RuleFormData {
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [webhookFormData, setWebhookFormData] = useState<WebhookFormData>({
     name: '',
@@ -46,6 +48,37 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [isPipedriveConnected, setIsPipedriveConnected] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+
+  // Enhanced error handling
+  const handleApiError = useCallback((error: any, operation: string) => {
+    let message = `Failed to ${operation}`;
+    if (error?.status === 401) {
+      message = 'Session expired. Please log in again.';
+    } else if (error?.status === 403) {
+      message = 'Permission denied. Please check your access rights.';
+    } else if (error?.message) {
+      message = error.message;
+    }
+    setError(message);
+  }, []);
+
+  // Validation helper
+  const validateWebhookForm = useMemo(() => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!webhookFormData.name.trim()) {
+      errors.name = 'Webhook name is required';
+    }
+    
+    if (!webhookFormData.webhook_url.trim()) {
+      errors.webhook_url = 'Webhook URL is required';
+    } else if (!webhookFormData.webhook_url.includes('chat.googleapis.com')) {
+      errors.webhook_url = 'Please enter a valid Google Chat webhook URL';
+    }
+    
+    return errors;
+  }, [webhookFormData]);
 
   // Check user's current setup status and handle OAuth callback
   useEffect(() => {
@@ -64,14 +97,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const checkSetupStatus = async () => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`);
 
       if (response.ok) {
         const data = await response.json();
@@ -88,7 +115,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const checkPipedriveConnection = async () => {
     try {
       setIsCheckingConnection(true);
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
+      const token = getAuthToken();
       
       if (!token) {
         setIsPipedriveConnected(false);
@@ -97,12 +124,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       }
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/v1/oauth/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/oauth/profile`);
 
       setIsPipedriveConnected(response.ok);
     } catch (error) {
@@ -128,7 +150,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('auth_token', data.access_token);
+        setAuthToken(data.access_token, data.refresh_token, data.expires_in);
         setIsPipedriveConnected(true);
         
         // Clean up URL by removing the code parameter
@@ -152,14 +174,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     try {
       setIsLoading(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(webhookFormData)
       });
 
@@ -183,14 +200,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     try {
       setIsLoading(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           ...ruleFormData,
           filters: {},
@@ -217,19 +229,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     try {
       setIsLoading(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const selectedWebhook = webhooks.find(w => w.id === ruleFormData.target_webhook_id);
       if (!selectedWebhook) {
         throw new Error('No webhook selected');
       }
 
-      const response = await fetch(`${apiUrl}/api/v1/admin/webhooks/${selectedWebhook.id}/test`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks/${selectedWebhook.id}/test`, {
+        method: 'POST'
       });
 
       if (response.ok) {
