@@ -144,14 +144,14 @@ const Dashboard: React.FC = React.memo(() => {
     name: string; 
     enabled: boolean;
     event_type: string;
-    template_mode: string;
+    template_mode: 'compact' | 'detailed';
     target_webhook_id: string;
     filters: any;
   }>({
     name: '', 
     enabled: true,
     event_type: 'deal.updated',
-    template_mode: 'simple',
+    template_mode: 'compact',
     target_webhook_id: '',
     filters: {}
   });
@@ -389,7 +389,7 @@ const Dashboard: React.FC = React.memo(() => {
       name: '', 
       enabled: true,
       event_type: 'deal.updated',
-      template_mode: 'simple',
+      template_mode: 'compact',
       target_webhook_id: '',
       filters: {}
     });
@@ -430,7 +430,7 @@ const Dashboard: React.FC = React.memo(() => {
           name: '', 
           enabled: true,
           event_type: 'deal.updated',
-          template_mode: 'simple',
+          template_mode: 'compact',
           target_webhook_id: '',
           filters: {}
         });
