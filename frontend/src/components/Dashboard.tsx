@@ -376,12 +376,23 @@ const Dashboard: React.FC = React.memo(() => {
     setEditFormData({
       name: rule.name,
       enabled: rule.enabled,
+      event_type: rule.eventType,
+      template_mode: rule.templateMode,
+      target_webhook_id: rule.targetSpace,
+      filters: rule.filters || {}
     });
   };
 
   const cancelEditRule = () => {
     setEditingRule(null);
-    setEditFormData({name: '', enabled: true});
+    setEditFormData({
+      name: '', 
+      enabled: true,
+      event_type: 'deal.updated',
+      template_mode: 'simple',
+      target_webhook_id: '',
+      filters: {}
+    });
   };
 
   const saveEditRule = async (ruleId: string) => {
@@ -393,17 +404,36 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({
           name: editFormData.name,
           enabled: editFormData.enabled,
+          event_type: editFormData.event_type,
+          template_mode: editFormData.template_mode,
+          target_webhook_id: parseInt(editFormData.target_webhook_id),
+          filters: editFormData.filters
         }),
       });
 
       if (response.ok) {
         setRules(rules.map(r => 
           r.id === ruleId 
-            ? { ...r, name: editFormData.name, enabled: editFormData.enabled }
+            ? { 
+                ...r, 
+                name: editFormData.name, 
+                enabled: editFormData.enabled,
+                eventType: editFormData.event_type,
+                templateMode: editFormData.template_mode,
+                targetSpace: editFormData.target_webhook_id,
+                filters: editFormData.filters
+              }
             : r
         ));
         setEditingRule(null);
-        setEditFormData({name: '', enabled: true});
+        setEditFormData({
+          name: '', 
+          enabled: true,
+          event_type: 'deal.updated',
+          template_mode: 'simple',
+          target_webhook_id: '',
+          filters: {}
+        });
       } else {
         setError('Failed to update rule');
       }
