@@ -161,7 +161,7 @@ const Dashboard: React.FC = React.memo(() => {
     event_type: 'deal.updated',
     target_webhook_id: '',
     template_mode: 'compact' as 'simple' | 'compact' | 'detailed' | 'custom',
-    custom_template: undefined as string | undefined,
+    custom_template: null as string | null,
     enabled: true,
     filters: {},
   });
@@ -470,7 +470,7 @@ const Dashboard: React.FC = React.memo(() => {
       event_type: 'deal.updated',
       target_webhook_id: availableWebhooks[0]?.id || '',
       template_mode: 'compact',
-      custom_template: undefined,
+      custom_template: null,
       enabled: true,
       filters: {},
     });
@@ -484,7 +484,7 @@ const Dashboard: React.FC = React.memo(() => {
       event_type: 'deal.updated',
       target_webhook_id: '',
       template_mode: 'compact',
-      custom_template: undefined,
+      custom_template: null,
       enabled: true,
       filters: {},
     });
@@ -510,7 +510,7 @@ const Dashboard: React.FC = React.memo(() => {
           event_type: createFormData.event_type,
           target_webhook_id: parseInt(createFormData.target_webhook_id),
           template_mode: createFormData.template_mode,
-          custom_template: createFormData.custom_template,
+          custom_template: createFormData.custom_template || null,
           enabled: createFormData.enabled,
           filters: createFormData.filters,
         }),
@@ -1385,7 +1385,7 @@ const Dashboard: React.FC = React.memo(() => {
                 onChange={(templateData) => setCreateFormData({
                   ...createFormData,
                   template_mode: templateData.template_mode,
-                  custom_template: templateData.custom_template
+                  custom_template: templateData.custom_template || null
                 })}
                 eventType={createFormData.event_type}
               />

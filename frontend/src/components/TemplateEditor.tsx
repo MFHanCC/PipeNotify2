@@ -9,7 +9,7 @@ interface TemplateVariables {
 
 interface TemplateData {
   template_mode: 'simple' | 'compact' | 'detailed' | 'custom';
-  custom_template?: string;
+  custom_template?: string | null;
 }
 
 interface TemplateEditorProps {
@@ -156,7 +156,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
     } else {
       onChange({
         template_mode: newTemplateMode,
-        custom_template: undefined
+        custom_template: null
       });
     }
   };
