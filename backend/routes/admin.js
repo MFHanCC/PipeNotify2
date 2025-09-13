@@ -495,8 +495,8 @@ router.post('/debug/create-test-logs', async (req, res) => {
     let created = 0;
     for (const log of testLogs) {
       await pool.query(`
-        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, error_message, response_time_ms, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, error_message, response_time_ms, event_type, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       `, [
         log.tenant_id,
         log.rule_id,
@@ -505,7 +505,8 @@ router.post('/debug/create-test-logs', async (req, res) => {
         log.formatted_message,
         log.status,
         log.error_message || null,
-        log.response_time_ms
+        log.response_time_ms,
+        'test.event'
       ]);
       created++;
     }
