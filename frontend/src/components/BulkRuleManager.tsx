@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './BulkRuleManager.css';
 
 interface Rule {
@@ -42,11 +42,59 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
   const [selectedRules, setSelectedRules] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [importResults, setImportResults] = useState<ImportResult | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Enhanced error handling
+  const handleApiError = useCallback((error: any, operation: string) => {
+    let message = `Failed to ${operation}`;
+    if (error?.status === 401) {
+      message = 'Session expired. Please log in again.';
+    } else if (error?.status === 403) {
+      message = 'Permission denied.';
+    } else if (error?.message) {
+      message = error.message;
+    }
+    setError(message);
+  }, []);
+
+  // Filtered and searched rules
+  const filteredRules = useMemo(() => {
+    let filtered = rules;
+    
+    // Apply active filter
+    if (filterActive !== 'all') {
+      filtered = filtered.filter(rule => 
+        filterActive === 'active' ? rule.is_active : !rule.is_active
+      );
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(rule =>
+        rule.name.toLowerCase().includes(query) ||
+        JSON.stringify(rule.event_filters).toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [rules, filterActive, searchQuery]);
+
+  // Selection helpers
+  const allSelectedOnPage = useMemo(() => 
+    filteredRules.length > 0 && filteredRules.every(rule => selectedRules.includes(rule.id)),
+    [filteredRules, selectedRules]
+  );
+
+  const someSelectedOnPage = useMemo(() =>
+    filteredRules.some(rule => selectedRules.includes(rule.id)),
+    [filteredRules, selectedRules]
+  );
 
   useEffect(() => {
     loadData();
@@ -84,16 +132,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
     setIsLoading(false);
   };
 
-  const filteredRules = rules.filter(rule => {
-    const matchesSearch = rule.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         rule.message_template.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesFilter = filterActive === 'all' || 
-                         (filterActive === 'active' && rule.is_active) ||
-                         (filterActive === 'inactive' && !rule.is_active);
-    
-    return matchesSearch && matchesFilter;
-  });
+  // Using memoized filteredRules from above
 
   const handleRuleSelect = (ruleId: number, selected: boolean) => {
     if (selected) {
@@ -277,10 +316,10 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
         </div>
         <div className="header-actions">
           <button onClick={handleExportRules} className="export-button">
-            =ä Export {selectedRules.length > 0 ? `${selectedRules.length} Selected` : 'All Rules'}
+            =ï¿½ Export {selectedRules.length > 0 ? `${selectedRules.length} Selected` : 'All Rules'}
           </button>
           <button onClick={triggerFileInput} className="import-button" disabled={isProcessing}>
-            =å Import Rules
+            =ï¿½ Import Rules
           </button>
           <input
             ref={fileInputRef}
@@ -330,7 +369,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
       {selectedRules.length > 0 && (
         <div className="bulk-actions">
           <div className="action-group">
-            <h3>=Ë Bulk Actions ({selectedRules.length} selected)</h3>
+            <h3>=ï¿½ Bulk Actions ({selectedRules.length} selected)</h3>
             <div className="action-buttons">
               <button
                 onClick={handleBulkActivate}
@@ -344,14 +383,14 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
                 disabled={isProcessing}
                 className="action-button deactivate"
               >
-                ø Deactivate
+                ï¿½ Deactivate
               </button>
               <button
                 onClick={handleBulkDelete}
                 disabled={isProcessing}
                 className="action-button delete"
               >
-                =Ñ Delete
+                =ï¿½ Delete
               </button>
             </div>
           </div>
@@ -423,7 +462,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
                     </div>
                   </td>
                   <td className={`status ${rule.is_active ? 'active' : 'inactive'}`}>
-                    {rule.is_active ? ' Active' : 'ø Inactive'}
+                    {rule.is_active ? ' Active' : 'ï¿½ Inactive'}
                   </td>
                   <td className="filters">
                     <div className="filters-summary">
@@ -457,7 +496,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
 
         {filteredRules.length === 0 && (
           <div className="no-rules">
-            <div className="no-rules-icon">=Ë</div>
+            <div className="no-rules-icon">=ï¿½</div>
             <h3>No rules found</h3>
             <p>Try adjusting your search or filter criteria</p>
           </div>
@@ -474,7 +513,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
                 onClick={() => setShowImportModal(false)}
                 className="modal-close"
               >
-                ×
+                ï¿½
               </button>
             </div>
             <div className="modal-content">
@@ -525,7 +564,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
 
       {/* Info Section */}
       <div className="bulk-info">
-        <h4>=¡ Bulk Management Tips</h4>
+        <h4>=ï¿½ Bulk Management Tips</h4>
         <ul>
           <li><strong>Export:</strong> Download rules as JSON for backup or migration</li>
           <li><strong>Import:</strong> Upload previously exported rule configurations</li>

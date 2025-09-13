@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiService from '../services/api';
 import './WebhookManager.css';
 
@@ -19,11 +19,45 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [newWebhook, setNewWebhook] = useState({
     name: '',
     webhook_url: '',
     description: ''
   });
+
+  // Enhanced error handling
+  const handleApiError = useCallback((error: any, operation: string) => {
+    let message = `Failed to ${operation}`;
+    if (error?.status === 401) {
+      message = 'Session expired. Please log in again.';
+    } else if (error?.status === 403) {
+      message = 'Permission denied.';
+    } else if (error?.message) {
+      message = error.message;
+    }
+    setError(message);
+  }, []);
+
+  // Form validation
+  const formValidation = useMemo(() => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!newWebhook.name.trim()) {
+      errors.name = 'Webhook name is required';
+    }
+    
+    if (!newWebhook.webhook_url.trim()) {
+      errors.webhook_url = 'Webhook URL is required';
+    } else if (!newWebhook.webhook_url.includes('chat.googleapis.com')) {
+      errors.webhook_url = 'Please enter a valid Google Chat webhook URL';
+    } else if (!newWebhook.webhook_url.startsWith('https://')) {
+      errors.webhook_url = 'Webhook URL must start with https://';
+    }
+    
+    return errors;
+  }, [newWebhook]);
 
   useEffect(() => {
     loadWebhooks();
@@ -85,6 +119,39 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
       setError(err instanceof Error ? err.message : 'Failed to test webhook');
     } finally {
       setTestingId(null);
+    }
+  };
+
+  const handleDeleteWebhook = async (webhookId: string, webhookName: string) => {
+    // Confirmation dialog
+    if (!window.confirm(`Are you sure you want to delete the webhook "${webhookName}"?\n\nThis action cannot be undone. Any rules using this webhook will need to be updated.`)) {
+      return;
+    }
+
+    try {
+      setDeletingId(webhookId);
+      setError(null);
+      
+      const result = await apiService.deleteWebhook(webhookId);
+      
+      if (result.success) {
+        await loadWebhooks(); // Refresh the list
+        alert('✅ Webhook deleted successfully!');
+      } else {
+        setError('Delete failed: ' + result.message);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete webhook';
+      setError(errorMessage);
+      
+      // Show more user-friendly error messages
+      if (errorMessage.includes('active rules')) {
+        alert('❌ Cannot delete webhook because it is being used by active rules. Please disable or delete those rules first.');
+      } else {
+        alert('❌ Failed to delete webhook: ' + errorMessage);
+      }
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -220,7 +287,7 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
                 <button
                   className="btn-test"
                   onClick={() => handleTestWebhook(webhook.id)}
-                  disabled={testingId === webhook.id}
+                  disabled={testingId === webhook.id || deletingId === webhook.id}
                 >
                   {testingId === webhook.id ? (
                     <>
@@ -229,6 +296,21 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
                     </>
                   ) : (
                     '🧪 Test'
+                  )}
+                </button>
+                <button
+                  className="btn-delete"
+                  onClick={() => handleDeleteWebhook(webhook.id, webhook.name)}
+                  disabled={testingId === webhook.id || deletingId === webhook.id}
+                  title={`Delete webhook "${webhook.name}"`}
+                >
+                  {deletingId === webhook.id ? (
+                    <>
+                      <span className="spinner"></span>
+                      Deleting...
+                    </>
+                  ) : (
+                    '🗑️ Delete'
                   )}
                 </button>
               </div>

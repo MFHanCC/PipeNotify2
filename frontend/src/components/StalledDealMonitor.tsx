@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './StalledDealMonitor.css';
 import StalledDealReports from './StalledDealReports';
 
@@ -66,7 +66,47 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTestingAlert, setIsTestingAlert] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [activeTab, setActiveTab] = useState<'settings' | 'stats' | 'reports' | 'history'>('settings');
+
+  // Enhanced error handling
+  const handleApiError = useCallback((error: any, operation: string) => {
+    let message = `Failed to ${operation}`;
+    if (error?.status === 401) {
+      message = 'Session expired. Please log in again.';
+    } else if (error?.status === 403) {
+      message = 'Permission denied.';
+    } else if (error?.message) {
+      message = error.message;
+    }
+    setError(message);
+  }, []);
+
+  // Settings validation
+  const validationResults = useMemo(() => {
+    const errors: {[key: string]: string} = {};
+    
+    if (settings.thresholds.warning >= settings.thresholds.stale) {
+      errors.warning = 'Warning threshold must be less than stale threshold';
+    }
+    
+    if (settings.thresholds.stale >= settings.thresholds.critical) {
+      errors.stale = 'Stale threshold must be less than critical threshold';
+    }
+    
+    if (settings.minDealValue && settings.minDealValue < 0) {
+      errors.minDealValue = 'Minimum deal value must be positive';
+    }
+    
+    return errors;
+  }, [settings]);
+
+  // Memoized webhook options
+  const webhookOptions = useMemo(() => 
+    webhooks?.filter(w => w.is_active) || [], 
+    [webhooks]
+  );
 
   useEffect(() => {
     loadStalledDealData();

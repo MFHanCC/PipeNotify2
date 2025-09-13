@@ -156,6 +156,24 @@
   cursor: not-allowed;
 }
 
+.btn-delete {
+  background-color: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.btn-delete:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .webhooks-list {
   space-y: 16px;
 }
@@ -240,6 +258,7 @@
 .webhook-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-left: 20px;
 }
 

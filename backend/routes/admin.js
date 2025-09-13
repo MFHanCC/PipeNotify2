@@ -473,6 +473,81 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
   }
 });
 
+// Debug endpoint to create test log entries
+router.post('/debug/create-test-logs', async (req, res) => {
+  try {
+    const { tenant_id } = req.body;
+    const testTenantId = tenant_id || 2; // Default to tenant 2 for testing
+    
+    // Create some test log entries
+    const testLogs = [
+      {
+        tenant_id: testTenantId,
+        rule_id: null,
+        webhook_id: null,
+        payload: JSON.stringify({ event: 'test.log.1', test: true }),
+        formatted_message: JSON.stringify({ text: 'Test notification 1 - Success' }),
+        status: 'success',
+        event_type: 'test.log.success',
+        response_time_ms: 250
+      },
+      {
+        tenant_id: testTenantId,
+        rule_id: null,
+        webhook_id: null,
+        payload: JSON.stringify({ event: 'test.log.2', test: true }),
+        formatted_message: JSON.stringify({ text: 'Test notification 2 - Failed' }),
+        status: 'failed',
+        event_type: 'test.log.failed',
+        error_message: 'Test error message',
+        response_time_ms: 500
+      },
+      {
+        tenant_id: testTenantId,
+        rule_id: null,
+        webhook_id: null,
+        payload: JSON.stringify({ event: 'test.log.3', test: true }),
+        formatted_message: JSON.stringify({ text: 'Test notification 3 - Pending' }),
+        status: 'retry',
+        event_type: 'test.log.retry',
+        response_time_ms: 150
+      }
+    ];
+    
+    let created = 0;
+    for (const log of testLogs) {
+      await pool.query(`
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, event_type, error_message, response_time_ms, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      `, [
+        log.tenant_id,
+        log.rule_id,
+        log.webhook_id,
+        log.payload,
+        log.formatted_message,
+        log.status,
+        log.event_type,
+        log.error_message || null,
+        log.response_time_ms
+      ]);
+      created++;
+    }
+    
+    res.json({
+      success: true,
+      message: `Created ${created} test log entries for tenant ${testTenantId}`,
+      tenant_id: testTenantId
+    });
+    
+  } catch (error) {
+    console.error('Error creating test logs:', error);
+    res.status(500).json({ 
+      error: 'Failed to create test logs',
+      message: error.message 
+    });
+  }
+});
+
 // Debug endpoint to check rules and events
 router.get('/debug/rules', async (req, res) => {
   try {
@@ -970,6 +1045,57 @@ router.post('/webhooks', async (req, res) => {
   }
 });
 
+// DELETE /api/v1/admin/webhooks/:id - Delete webhook
+router.delete('/webhooks/:id', async (req, res) => {
+  try {
+    const webhookId = req.params.id;
+    const tenantId = req.tenant.id;
+
+    // Check if webhook exists and belongs to tenant
+    const existingWebhook = await pool.query(
+      'SELECT * FROM chat_webhooks WHERE id = $1 AND tenant_id = $2',
+      [webhookId, tenantId]
+    );
+
+    if (existingWebhook.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Webhook not found'
+      });
+    }
+
+    // Check if webhook is being used by any active rules
+    const rulesUsingWebhook = await pool.query(
+      'SELECT COUNT(*) as count FROM rules WHERE target_webhook_id = $1 AND tenant_id = $2 AND enabled = true',
+      [webhookId, tenantId]
+    );
+
+    if (parseInt(rulesUsingWebhook.rows[0].count) > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete webhook that is being used by active rules',
+        message: `This webhook is currently being used by ${rulesUsingWebhook.rows[0].count} active rule(s). Please disable or delete those rules first.`
+      });
+    }
+
+    // Delete the webhook
+    await pool.query(
+      'DELETE FROM chat_webhooks WHERE id = $1 AND tenant_id = $2',
+      [webhookId, tenantId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Webhook deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting webhook:', error);
+    res.status(500).json({
+      error: 'Failed to delete webhook',
+      message: error.message
+    });
+  }
+});
+
 // POST /api/v1/admin/webhooks/:id/test - Test webhook
 router.post('/webhooks/:id/test', async (req, res) => {
   try {
@@ -1230,16 +1356,17 @@ router.post('/test/notification', authenticateToken, async (req, res) => {
 
       // Log the test
       await pool.query(`
-        INSERT INTO logs (tenant_id, rule_id, webhook_id, status, message, response_time, event_data, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, status, formatted_message, response_time_ms, payload, event_type, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       `, [
         tenantId,
         rule_id,
         webhook_id,
-        'delivered',
-        message,
+        'success',
+        JSON.stringify({text: message}),
         responseTime,
-        JSON.stringify(test_event)
+        JSON.stringify(test_event),
+        'test.notification'
       ]);
 
       res.json({
@@ -1257,17 +1384,18 @@ router.post('/test/notification', authenticateToken, async (req, res) => {
       
       // Log the failure
       await pool.query(`
-        INSERT INTO logs (tenant_id, rule_id, webhook_id, status, message, response_time, error_details, event_data, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, status, formatted_message, response_time_ms, error_message, payload, event_type, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       `, [
         tenantId,
         rule_id,
         webhook_id,
         'failed',
-        message,
+        JSON.stringify({text: message}),
         responseTime,
         webhookError.message,
-        JSON.stringify(test_event)
+        JSON.stringify(test_event),
+        'test.notification'
       ]);
 
       res.status(500).json({

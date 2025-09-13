@@ -26,7 +26,7 @@ interface NotificationRule {
   id: string;
   name: string;
   eventType: string;
-  templateMode: 'compact' | 'detailed';
+  templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
   targetSpace: string;
   filters: {
     pipeline?: string;
@@ -144,7 +144,7 @@ const Dashboard: React.FC = React.memo(() => {
     name: string; 
     enabled: boolean;
     event_type: string;
-    template_mode: 'compact' | 'detailed';
+    template_mode: 'simple' | 'compact' | 'detailed' | 'custom';
     target_webhook_id: string;
     filters: any;
   }>({
@@ -674,6 +674,17 @@ const Dashboard: React.FC = React.memo(() => {
                       <span className="template-mode">{rule.templateMode}</span>
                       <span className="target-space">→ {rule.targetSpace}</span>
                     </div>
+                    
+                    {/* Display filters if any exist */}
+                    {(rule.filters?.pipeline || rule.filters?.stage || rule.filters?.owner || rule.filters?.minValue) && (
+                      <div className="rule-filters">
+                        <strong>Filters:</strong>
+                        {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
+                        {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
+                        {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
+                        {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

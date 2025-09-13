@@ -59,7 +59,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
     try {
       const templateToPreview = value.template_mode === 'custom' 
         ? value.custom_template 
-        : defaultTemplates[eventType] || defaultTemplates['deal.updated'] || 'No template available';
+        : generateTemplateByMode(value.template_mode, eventType);
 
       // Generate preview with mock data
       const mockWebhookData = {
@@ -89,6 +89,31 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
       setPreviewData(preview);
     } catch (error) {
       setPreviewData('Error generating preview');
+    }
+  };
+
+  // Generate template based on mode
+  const generateTemplateByMode = (mode: string, eventType: string): string => {
+    const baseEvent = eventType.includes('deal') ? 'deal' : 'activity';
+    
+    switch (mode) {
+      case 'simple':
+        return baseEvent === 'deal' 
+          ? `{deal.title} - {deal.stage}`
+          : `{activity.subject} - {activity.type}`;
+          
+      case 'compact':
+        return baseEvent === 'deal' 
+          ? `📋 {deal.title}\n💰 {deal.value} | 🎯 {deal.stage}\n👤 {deal.owner_name}`
+          : `📅 {activity.subject}\n📝 {activity.type} | ⏰ {activity.due_date}\n👤 {activity.owner_name}`;
+          
+      case 'detailed':
+        return baseEvent === 'deal' 
+          ? `🎯 Deal Update: {deal.title}\n\n💰 Value: {deal.value}\n🎯 Stage: {deal.stage}\n📊 Probability: {deal.probability}\n👤 Owner: {deal.owner_name}\n📅 Updated: {event.timestamp}\n\n[View Deal]({deal.url})`
+          : `📅 Activity: {activity.subject}\n\n📝 Type: {activity.type}\n⏰ Due: {activity.due_date} at {activity.due_time}\n📋 Note: {activity.note}\n👤 Owner: {activity.owner_name}\n\n[View Activity]({activity.url})`;
+          
+      default:
+        return defaultTemplates[eventType] || defaultTemplates['deal.updated'] || 'No template available';
     }
   };
 
