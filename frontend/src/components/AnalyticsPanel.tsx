@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { authenticatedFetch } from '../utils/auth';
 import './AnalyticsPanel.css';
 
 interface AnalyticsData {
@@ -61,15 +62,10 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       setError(null);
       
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('token');
       
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${apiUrl}/api/v1/analytics/dashboard/${tenantId}?range=${dateRange}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
           signal: AbortSignal.timeout(15000)
         }
       );
