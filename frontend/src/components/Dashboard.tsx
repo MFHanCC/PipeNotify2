@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
+import './Settings.css';
 import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError } from '../utils/auth';
 
 // Lazy load heavy components to improve initial bundle size
@@ -29,10 +30,35 @@ interface NotificationRule {
   templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
   targetSpace: string;
   filters: {
-    pipeline?: string;
-    stage?: string;
-    owner?: string;
-    minValue?: number;
+    // Value filters
+    value_min?: number;
+    value_max?: number;
+    
+    // Probability filters  
+    probability_min?: number;
+    probability_max?: number;
+    
+    // Pipeline/Stage filters
+    pipeline_ids?: number[];
+    stage_ids?: number[];
+    
+    // Owner filters
+    owner_ids?: number[];
+    
+    // Time restrictions
+    time_restrictions?: {
+      business_hours_only?: boolean;
+      start_hour?: number;
+      end_hour?: number;
+      weekdays_only?: boolean;
+    };
+    
+    // Label filters
+    labels?: string[];
+    label_match_type?: 'any' | 'all';
+    
+    // Currency filters
+    currencies?: string[];
   };
   enabled: boolean;
   lastTriggered?: string;
@@ -750,13 +776,19 @@ const Dashboard: React.FC = React.memo(() => {
                     </div>
                     
                     {/* Display filters if any exist */}
-                    {(rule.filters?.pipeline || rule.filters?.stage || rule.filters?.owner || rule.filters?.minValue) && (
+                    {(rule.filters && Object.keys(rule.filters).length > 0) && (
                       <div className="rule-filters">
                         <strong>Filters:</strong>
-                        {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
-                        {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
-                        {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
-                        {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
+                        {rule.filters.value_min && <span className="filter">Min Value: ${rule.filters.value_min}</span>}
+                        {rule.filters.value_max && <span className="filter">Max Value: ${rule.filters.value_max}</span>}
+                        {rule.filters.probability_min && <span className="filter">Min Probability: {rule.filters.probability_min}%</span>}
+                        {rule.filters.probability_max && <span className="filter">Max Probability: {rule.filters.probability_max}%</span>}
+                        {rule.filters.pipeline_ids?.length && rule.filters.pipeline_ids.length > 0 && <span className="filter">Pipelines: {rule.filters.pipeline_ids.length} selected</span>}
+                        {rule.filters.stage_ids?.length && rule.filters.stage_ids.length > 0 && <span className="filter">Stages: {rule.filters.stage_ids.length} selected</span>}
+                        {rule.filters.owner_ids?.length && rule.filters.owner_ids.length > 0 && <span className="filter">Owners: {rule.filters.owner_ids.length} selected</span>}
+                        {rule.filters.labels?.length && rule.filters.labels.length > 0 && <span className="filter">Labels: {rule.filters.labels.join(', ')}</span>}
+                        {rule.filters.currencies?.length && rule.filters.currencies.length > 0 && <span className="filter">Currencies: {rule.filters.currencies.join(', ')}</span>}
+                        {rule.filters.time_restrictions?.business_hours_only && <span className="filter">Business Hours Only</span>}
                       </div>
                     )}
                   </>
@@ -817,13 +849,21 @@ const Dashboard: React.FC = React.memo(() => {
               </div>
             </div>
             
-            <div className="rule-filters">
-              <strong>Filters:</strong>
-              {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
-              {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
-              {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
-              {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
-            </div>
+            {(rule.filters && Object.keys(rule.filters).length > 0) && (
+              <div className="rule-filters">
+                <strong>Filters:</strong>
+                {rule.filters.value_min && <span className="filter">Min Value: ${rule.filters.value_min}</span>}
+                {rule.filters.value_max && <span className="filter">Max Value: ${rule.filters.value_max}</span>}
+                {rule.filters.probability_min && <span className="filter">Min Probability: {rule.filters.probability_min}%</span>}
+                {rule.filters.probability_max && <span className="filter">Max Probability: {rule.filters.probability_max}%</span>}
+                {rule.filters.pipeline_ids?.length && rule.filters.pipeline_ids.length > 0 && <span className="filter">Pipelines: {rule.filters.pipeline_ids.length} selected</span>}
+                {rule.filters.stage_ids?.length && rule.filters.stage_ids.length > 0 && <span className="filter">Stages: {rule.filters.stage_ids.length} selected</span>}
+                {rule.filters.owner_ids?.length && rule.filters.owner_ids.length > 0 && <span className="filter">Owners: {rule.filters.owner_ids.length} selected</span>}
+                {rule.filters.labels?.length && rule.filters.labels.length > 0 && <span className="filter">Labels: {rule.filters.labels.join(', ')}</span>}
+                {rule.filters.currencies?.length && rule.filters.currencies.length > 0 && <span className="filter">Currencies: {rule.filters.currencies.join(', ')}</span>}
+                {rule.filters.time_restrictions?.business_hours_only && <span className="filter">Business Hours Only</span>}
+              </div>
+            )}
           </div>
         ))}
       </div>

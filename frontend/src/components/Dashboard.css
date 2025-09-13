@@ -323,18 +323,11 @@
   margin-bottom: 40px;
 }
 
-/* 2x2 Grid Layout for Overview Stats - Fully Expandable */
+/* Force 2x2 Grid Layout for Overview Stats */
 .stats-2x2 {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, 1fr) !important;
+  grid-template-rows: repeat(2, 1fr);
   width: 100%;
-}
-
-/* Ensure 2x2 layout preference on larger screens while staying expandable */
-@media (min-width: 900px) {
-  .stats-2x2 {
-    grid-template-columns: repeat(2, 1fr);
-    flex: 1;
-  }
 }
 
 .stat-card {
@@ -650,13 +643,12 @@ input:checked + .toggle-slider:before {
   padding: 6px 12px !important;
   border-radius: 4px !important;
   transition: all 0.2s ease;
-  min-width: 60px !important;
-  height: 28px !important;
+  width: 70px !important;
+  height: 32px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  max-width: none !important;
-  width: auto !important;
+  text-align: center !important;
   color: #374151 !important;
   font-weight: 500;
   box-shadow: none !important;
@@ -913,6 +905,18 @@ input:checked + .toggle-slider:before {
   
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+  
+  /* Keep 2x2 layout even on mobile with smaller cards */
+  .stats-2x2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .stats-2x2 .stat-card {
+    padding: 16px 12px;
+    font-size: 14px;
   }
   
   .section-header {

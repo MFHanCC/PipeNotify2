@@ -145,6 +145,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 80px !important;
+  height: 36px !important;
+  justify-content: center;
 }
 
 .btn-test:hover:not(:disabled) {
@@ -163,6 +166,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 80px !important;
+  height: 36px !important;
+  justify-content: center;
 }
 
 .btn-delete:hover:not(:disabled) {
