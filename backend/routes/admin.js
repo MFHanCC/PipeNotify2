@@ -852,7 +852,10 @@ router.put('/rules/:id', async (req, res) => {
     const tenantId = req.tenant.id;
     const updates = req.body;
 
-    const updatedRule = await updateRule(ruleId, tenantId, updates);
+    console.log('🔧 Backend: Updating rule', ruleId, 'for tenant', tenantId);
+    console.log('🔧 Backend: Updates received:', JSON.stringify(updates, null, 2));
+
+    const updatedRule = await updateRule(tenantId, ruleId, updates);
 
     res.json({
       message: 'Rule updated successfully',
@@ -1761,6 +1764,131 @@ router.post('/stalled-deals/run', authenticateToken, async (req, res) => {
       success: false,
       error: 'Failed to run stalled deal monitoring',
       details: error.message
+    });
+  }
+});
+
+// DEBUG: Test complete Pipedrive to Google Chat pipeline
+router.post('/debug/test-full-pipeline', async (req, res) => {
+  try {
+    const tenantId = req.tenant?.id || 2; // Default to tenant 2 for testing
+    
+    console.log('🧪 DEBUG: Testing full pipeline for tenant', tenantId);
+    
+    // Step 1: Get active rules for this tenant
+    const rulesResult = await pool.query(
+      'SELECT * FROM rules WHERE tenant_id = $1 AND enabled = true', 
+      [tenantId]
+    );
+    
+    console.log('📋 Step 1: Found', rulesResult.rows.length, 'active rules');
+    if (rulesResult.rows.length === 0) {
+      return res.json({
+        success: false,
+        error: 'No active rules found',
+        step: 1,
+        message: 'Create at least one enabled rule first'
+      });
+    }
+    
+    // Step 2: Get webhooks for this tenant
+    const webhooksResult = await pool.query(
+      'SELECT * FROM chat_webhooks WHERE tenant_id = $1 AND is_active = true',
+      [tenantId]
+    );
+    
+    console.log('🌐 Step 2: Found', webhooksResult.rows.length, 'active webhooks');
+    if (webhooksResult.rows.length === 0) {
+      return res.json({
+        success: false,
+        error: 'No active webhooks found',
+        step: 2,
+        message: 'Create at least one Google Chat webhook first'
+      });
+    }
+    
+    // Step 3: Create test webhook data
+    const testWebhookData = {
+      event: 'deal.updated',
+      object: {
+        id: 999,
+        type: 'deal',
+        title: 'TEST DEAL - Pipeline Debug',
+        value: 5000,
+        currency: 'USD',
+        stage_name: 'Qualified',
+        probability: 75,
+        owner_name: 'Test User'
+      },
+      user_id: 123,
+      company_id: parseInt(process.env.TEST_COMPANY_ID || '13887824'),
+      user: { id: 123, name: 'Test User' },
+      company: { id: 13887824, name: 'Test Company' },
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📋 Step 3: Created test webhook data');
+    
+    // Step 4: Test the notification job processing
+    const { addNotificationJob } = require('../jobs/queue');
+    
+    try {
+      const job = await addNotificationJob(testWebhookData, { priority: 1 });
+      console.log('✅ Step 4: Successfully queued test job', job.id);
+      
+      // Step 5: Wait a moment for processing and check logs
+      setTimeout(async () => {
+        try {
+          const logsResult = await pool.query(
+            'SELECT * FROM logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [tenantId]
+          );
+          
+          console.log('📊 Step 5: Latest log entry:', logsResult.rows[0]);
+        } catch (logError) {
+          console.error('Failed to check logs:', logError);
+        }
+      }, 2000);
+      
+      res.json({
+        success: true,
+        message: 'Full pipeline test initiated successfully',
+        details: {
+          tenantId,
+          rulesFound: rulesResult.rows.length,
+          webhooksFound: webhooksResult.rows.length,
+          jobId: job.id,
+          testData: testWebhookData
+        },
+        nextSteps: [
+          'Check console logs for job processing',
+          'Check Google Chat for test message',
+          'Check Dashboard logs section for delivery status'
+        ]
+      });
+      
+    } catch (queueError) {
+      console.error('❌ Step 4 failed: Queue error:', queueError);
+      res.json({
+        success: false,
+        error: 'Failed to queue test job',
+        step: 4,
+        details: queueError.message,
+        possibleCauses: [
+          'Redis connection failed',
+          'BullMQ not properly configured',
+          'Worker not running'
+        ]
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Full pipeline test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Pipeline test failed',
+      message: error.message,
+      stack: error.stack
     });
   }
 });

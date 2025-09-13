@@ -193,6 +193,16 @@ const Dashboard: React.FC = React.memo(() => {
   });
   const [availableWebhooks, setAvailableWebhooks] = useState<Array<{id: string; name: string}>>([]);
 
+  // Settings state
+  const [settings, setSettings] = useState({
+    emailNotifications: true,
+    dailyDigest: true,
+    timezone: 'UTC',
+    dateFormat: 'MM/DD/YYYY',
+    webhookRetries: true,
+    maxRetryAttempts: '3',
+  });
+
   // Retry mechanism
   const retryOperation = async (operation: () => Promise<void>, operationName: string) => {
     setIsRetrying(true);
@@ -425,16 +435,20 @@ const Dashboard: React.FC = React.memo(() => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       
+      const requestData = {
+        name: editFormData.name,
+        enabled: editFormData.enabled,
+        event_type: editFormData.event_type,
+        template_mode: editFormData.template_mode,
+        target_webhook_id: parseInt(editFormData.target_webhook_id),
+        filters: editFormData.filters
+      };
+      
+      console.log('🔧 Saving rule with data:', JSON.stringify(requestData, null, 2));
+      
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          name: editFormData.name,
-          enabled: editFormData.enabled,
-          event_type: editFormData.event_type,
-          template_mode: editFormData.template_mode,
-          target_webhook_id: parseInt(editFormData.target_webhook_id),
-          filters: editFormData.filters
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (response.ok) {
@@ -514,6 +528,88 @@ const Dashboard: React.FC = React.memo(() => {
       enabled: true,
       filters: {},
     });
+  };
+
+  // Settings handlers
+  const handleSettingsChange = (key: string, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveSettings = async () => {
+    console.log('🔧 Settings: Save button clicked!');
+    try {
+      // In a real app, you'd save to backend
+      alert('Settings saved successfully! 🎉\n\nNote: This is a demo - settings are not actually persisted.');
+      console.log('Settings to save:', settings);
+    } catch (error) {
+      alert('Failed to save settings. Please try again.');
+    }
+  };
+
+  const handleResetSettings = () => {
+    console.log('🔧 Settings: Reset button clicked!');
+    if (window.confirm('Are you sure you want to reset all settings to defaults?')) {
+      setSettings({
+        emailNotifications: true,
+        dailyDigest: true,
+        timezone: 'UTC',
+        dateFormat: 'MM/DD/YYYY',
+        webhookRetries: true,
+        maxRetryAttempts: '3',
+      });
+      alert('Settings reset to defaults successfully! 🔄');
+    }
+  };
+
+  const handleChangePassword = () => {
+    alert('🔑 Change Password\n\nThis would typically open a secure password change form.\nFor demo purposes, this is just a placeholder.');
+  };
+
+  const handleTwoFactor = () => {
+    alert('📱 Two-Factor Authentication\n\nThis would typically guide you through 2FA setup.\nFor demo purposes, this is just a placeholder.');
+  };
+
+  const handleExportData = () => {
+    alert('📊 Export Data\n\nThis would typically generate a data export file.\nFor demo purposes, this is just a placeholder.');
+  };
+
+  const testFullPipeline = async () => {
+    try {
+      console.log('🧪 Testing full Pipedrive → Google Chat pipeline...');
+      const apiUrl = process.env.REACT_APP_API_URL;
+      
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/debug/test-full-pipeline`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🧪 Pipeline test result:', result);
+        
+        if (result.success) {
+          alert(`✅ Pipeline Test Started Successfully!\n\n` +
+                `Details:\n` +
+                `- Rules Found: ${result.details.rulesFound}\n` +
+                `- Webhooks Found: ${result.details.webhooksFound}\n` +
+                `- Job ID: ${result.details.jobId}\n\n` +
+                `Next Steps:\n` +
+                `${result.nextSteps.join('\n')}\n\n` +
+                `Check console for detailed logs.`);
+        } else {
+          alert(`❌ Pipeline Test Failed!\n\n` +
+                `Step ${result.step}: ${result.error}\n` +
+                `Message: ${result.message}\n\n` +
+                `${result.possibleCauses ? 'Possible causes:\n' + result.possibleCauses.join('\n') : ''}`);
+        }
+      } else {
+        const error = await response.json();
+        console.error('Pipeline test failed:', error);
+        alert(`❌ Pipeline Test Failed!\n\nError: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Pipeline test error:', error);
+      alert(`❌ Pipeline Test Error!\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nCheck console for details.`);
+    }
   };
 
   const createNewRule = async () => {
@@ -1192,11 +1288,42 @@ const Dashboard: React.FC = React.memo(() => {
             </Suspense>
           )}
           {activeTab === 'testing' && (
-            <Suspense fallback={<ComponentLoader />}>
-              <NotificationPreview 
-                onRefresh={loadDashboardData}
-              />
-            </Suspense>
+            <div className="testing-section">
+              <div className="section-header">
+                <h3>🧪 Pipeline Testing</h3>
+                <p>Test the complete Pipedrive → Google Chat notification pipeline</p>
+              </div>
+              
+              <div className="testing-content">
+                <div className="test-card">
+                  <h4>📡 Full Pipeline Test</h4>
+                  <p>This will test the complete notification flow:</p>
+                  <ul>
+                    <li>✅ Check for active rules</li>
+                    <li>✅ Check for Google Chat webhooks</li>
+                    <li>✅ Create test notification</li>
+                    <li>✅ Process through BullMQ queue</li>
+                    <li>✅ Send to Google Chat</li>
+                    <li>✅ Log delivery status</li>
+                  </ul>
+                  <button 
+                    className="button-primary test-pipeline-btn"
+                    onClick={testFullPipeline}
+                  >
+                    🚀 Run Full Pipeline Test
+                  </button>
+                </div>
+                
+                <div className="test-card">
+                  <h4>🔍 Component Testing</h4>
+                  <Suspense fallback={<ComponentLoader />}>
+                    <NotificationPreview 
+                      onRefresh={loadDashboardData}
+                    />
+                  </Suspense>
+                </div>
+              </div>
+            </div>
           )}
           {activeTab === 'bulk-management' && (
             <Suspense fallback={<ComponentLoader />}>
@@ -1225,13 +1352,21 @@ const Dashboard: React.FC = React.memo(() => {
                   <h4>Notification Preferences</h4>
                   <div className="setting-item">
                     <label className="checkbox-label">
-                      <input type="checkbox" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        checked={settings.emailNotifications}
+                        onChange={(e) => handleSettingsChange('emailNotifications', e.target.checked)}
+                      />
                       <span>Enable email notifications for system alerts</span>
                     </label>
                   </div>
                   <div className="setting-item">
                     <label className="checkbox-label">
-                      <input type="checkbox" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        checked={settings.dailyDigest}
+                        onChange={(e) => handleSettingsChange('dailyDigest', e.target.checked)}
+                      />
                       <span>Send daily digest of notification activity</span>
                     </label>
                   </div>
@@ -1241,7 +1376,12 @@ const Dashboard: React.FC = React.memo(() => {
                   <h4>Display Options</h4>
                   <div className="setting-item">
                     <label htmlFor="timezone-select">Timezone</label>
-                    <select id="timezone-select" className="form-select">
+                    <select 
+                      id="timezone-select" 
+                      className="form-select"
+                      value={settings.timezone}
+                      onChange={(e) => handleSettingsChange('timezone', e.target.value)}
+                    >
                       <option value="UTC">UTC</option>
                       <option value="America/New_York">Eastern Time</option>
                       <option value="America/Chicago">Central Time</option>
@@ -1251,7 +1391,12 @@ const Dashboard: React.FC = React.memo(() => {
                   </div>
                   <div className="setting-item">
                     <label htmlFor="date-format">Date Format</label>
-                    <select id="date-format" className="form-select">
+                    <select 
+                      id="date-format" 
+                      className="form-select"
+                      value={settings.dateFormat}
+                      onChange={(e) => handleSettingsChange('dateFormat', e.target.value)}
+                    >
                       <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                       <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                       <option value="YYYY-MM-DD">YYYY-MM-DD</option>
@@ -1262,17 +1407,17 @@ const Dashboard: React.FC = React.memo(() => {
                 <div className="settings-category">
                   <h4>Account & Security</h4>
                   <div className="setting-item">
-                    <button className="button-secondary">
+                    <button className="button-secondary" onClick={handleChangePassword}>
                       🔑 Change Password
                     </button>
                   </div>
                   <div className="setting-item">
-                    <button className="button-secondary">
+                    <button className="button-secondary" onClick={handleTwoFactor}>
                       📱 Two-Factor Authentication
                     </button>
                   </div>
                   <div className="setting-item">
-                    <button className="button-secondary">
+                    <button className="button-secondary" onClick={handleExportData}>
                       📊 Export Data
                     </button>
                   </div>
@@ -1282,13 +1427,22 @@ const Dashboard: React.FC = React.memo(() => {
                   <h4>Integration Settings</h4>
                   <div className="setting-item">
                     <label className="checkbox-label">
-                      <input type="checkbox" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        checked={settings.webhookRetries}
+                        onChange={(e) => handleSettingsChange('webhookRetries', e.target.checked)}
+                      />
                       <span>Enable webhook retries on failure</span>
                     </label>
                   </div>
                   <div className="setting-item">
                     <label htmlFor="retry-attempts">Maximum retry attempts</label>
-                    <select id="retry-attempts" className="form-select">
+                    <select 
+                      id="retry-attempts" 
+                      className="form-select"
+                      value={settings.maxRetryAttempts}
+                      onChange={(e) => handleSettingsChange('maxRetryAttempts', e.target.value)}
+                    >
                       <option value="3">3 attempts</option>
                       <option value="5">5 attempts</option>
                       <option value="10">10 attempts</option>
@@ -1297,10 +1451,10 @@ const Dashboard: React.FC = React.memo(() => {
                 </div>
 
                 <div className="settings-actions">
-                  <button className="button-primary">
+                  <button className="button-primary" onClick={handleSaveSettings}>
                     ✅ Save Settings
                   </button>
-                  <button className="button-secondary">
+                  <button className="button-secondary" onClick={handleResetSettings}>
                     🔄 Reset to Defaults
                   </button>
                 </div>

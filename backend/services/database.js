@@ -115,7 +115,13 @@ async function updateRule(tenantId, ruleId, updates) {
     `;
     
     const values = [tenantId, ruleId, ...Object.values(updates)];
+    
+    console.log('🔧 DB: Executing query:', query);
+    console.log('🔧 DB: With values:', JSON.stringify(values, null, 2));
+    
     const result = await pool.query(query, values);
+    
+    console.log('🔧 DB: Updated rule result:', JSON.stringify(result.rows[0], null, 2));
     
     return result.rows[0];
   } catch (error) {
