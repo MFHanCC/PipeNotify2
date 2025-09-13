@@ -488,7 +488,6 @@ router.post('/debug/create-test-logs', async (req, res) => {
         payload: JSON.stringify({ event: 'test.log.1', test: true }),
         formatted_message: JSON.stringify({ text: 'Test notification 1 - Success' }),
         status: 'success',
-        event_type: 'test.log.success',
         response_time_ms: 250
       },
       {
@@ -498,7 +497,6 @@ router.post('/debug/create-test-logs', async (req, res) => {
         payload: JSON.stringify({ event: 'test.log.2', test: true }),
         formatted_message: JSON.stringify({ text: 'Test notification 2 - Failed' }),
         status: 'failed',
-        event_type: 'test.log.failed',
         error_message: 'Test error message',
         response_time_ms: 500
       },
@@ -509,7 +507,6 @@ router.post('/debug/create-test-logs', async (req, res) => {
         payload: JSON.stringify({ event: 'test.log.3', test: true }),
         formatted_message: JSON.stringify({ text: 'Test notification 3 - Pending' }),
         status: 'retry',
-        event_type: 'test.log.retry',
         response_time_ms: 150
       }
     ];
@@ -517,8 +514,8 @@ router.post('/debug/create-test-logs', async (req, res) => {
     let created = 0;
     for (const log of testLogs) {
       await pool.query(`
-        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, event_type, error_message, response_time_ms, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, formatted_message, status, error_message, response_time_ms, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       `, [
         log.tenant_id,
         log.rule_id,
@@ -526,7 +523,6 @@ router.post('/debug/create-test-logs', async (req, res) => {
         log.payload,
         log.formatted_message,
         log.status,
-        log.event_type,
         log.error_message || null,
         log.response_time_ms
       ]);
