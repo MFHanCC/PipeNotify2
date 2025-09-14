@@ -120,6 +120,34 @@ async function runMigration() {
       // Don't fail the migration for this - these are non-critical
     }
 
+    // Fix template_mode constraint to include 'compact'
+    console.log('🔄 Fixing template_mode constraint...');
+    
+    try {
+      // Drop the existing constraint
+      await pool.query(`
+        ALTER TABLE rules DROP CONSTRAINT IF EXISTS rules_template_mode_check;
+      `);
+      console.log('✅ Dropped old template_mode constraint');
+
+      // Add the new constraint with 'compact' included
+      await pool.query(`
+        ALTER TABLE rules ADD CONSTRAINT rules_template_mode_check 
+          CHECK (template_mode IN ('simple', 'compact', 'detailed', 'custom'));
+      `);
+      console.log('✅ Added new template_mode constraint with compact support');
+
+      // Update any existing rules that might have invalid template modes
+      await pool.query(`
+        UPDATE rules SET template_mode = 'simple' WHERE template_mode NOT IN ('simple', 'compact', 'detailed', 'custom');
+      `);
+      console.log('✅ Fixed any invalid template modes');
+
+    } catch (error) {
+      console.error('⚠️  Error fixing template_mode constraint:', error.message);
+      // Don't fail the migration for this - these are non-critical
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {

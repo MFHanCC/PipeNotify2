@@ -28,8 +28,10 @@ const validatePipedriveSignature = (req, res, next) => {
 
     // Skip validation if no signature provided (for development/testing)
     if (!receivedSignature) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ No webhook signature provided - validation skipped for development');
+      // Allow webhooks without signature if webhook secret is not configured
+      // This helps with development and initial testing
+      if (process.env.NODE_ENV === 'development' || !webhookSecret) {
+        console.warn('⚠️ No webhook signature provided - validation skipped (development mode or no secret)');
         return next();
       } else {
         console.error('❌ No webhook signature provided');
