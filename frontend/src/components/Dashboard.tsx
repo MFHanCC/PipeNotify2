@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
 import './Settings.css';
 import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError } from '../utils/auth';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
+import FeatureRestriction from './FeatureRestriction';
 
 // Lazy load heavy components to improve initial bundle size
 const WebhookManager = lazy(() => import('./WebhookManager'));
@@ -113,7 +115,7 @@ const Dashboard: React.FC = React.memo(() => {
     }
     
     if (!createFormData.target_webhook_id) {
-      errors.target_webhook_id = 'Please select a webhook';
+      errors.target_webhook_id = 'Please select a Google Chat webhook where notifications will be sent';
     }
     
     setValidationErrors(errors);
@@ -138,6 +140,14 @@ const Dashboard: React.FC = React.memo(() => {
     
     setError(message);
   };
+  // Plan features hook
+  const { 
+    hasFeature, 
+    getFeatureRequiredPlan, 
+    planTier, 
+    loading: featuresLoading 
+  } = usePlanFeatures();
+
   // State management
   const [stats, setStats] = useState<DashboardStats>({
     totalNotifications: 0,
@@ -945,10 +955,18 @@ const Dashboard: React.FC = React.memo(() => {
                     </div>
                     
                     {/* Advanced Filters */}
-                    <RuleFilters
-                      filters={editFormData.filters}
-                      onChange={(filters) => setEditFormData({...editFormData, filters})}
-                    />
+                    <FeatureRestriction
+                      isAvailable={hasFeature('advanced_filtering')}
+                      requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
+                      currentPlan={planTier}
+                      featureName="Advanced Filters"
+                      upgradeHint="Filter notifications by deal value, stage, owner, and more"
+                    >
+                      <RuleFilters
+                        filters={editFormData.filters}
+                        onChange={(filters) => hasFeature('advanced_filtering') && setEditFormData({...editFormData, filters})}
+                      />
+                    </FeatureRestriction>
 
                     <div className="edit-actions">
                       <button
@@ -1258,24 +1276,42 @@ const Dashboard: React.FC = React.memo(() => {
           >
             <span aria-hidden="true">🔗</span> Webhooks ({availableWebhooks.length})
           </button>
-          <button 
-            className={`nav-tab ${activeTab === 'routing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('routing')}
-            aria-label="Smart routing configuration"
-            aria-current={activeTab === 'routing' ? 'page' : undefined}
-            type="button"
+          <FeatureRestriction
+            isAvailable={hasFeature('channel_routing')}
+            requiredPlan={getFeatureRequiredPlan('channel_routing')}
+            currentPlan={planTier}
+            featureName="Smart Routing"
+            upgradeHint="Route notifications to different channels based on rules"
           >
-            <span aria-hidden="true">🎯</span> Smart Routing
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'quiet-hours' ? 'active' : ''}`}
-            onClick={() => setActiveTab('quiet-hours')}
-            aria-label="Quiet hours settings"
-            aria-current={activeTab === 'quiet-hours' ? 'page' : undefined}
-            type="button"
+            <button 
+              className={`nav-tab ${activeTab === 'routing' ? 'active' : ''} ${!hasFeature('channel_routing') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('channel_routing') && setActiveTab('routing')}
+              aria-label="Smart routing configuration"
+              aria-current={activeTab === 'routing' ? 'page' : undefined}
+              type="button"
+              disabled={!hasFeature('channel_routing')}
+            >
+              <span aria-hidden="true">🎯</span> Smart Routing
+            </button>
+          </FeatureRestriction>
+          <FeatureRestriction
+            isAvailable={hasFeature('quiet_hours')}
+            requiredPlan={getFeatureRequiredPlan('quiet_hours')}
+            currentPlan={planTier}
+            featureName="Quiet Hours"
+            upgradeHint="Set time periods when notifications are delayed"
           >
-            <span aria-hidden="true">🔕</span> Quiet Hours
-          </button>
+            <button 
+              className={`nav-tab ${activeTab === 'quiet-hours' ? 'active' : ''} ${!hasFeature('quiet_hours') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('quiet_hours') && setActiveTab('quiet-hours')}
+              aria-label="Quiet hours settings"
+              aria-current={activeTab === 'quiet-hours' ? 'page' : undefined}
+              type="button"
+              disabled={!hasFeature('quiet_hours')}
+            >
+              <span aria-hidden="true">🔕</span> Quiet Hours
+            </button>
+          </FeatureRestriction>
           <button 
             className={`nav-tab ${activeTab === 'stalled-deals' ? 'active' : ''}`}
             onClick={() => setActiveTab('stalled-deals')}
@@ -1777,10 +1813,18 @@ const Dashboard: React.FC = React.memo(() => {
               </div>
               
               {/* Advanced Filters */}
-              <RuleFilters
-                filters={createFormData.filters}
-                onChange={(filters) => setCreateFormData({...createFormData, filters})}
-              />
+              <FeatureRestriction
+                isAvailable={hasFeature('advanced_filtering')}
+                requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
+                currentPlan={planTier}
+                featureName="Advanced Filters"
+                upgradeHint="Filter notifications by deal value, stage, owner, and more"
+              >
+                <RuleFilters
+                  filters={createFormData.filters}
+                  onChange={(filters) => hasFeature('advanced_filtering') && setCreateFormData({...createFormData, filters})}
+                />
+              </FeatureRestriction>
             </div>
 
             <div className="modal-footer">

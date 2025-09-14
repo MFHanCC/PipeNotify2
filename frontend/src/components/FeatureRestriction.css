@@ -1,0 +1,146 @@
+.feature-restriction {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.feature-content.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(50%);
+  position: relative;
+}
+
+.feature-content.disabled::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+.upgrade-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.feature-restriction:hover .upgrade-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.upgrade-tooltip {
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 280px;
+  text-align: center;
+  position: relative;
+}
+
+.upgrade-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid white;
+}
+
+.upgrade-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.upgrade-text {
+  margin-bottom: 12px;
+}
+
+.upgrade-text strong {
+  display: block;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.upgrade-text p {
+  color: #6b7280;
+  font-size: 12px;
+  margin: 0 0 4px 0;
+  line-height: 1.4;
+}
+
+.upgrade-hint {
+  font-style: italic;
+  color: #9ca3af !important;
+}
+
+.upgrade-button {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upgrade-button:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+/* Special handling for form fields */
+.feature-restriction input,
+.feature-restriction select,
+.feature-restriction textarea {
+  cursor: not-allowed;
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.feature-restriction input:disabled,
+.feature-restriction select:disabled,
+.feature-restriction textarea:disabled {
+  opacity: 0.6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .upgrade-tooltip {
+    min-width: 240px;
+    padding: 12px;
+  }
+  
+  .upgrade-text strong {
+    font-size: 13px;
+  }
+  
+  .upgrade-text p {
+    font-size: 11px;
+  }
+  
+  .upgrade-button {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}

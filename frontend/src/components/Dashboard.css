@@ -306,6 +306,18 @@
   color: white;
 }
 
+.nav-tab.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f9fafb;
+  color: #9ca3af;
+}
+
+.nav-tab.disabled:hover {
+  background: #f9fafb;
+  color: #9ca3af;
+}
+
 /* Dashboard Content */
 .dashboard-content {
   padding: 24px;

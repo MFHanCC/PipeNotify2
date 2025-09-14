@@ -80,6 +80,27 @@ interface UsageStats {
   plan_tier: string;
 }
 
+interface FeatureAccess {
+  available: boolean;
+  available_in_plans: string[];
+}
+
+interface PlanFeatures {
+  tenant_id: number;
+  plan_tier: string;
+  limits: {
+    notifications: number;
+    webhooks: number;
+    rules: number;
+    log_retention_days: number;
+    advanced_rules: number;
+  };
+  features: {
+    [key: string]: FeatureAccess;
+  };
+  can_upgrade: boolean;
+}
+
 class ApiService {
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
@@ -403,6 +424,13 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  async getPlanFeatures(tenantId: number): Promise<PlanFeatures> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features/${tenantId}`, {
+      headers: this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   async createCheckoutSession(planTier: string): Promise<{ checkout_url: string; session_id: string }> {
     const response = await fetch(`${API_BASE_URL}/api/v1/billing/checkout`, {
       method: 'POST',
@@ -474,5 +502,7 @@ export type {
   PlanDetails,
   Subscription,
   UsageStats,
+  PlanFeatures,
+  FeatureAccess,
   ApiResponse
 };
