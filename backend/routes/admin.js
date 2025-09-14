@@ -1219,7 +1219,7 @@ router.post('/rules/:id/test', async (req, res) => {
       rule.target_webhook_id,
       'test.notification',
       'success',
-      testMessage,
+      JSON.stringify({ text: testMessage }),
       responseTime
     ]);
     
@@ -1243,7 +1243,7 @@ router.post('/rules/:id/test', async (req, res) => {
         req.params.id,
         'test.notification',
         'error',
-        'Test notification failed',
+        JSON.stringify({ error: 'Test notification failed' }),
         error.message
       ]);
     } catch (logError) {
