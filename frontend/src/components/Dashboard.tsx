@@ -426,6 +426,41 @@ const Dashboard: React.FC = React.memo(() => {
     }
   };
 
+  const provisionDefaultRules = async () => {
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL;
+      
+      console.log('🚀 Provisioning default rules...');
+      
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/provision-default-rules`, {
+        method: 'POST',
+        body: JSON.stringify({
+          planTier: 'free',
+          force: true
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Provisioning result:', result);
+        
+        if (result.rules_created > 0) {
+          alert(`✅ Success! Created ${result.rules_created} default notification rules. You should now receive notifications from Pipedrive!`);
+        } else {
+          alert(`📋 Default rules already exist. Found ${result.status?.default_rules_count || 0} existing rules.`);
+        }
+        
+        loadDashboardData(); // Refresh the rules list
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`❌ Failed to provision default rules: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error provisioning default rules:', err);
+      alert('❌ Failed to provision default rules. Check console for details.');
+    }
+  };
+
   const startEditRule = (rule: NotificationRule) => {
     setEditingRule(rule.id);
     setEditFormData({
@@ -797,14 +832,33 @@ const Dashboard: React.FC = React.memo(() => {
     <div className="rules-section">
       <div className="section-header">
         <h3>Notification Rules</h3>
-        <button 
-          className="create-rule-button"
-          onClick={openCreateModal}
-          aria-label="Create new notification rule"
-          type="button"
-        >
-          + Create Rule
-        </button>
+        <div className="header-buttons">
+          <button 
+            className="provision-rules-button"
+            onClick={provisionDefaultRules}
+            aria-label="Provision default notification rules"
+            type="button"
+            style={{ 
+              backgroundColor: '#4CAF50', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 16px', 
+              borderRadius: '4px', 
+              marginRight: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            📋 Add Default Rules
+          </button>
+          <button 
+            className="create-rule-button"
+            onClick={openCreateModal}
+            aria-label="Create new notification rule"
+            type="button"
+          >
+            + Create Rule
+          </button>
+        </div>
       </div>
       
       <div className="rules-list">
@@ -837,7 +891,8 @@ const Dashboard: React.FC = React.memo(() => {
                         <option value="deal.updated">Deal Updated</option>
                         <option value="deal.won">Deal Won</option>
                         <option value="deal.lost">Deal Lost</option>
-                        <option value="deal.added">Deal Added</option>
+                        <option value="deal.create">Deal Created</option>
+                        <option value="deal.added">Deal Added (Legacy)</option>
                         <option value="person.added">Person Added</option>
                         <option value="person.updated">Person Updated</option>
                         <option value="activity.added">Activity Added</option>
@@ -1644,7 +1699,8 @@ const Dashboard: React.FC = React.memo(() => {
                   <option value="deal.updated">Deal Updated</option>
                   <option value="deal.won">Deal Won</option>
                   <option value="deal.lost">Deal Lost</option>
-                  <option value="deal.added">Deal Added</option>
+                  <option value="deal.create">Deal Created</option>
+                  <option value="deal.added">Deal Added (Legacy)</option>
                   <option value="person.added">Person Added</option>
                   <option value="person.updated">Person Updated</option>
                   <option value="activity.added">Activity Added</option>
