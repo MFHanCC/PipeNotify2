@@ -16,6 +16,7 @@ const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
+const BillingDashboard = lazy(() => import('./BillingDashboard'));
 
 // Loading component for Suspense fallback
 const ComponentLoader: React.FC = () => (
@@ -174,7 +175,7 @@ const Dashboard: React.FC = React.memo(() => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding' | 'billing' | 'pricing' | 'settings'>('overview');
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     name: string; 
@@ -496,6 +497,31 @@ const Dashboard: React.FC = React.memo(() => {
   };
 
   const saveEditRule = async (ruleId: string) => {
+    // Clear previous errors
+    setError(null);
+    
+    // Validate edit form and get errors directly
+    const errors: {[key: string]: string} = {};
+    
+    if (!editFormData.name.trim()) {
+      errors.name = 'Rule name is required';
+    } else if (editFormData.name.length < 3) {
+      errors.name = 'Rule name must be at least 3 characters';
+    }
+    
+    if (!editFormData.target_webhook_id) {
+      errors.target_webhook_id = 'Please select a Google Chat webhook where notifications will be sent';
+    }
+    
+    setValidationErrors(errors);
+    
+    // If there are validation errors, show them in main error panel
+    if (Object.keys(errors).length > 0) {
+      const errorMessages = Object.values(errors);
+      setError(`Please fix the following: ${errorMessages.join(', ')}`);
+      return;
+    }
+
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       
@@ -539,10 +565,11 @@ const Dashboard: React.FC = React.memo(() => {
           filters: {}
         });
       } else {
-        setError('Failed to update rule');
+        const errorData = await response.json().catch(() => ({}));
+        setError(`Failed to update rule: ${errorData.message || 'Please check all required fields are filled'}`);
       }
     } catch (err) {
-      setError('Failed to update rule');
+      setError('Failed to update rule: Please check your internet connection and try again');
     }
   };
 
@@ -1375,16 +1402,16 @@ const Dashboard: React.FC = React.memo(() => {
             <span aria-hidden="true">🎓</span> Onboarding
           </button>
           <button 
-            className="nav-tab"
-            onClick={() => window.location.href = '/billing'}
+            className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('billing')}
             aria-label="Billing and subscription management"
             type="button"
           >
             <span aria-hidden="true">💳</span> Billing
           </button>
           <button 
-            className="nav-tab"
-            onClick={() => window.location.href = '/pricing'}
+            className={`nav-tab ${activeTab === 'pricing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pricing')}
             aria-label="View pricing plans"
             type="button"
           >
@@ -1526,6 +1553,94 @@ const Dashboard: React.FC = React.memo(() => {
                 onSkip={() => setActiveTab('overview')}
               />
             </Suspense>
+          )}
+          {activeTab === 'billing' && (
+            <div className="billing-section">
+              <div className="section-header">
+                <h3>💳 Billing & Subscription</h3>
+                <p>Manage your subscription and view usage</p>
+              </div>
+              
+              <Suspense fallback={<ComponentLoader />}>
+                <div className="billing-dashboard-compact">
+                  <BillingDashboard />
+                </div>
+              </Suspense>
+            </div>
+          )}
+          {activeTab === 'pricing' && (
+            <div className="pricing-section">
+              <div className="section-header">
+                <h3>💎 Plans & Pricing</h3>
+                <p>Choose the perfect plan for your team</p>
+              </div>
+              
+              <div className="pricing-dashboard-compact">
+                {/* Simplified pricing display */}
+                <div className="pricing-cards">
+                  <div className="pricing-card free">
+                    <div className="plan-header">
+                      <h4>Free</h4>
+                      <div className="price">$0<span>/month</span></div>
+                    </div>
+                    <ul className="features">
+                      <li>✅ 100 notifications/month</li>
+                      <li>✅ 1 webhook</li>
+                      <li>✅ 3 basic rules</li>
+                      <li>✅ 7-day logs</li>
+                    </ul>
+                    <button className="plan-button current">Current Plan</button>
+                  </div>
+                  
+                  <div className="pricing-card starter">
+                    <div className="plan-header">
+                      <h4>Starter</h4>
+                      <div className="price">$9<span>/month</span></div>
+                    </div>
+                    <ul className="features">
+                      <li>✅ 1,000 notifications/month</li>
+                      <li>✅ 3 webhooks</li>
+                      <li>✅ 10 custom rules</li>
+                      <li>✅ Advanced filters</li>
+                      <li>✅ 30-day logs</li>
+                    </ul>
+                    <button className="plan-button upgrade">Upgrade</button>
+                  </div>
+                  
+                  <div className="pricing-card pro popular">
+                    <div className="plan-badge">Most Popular</div>
+                    <div className="plan-header">
+                      <h4>Pro</h4>
+                      <div className="price">$29<span>/month</span></div>
+                    </div>
+                    <ul className="features">
+                      <li>✅ 10,000 notifications/month</li>
+                      <li>✅ Unlimited webhooks</li>
+                      <li>✅ Smart routing</li>
+                      <li>✅ Quiet hours</li>
+                      <li>✅ Custom templates</li>
+                      <li>✅ 90-day logs</li>
+                    </ul>
+                    <button className="plan-button upgrade">Upgrade</button>
+                  </div>
+                  
+                  <div className="pricing-card team">
+                    <div className="plan-header">
+                      <h4>Team</h4>
+                      <div className="price">$79<span>/month</span></div>
+                    </div>
+                    <ul className="features">
+                      <li>✅ Unlimited everything</li>
+                      <li>✅ Team analytics</li>
+                      <li>✅ API access</li>
+                      <li>✅ Priority support</li>
+                      <li>✅ 1-year logs</li>
+                    </ul>
+                    <button className="plan-button upgrade">Upgrade</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
           {activeTab === 'settings' && (
             <div className="settings-section">

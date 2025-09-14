@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './BulkRuleManager.css';
+import { authenticatedFetch } from '../utils/auth';
 
 interface Rule {
   id: number;
@@ -103,31 +104,31 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
 
       const [rulesResponse, webhooksResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/admin/rules`, { headers }),
-        fetch(`${apiUrl}/api/v1/admin/webhooks`, { headers })
+        authenticatedFetch(`${apiUrl}/api/v1/admin/rules`).catch(() => null),
+        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`).catch(() => null)
       ]);
 
-      if (rulesResponse.ok) {
+      if (rulesResponse && rulesResponse.ok) {
         const rulesData = await rulesResponse.json();
         setRules(rulesData.rules || []);
+      } else {
+        setError('Failed to load rules. Please check your connection and try again.');
       }
 
-      if (webhooksResponse.ok) {
+      if (webhooksResponse && webhooksResponse.ok) {
         const webhooksData = await webhooksResponse.json();
         setWebhooks(webhooksData.webhooks || []);
+      } else if (!webhooksResponse) {
+        console.warn('Failed to load webhooks');
       }
 
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Failed to load bulk management data. Please refresh the page.');
     }
     setIsLoading(false);
   };
@@ -159,14 +160,9 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
     try {
       setIsProcessing(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
 
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/bulk`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/bulk`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(operation)
       });
 
@@ -251,14 +247,8 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
       const importData = JSON.parse(fileContent);
 
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
-
-      const response = await fetch(`${apiUrl}/api/v1/admin/rules/import`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/import`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           rules: importData.rules || importData, // Support both formats
           webhooks: importData.webhooks || []
