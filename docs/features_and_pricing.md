@@ -89,6 +89,75 @@ Pipenotify transforms your Pipedrive CRM into a real-time notification system fo
 
 ---
 
+## 🔒 Plan-Based Feature Restrictions
+
+### **UI Experience for Restricted Features**
+
+Pipenotify implements intelligent plan-based feature gating to provide clear upgrade paths while maintaining excellent user experience.
+
+#### **How Restrictions Are Displayed:**
+
+**🔒 Locked Tabs/Sections:**
+- **Smart Routing** tab: Greyed out for Free/Starter users
+- **Quiet Hours** tab: Greyed out for Free/Starter users  
+- **Advanced Filters** section: Disabled in rule creation/editing
+
+**📝 Interactive Upgrade Prompts:**
+- **Hover tooltips** show required plan and feature benefits
+- **Clear upgrade messaging**: "Available in Pro plan and above"
+- **Direct upgrade button** linking to pricing page
+- **Feature descriptions** explain business value
+
+**🎨 Visual Design:**
+- Disabled features use 50% opacity and grayscale filter
+- Hover overlays with upgrade prompts appear on interaction
+- Clear lock icons (🔒) indicate restricted features
+- Consistent styling maintains professional appearance
+
+#### **Feature Restriction Mapping:**
+
+```javascript
+// Frontend Feature Gating
+FREE_PLAN_RESTRICTIONS = {
+  advanced_filtering: false,    // Advanced rule filters UI
+  value_filtering: false,       // Deal value-based filtering  
+  channel_routing: false,       // Smart routing to different channels
+  quiet_hours: false,          // Scheduled notification delays
+  custom_templates: false,      // Rich message formatting
+  stalled_alerts: false        // Inactive deal monitoring
+}
+
+STARTER_PLAN_FEATURES = {
+  advanced_filtering: true,     // ✅ Now available
+  value_filtering: true,        // ✅ Filter by deal amount
+  enhanced_formatting: true,    // ✅ Better message templates
+  stage_filtering: true,        // ✅ Pipeline stage filters
+  activity_notifications: true, // ✅ Activity-based alerts
+  usage_analytics: true         // ✅ Dashboard analytics
+}
+
+PRO_PLAN_FEATURES = {
+  channel_routing: true,        // ✅ Smart channel routing
+  quiet_hours: true,           // ✅ Scheduled quiet hours
+  custom_templates: true,       // ✅ Custom message templates
+  rich_formatting: true,       // ✅ Rich Google Chat cards
+  probability_filtering: true,  // ✅ Deal probability filters
+  owner_filtering: true,       // ✅ Deal owner filters
+  time_filtering: true         // ✅ Time-based filters
+}
+```
+
+#### **Backend Integration:**
+
+The frontend restrictions are backed by robust server-side enforcement:
+
+- **API endpoints** check feature permissions before processing
+- **Database queries** respect plan limits (rules, webhooks, notifications)
+- **Real-time validation** prevents unauthorized feature access
+- **Graceful degradation** when plans are downgraded
+
+---
+
 ## 🎯 Feature Breakdown by Category
 
 ### 📡 Notification Types
@@ -109,14 +178,28 @@ Pipenotify transforms your Pipedrive CRM into a real-time notification system fo
 | Feature | Free | Starter | Pro | Team |
 |---------|------|---------|-----|------|
 | Basic Event Filtering | ✅ | ✅ | ✅ | ✅ |
-| Value-Based Filtering | ❌ | ✅ | ✅ | ✅ |
-| Stage/Pipeline Filtering | ❌ | ✅ | ✅ | ✅ |
-| Probability Filtering | ❌ | ❌ | ✅ | ✅ |
-| Owner/User Filtering | ❌ | ❌ | ✅ | ✅ |
-| Smart Channel Routing | ❌ | ❌ | ✅ | ✅ |
-| Time-Based Filtering | ❌ | ❌ | ✅ | ✅ |
-| Custom Field Filtering | ❌ | ❌ | ❌ | ✅ |
-| Tag-Based Filtering | ❌ | ❌ | ❌ | ✅ |
+| **Advanced Filtering UI** | 🔒 | ✅ | ✅ | ✅ |
+| Value-Based Filtering | 🔒 | ✅ | ✅ | ✅ |
+| Stage/Pipeline Filtering | 🔒 | ✅ | ✅ | ✅ |
+| Enhanced Message Formatting | 🔒 | ✅ | ✅ | ✅ |
+| Activity Notifications | 🔒 | ✅ | ✅ | ✅ |
+| Usage Analytics Dashboard | 🔒 | ✅ | ✅ | ✅ |
+| **Smart Channel Routing** | 🔒 | 🔒 | ✅ | ✅ |
+| **Stalled Deal Alerts** | 🔒 | 🔒 | ✅ | ✅ |
+| **Custom Message Templates** | 🔒 | 🔒 | ✅ | ✅ |
+| **Rich Google Chat Cards** | 🔒 | 🔒 | ✅ | ✅ |
+| **Quiet Hours Scheduling** | 🔒 | 🔒 | ✅ | ✅ |
+| **Probability Filtering** | 🔒 | 🔒 | ✅ | ✅ |
+| **Owner/User Filtering** | 🔒 | 🔒 | ✅ | ✅ |
+| **Time-Based Filtering** | 🔒 | 🔒 | ✅ | ✅ |
+| **Multi-Channel Orchestration** | 🔒 | 🔒 | 🔒 | ✅ |
+| **Daily/Weekly Summaries** | 🔒 | 🔒 | 🔒 | ✅ |
+| **Team Performance Metrics** | 🔒 | 🔒 | 🔒 | ✅ |
+| **API Access** | 🔒 | 🔒 | 🔒 | ✅ |
+| **Custom Field Filtering** | 🔒 | 🔒 | 🔒 | ✅ |
+| **Tag-Based Filtering** | 🔒 | 🔒 | 🔒 | ✅ |
+
+> **🔒 Locked Features**: Shown as disabled in UI with upgrade prompts and hover tooltips explaining benefits
 
 ### 🎨 Message Formatting
 

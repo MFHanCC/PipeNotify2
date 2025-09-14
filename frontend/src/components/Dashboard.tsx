@@ -711,11 +711,28 @@ const Dashboard: React.FC = React.memo(() => {
   };
 
   const createNewRule = async () => {
-    // Clear previous validation errors
-    setValidationErrors({});
+    // Clear previous errors
+    setError(null);
     
-    // Validate form
-    if (!validateCreateForm()) {
+    // Validate form and get errors directly
+    const errors: {[key: string]: string} = {};
+    
+    if (!createFormData.name.trim()) {
+      errors.name = 'Rule name is required';
+    } else if (createFormData.name.length < 3) {
+      errors.name = 'Rule name must be at least 3 characters';
+    }
+    
+    if (!createFormData.target_webhook_id) {
+      errors.target_webhook_id = 'Please select a Google Chat webhook where notifications will be sent';
+    }
+    
+    setValidationErrors(errors);
+    
+    // If there are validation errors, show them in main error panel
+    if (Object.keys(errors).length > 0) {
+      const errorMessages = Object.values(errors);
+      setError(`Please fix the following: ${errorMessages.join(', ')}`);
       return;
     }
 
