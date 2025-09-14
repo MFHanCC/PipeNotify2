@@ -37,6 +37,16 @@ const FREE_TIER_RULES = [
     description: "Get alerted when new opportunities enter your pipeline",
     category: "pipeline",
     priority: 3
+  },
+  {
+    name: "📝 Deal Updated",
+    event_type: "deal.change",
+    template_mode: "simple",
+    filters: {},
+    enabled: true,
+    description: "Get notified when deals are modified or updated",
+    category: "pipeline",
+    priority: 4
   }
 ];
 
@@ -56,7 +66,7 @@ const STARTER_TIER_RULES = [
     enabled: true,
     description: "Track when deals move through your pipeline stages",
     category: "progression",
-    priority: 4
+    priority: 5
   },
   {
     name: "💎 High-Value Deal Alert",
@@ -68,7 +78,7 @@ const STARTER_TIER_RULES = [
     enabled: true,
     description: "Special attention for deals worth $10,000 or more",
     category: "value",
-    priority: 5
+    priority: 6
   }
 ];
 
@@ -88,7 +98,7 @@ const PRO_TIER_RULES = [
     enabled: true,
     description: "Get alerted when deals haven't been updated in 7+ days",
     category: "health",
-    priority: 6
+    priority: 7
   },
   {
     name: "📅 Deal Close Date Approaching", 
@@ -101,7 +111,7 @@ const PRO_TIER_RULES = [
     enabled: true,
     description: "Remind you when deal close dates are approaching",
     category: "timing",
-    priority: 7
+    priority: 8
   }
 ];
 
@@ -122,7 +132,7 @@ const TEAM_TIER_RULES = [
     enabled: true,
     description: "Daily team performance and pipeline summary",
     category: "analytics",
-    priority: 8
+    priority: 9
   },
   {
     name: "📈 Pipeline Health Check",
@@ -136,7 +146,7 @@ const TEAM_TIER_RULES = [
     enabled: true,
     description: "Weekly pipeline health and forecast report",
     category: "analytics",
-    priority: 9
+    priority: 10
   },
   {
     name: "🔥 Hot Deal Alert",
@@ -149,7 +159,7 @@ const TEAM_TIER_RULES = [
     enabled: true,
     description: "Alert for high-probability, valuable deals needing attention",
     category: "opportunity",
-    priority: 10
+    priority: 11
   }
 ];
 
