@@ -615,40 +615,53 @@ const Dashboard: React.FC = React.memo(() => {
 
   const testFullPipeline = async () => {
     try {
-      console.log('🧪 Testing full Pipedrive → Google Chat pipeline...');
+      console.log('🔍 Running comprehensive pipeline diagnosis...');
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/debug/test-full-pipeline`, {
+      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/debug/pipeline-diagnosis`, {
         method: 'POST',
       });
       
       if (response.ok) {
-        const result = await response.json();
-        console.log('🧪 Pipeline test result:', result);
+        const diagnosis = await response.json();
+        console.log('🔍 Full diagnosis result:', diagnosis);
         
-        if (result.success) {
-          alert(`✅ Pipeline Test Started Successfully!\n\n` +
-                `Details:\n` +
-                `- Rules Found: ${result.details.rulesFound}\n` +
-                `- Webhooks Found: ${result.details.webhooksFound}\n` +
-                `- Job ID: ${result.details.jobId}\n\n` +
-                `Next Steps:\n` +
-                `${result.nextSteps.join('\n')}\n\n` +
-                `Check console for detailed logs.`);
-        } else {
-          alert(`❌ Pipeline Test Failed!\n\n` +
-                `Step ${result.step}: ${result.error}\n` +
-                `Message: ${result.message}\n\n` +
-                `${result.possibleCauses ? 'Possible causes:\n' + result.possibleCauses.join('\n') : ''}`);
+        const summary = diagnosis.summary;
+        let alertMessage = `🔍 Pipeline Diagnosis Complete!\n\n`;
+        alertMessage += `Status: ${summary.overallStatus}\n`;
+        alertMessage += `Steps Completed: ${summary.completedSteps}/${summary.totalSteps}\n`;
+        
+        if (diagnosis.errors.length > 0) {
+          alertMessage += `\n❌ ERRORS (${diagnosis.errors.length}):\n`;
+          diagnosis.errors.forEach((error: string, index: number) => {
+            alertMessage += `${index + 1}. ${error}\n`;
+          });
         }
+        
+        if (diagnosis.warnings.length > 0) {
+          alertMessage += `\n⚠️ WARNINGS (${diagnosis.warnings.length}):\n`;
+          diagnosis.warnings.forEach((warning: string, index: number) => {
+            alertMessage += `${index + 1}. ${warning}\n`;
+          });
+        }
+        
+        if (diagnosis.testResult) {
+          alertMessage += `\n🧪 TEST RESULTS:\n`;
+          alertMessage += `Rules Matched: ${diagnosis.testResult.rulesMatched}\n`;
+          alertMessage += `Notifications Sent: ${diagnosis.testResult.notificationsSent}\n`;
+        }
+        
+        alertMessage += `\n📊 Check console for detailed diagnosis report.`;
+        alert(alertMessage);
       } else {
-        const error = await response.json();
-        console.error('Pipeline test failed:', error);
-        alert(`❌ Pipeline Test Failed!\n\nError: ${error.message || 'Unknown error'}`);
+        const errorData = await response.json();
+        console.error('❌ Pipeline diagnosis failed:', errorData);
+        alert(`Diagnosis failed: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Pipeline test error:', error);
-      alert(`❌ Pipeline Test Error!\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nCheck console for details.`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Pipeline diagnosis error:', error);
+      alert(`Diagnosis error: ${errorMessage}`);
     }
   };
 
@@ -1336,21 +1349,21 @@ const Dashboard: React.FC = React.memo(() => {
               
               <div className="testing-content">
                 <div className="test-card">
-                  <h4>📡 Full Pipeline Test</h4>
-                  <p>This will test the complete notification flow:</p>
+                  <h4>🔍 Pipeline Diagnosis</h4>
+                  <p>Comprehensive diagnosis of the notification pipeline:</p>
                   <ul>
-                    <li>✅ Check for active rules</li>
-                    <li>✅ Check for Google Chat webhooks</li>
-                    <li>✅ Create test notification</li>
-                    <li>✅ Process through BullMQ queue</li>
-                    <li>✅ Send to Google Chat</li>
-                    <li>✅ Log delivery status</li>
+                    <li>🔍 Redis connection & queue status</li>
+                    <li>🏢 Tenant lookup verification</li>
+                    <li>📋 Active rules analysis</li>
+                    <li>🔗 Google Chat webhook validation</li>
+                    <li>🧪 End-to-end pipeline test</li>
+                    <li>📊 Recent logs examination</li>
                   </ul>
                   <button 
                     className="button-primary test-pipeline-btn"
                     onClick={testFullPipeline}
                   >
-                    🚀 Run Full Pipeline Test
+                    🔍 Run Full Diagnosis
                   </button>
                 </div>
                 

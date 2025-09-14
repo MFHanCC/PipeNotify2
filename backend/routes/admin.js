@@ -849,10 +849,12 @@ router.post('/rules', async (req, res) => {
 router.put('/rules/:id', async (req, res) => {
   try {
     console.log('🔧 PUT /rules/:id - Request received');
-    console.log('🔧 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔧 Headers Authorization:', req.headers.authorization ? req.headers.authorization.substring(0, 20) + '...' : 'MISSING');
+    console.log('🔧 Headers Content-Type:', req.headers['content-type']);
     console.log('🔧 Params:', JSON.stringify(req.params, null, 2));
     console.log('🔧 Body:', JSON.stringify(req.body, null, 2));
     console.log('🔧 req.tenant:', JSON.stringify(req.tenant, null, 2));
+    console.log('🔧 req.tenantId:', req.tenantId);
     
     const ruleId = req.params.id;
     
@@ -1794,6 +1796,183 @@ router.post('/stalled-deals/run', authenticateToken, async (req, res) => {
 });
 
 // DEBUG: Test complete Pipedrive to Google Chat pipeline
+// Comprehensive pipeline diagnostics
+router.post('/debug/pipeline-diagnosis', async (req, res) => {
+  try {
+    const tenantId = req.tenant?.id || 2;
+    const diagnosis = {
+      timestamp: new Date().toISOString(),
+      tenantId,
+      steps: [],
+      errors: [],
+      warnings: []
+    };
+
+    // Step 1: Check Redis connection
+    diagnosis.steps.push('🔍 Step 1: Checking Redis connection...');
+    try {
+      const { getQueueStats } = require('../jobs/queue');
+      const queueStats = await getQueueStats();
+      diagnosis.steps.push(`✅ Redis Status: ${queueStats.status}`);
+      diagnosis.queueStats = queueStats;
+      
+      if (queueStats.status === 'error') {
+        diagnosis.errors.push(`Redis Error: ${queueStats.error}`);
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Redis Check Failed: ${error.message}`);
+    }
+
+    // Step 2: Check tenant lookup
+    diagnosis.steps.push('🔍 Step 2: Testing tenant lookup...');
+    try {
+      const { getTenantByPipedriveCompanyId } = require('../services/database');
+      const testCompanyId = 13887824; // Your test company ID
+      const tenant = await getTenantByPipedriveCompanyId(testCompanyId);
+      
+      if (tenant) {
+        diagnosis.steps.push(`✅ Tenant found: ID ${tenant.id}, Company: ${tenant.company_name}`);
+        diagnosis.tenantLookup = { found: true, tenant };
+      } else {
+        diagnosis.warnings.push(`⚠️ No tenant found for company_id ${testCompanyId}`);
+        diagnosis.tenantLookup = { found: false, searchedCompanyId: testCompanyId };
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Tenant lookup failed: ${error.message}`);
+    }
+
+    // Step 3: Check rules
+    diagnosis.steps.push('🔍 Step 3: Checking active rules...');
+    try {
+      const { getAllRules } = require('../services/database');
+      const rulesResult = await getAllRules(tenantId, 10, 0);
+      
+      diagnosis.steps.push(`📋 Found ${rulesResult.rules.length} total rules`);
+      diagnosis.rules = rulesResult.rules.map(rule => ({
+        id: rule.id,
+        name: rule.name,
+        event_type: rule.event_type,
+        enabled: rule.enabled,
+        target_webhook_id: rule.target_webhook_id,
+        hasFilters: rule.filters && Object.keys(rule.filters).length > 0
+      }));
+      
+      const enabledRules = rulesResult.rules.filter(rule => rule.enabled);
+      diagnosis.steps.push(`✅ ${enabledRules.length} rules are enabled`);
+      
+      if (enabledRules.length === 0) {
+        diagnosis.warnings.push('⚠️ No enabled rules found - notifications will not be sent');
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Rules check failed: ${error.message}`);
+    }
+
+    // Step 4: Check webhooks
+    diagnosis.steps.push('🔍 Step 4: Checking Google Chat webhooks...');
+    try {
+      const { getWebhooks } = require('../services/database');
+      const webhooks = await getWebhooks(tenantId);
+      
+      diagnosis.steps.push(`🔗 Found ${webhooks.length} active webhooks`);
+      diagnosis.webhooks = webhooks.map(webhook => ({
+        id: webhook.id,
+        name: webhook.name,
+        url_preview: webhook.webhook_url ? webhook.webhook_url.substring(0, 50) + '...' : 'No URL',
+        is_active: webhook.is_active
+      }));
+      
+      if (webhooks.length === 0) {
+        diagnosis.warnings.push('⚠️ No webhooks configured - notifications cannot be delivered');
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Webhooks check failed: ${error.message}`);
+    }
+
+    // Step 5: Test webhook processing
+    diagnosis.steps.push('🔍 Step 5: Testing webhook processing pipeline...');
+    try {
+      const testWebhookData = {
+        event: 'deal.updated',
+        object: {
+          type: 'deal',
+          id: 12345,
+          title: 'Test Deal for Pipeline Diagnosis',
+          value: 5000,
+          currency: 'USD',
+          status: 'open',
+          stage_id: 1
+        },
+        user_id: 123456,
+        company_id: 13887824,
+        user: { id: 123456, name: 'Test User' },
+        company: { id: 13887824, name: 'Test Company' },
+        timestamp: new Date().toISOString()
+      };
+
+      const { processNotification } = require('../jobs/processor');
+      const result = await processNotification(testWebhookData);
+      
+      diagnosis.steps.push(`🧪 Test processing completed`);
+      diagnosis.testResult = result;
+      
+      if (result.notificationsSent > 0) {
+        diagnosis.steps.push(`✅ ${result.notificationsSent} test notifications sent successfully`);
+      } else if (result.rulesMatched === 0) {
+        diagnosis.warnings.push('⚠️ No rules matched the test webhook data');
+      } else {
+        diagnosis.warnings.push('⚠️ Rules matched but no notifications were sent');
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Pipeline test failed: ${error.message}`);
+    }
+
+    // Step 6: Check logs
+    diagnosis.steps.push('🔍 Step 6: Checking recent logs...');
+    try {
+      const { getLogs } = require('../services/database');
+      const logsResult = await getLogs(tenantId, { limit: 10, offset: 0 });
+      
+      diagnosis.steps.push(`📊 Found ${logsResult.logs.length} recent log entries`);
+      diagnosis.recentLogs = logsResult.logs.map(log => ({
+        id: log.id,
+        created_at: log.created_at,
+        event_type: log.event_type,
+        status: log.status,
+        rule_name: log.rule_name,
+        webhook_name: log.webhook_name,
+        error_message: log.error_message
+      }));
+      
+      const recentFailures = logsResult.logs.filter(log => log.status === 'failed');
+      if (recentFailures.length > 0) {
+        diagnosis.warnings.push(`⚠️ ${recentFailures.length} recent failed notifications`);
+      }
+    } catch (error) {
+      diagnosis.errors.push(`Logs check failed: ${error.message}`);
+    }
+
+    // Summary
+    diagnosis.summary = {
+      totalSteps: 6,
+      completedSteps: diagnosis.steps.filter(step => step.includes('✅')).length,
+      errorCount: diagnosis.errors.length,
+      warningCount: diagnosis.warnings.length,
+      overallStatus: diagnosis.errors.length === 0 ? 
+        (diagnosis.warnings.length === 0 ? 'HEALTHY' : 'WARNINGS') : 'ERRORS'
+    };
+
+    res.json(diagnosis);
+
+  } catch (error) {
+    console.error('❌ Pipeline diagnosis error:', error);
+    res.status(500).json({
+      error: 'Pipeline diagnosis failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 router.post('/debug/test-full-pipeline', async (req, res) => {
   try {
     const tenantId = req.tenant?.id || 2; // Default to tenant 2 for testing

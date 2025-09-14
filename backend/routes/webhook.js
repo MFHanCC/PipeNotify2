@@ -5,7 +5,10 @@ const { validatePipedriveSignature } = require('../middleware/webhookValidation'
 
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks  
 router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
-  console.log('🔥 WEBHOOK RECEIVED');
+  console.log('🔥 WEBHOOK RECEIVED - FULL DEBUGGING');
+  console.log('🔍 Request headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🔍 Request body type:', typeof req.body);
+  console.log('🔍 Request body length:', req.body ? req.body.length || 'no length' : 'null');
   
   try {
     let webhookData = req.body;
