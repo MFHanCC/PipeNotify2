@@ -13,9 +13,14 @@ export function usePlanFeatures() {
 
   const loadFeatures = async () => {
     try {
-      const tenantId = getTenantId();
-      if (!tenantId) {
+      const tenantIdString = getTenantId();
+      if (!tenantIdString) {
         throw new Error('No tenant ID found');
+      }
+
+      const tenantId = parseInt(tenantIdString);
+      if (isNaN(tenantId)) {
+        throw new Error('Invalid tenant ID');
       }
 
       setLoading(true);
@@ -28,7 +33,7 @@ export function usePlanFeatures() {
       
       // Fallback to free plan features
       setFeatures({
-        tenant_id: getTenantId() || 0,
+        tenant_id: parseInt(getTenantId() || '0'),
         plan_tier: 'free',
         limits: {
           notifications: 100,
