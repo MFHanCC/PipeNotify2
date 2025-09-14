@@ -97,7 +97,33 @@ router.post('/callback', async (req, res) => {
       company_name: companyName
     });
 
-    res.json({
+    // Provision default rules for new tenants (after successful connection)
+    let ruleProvisioningResult = null;
+    try {
+      const { provisionDefaultRules } = require('../services/ruleProvisioning');
+      
+      // Check if this is a new tenant or first-time connection
+      const isNewConnection = tenantResult.rows.length === 0;
+      
+      if (isNewConnection) {
+        console.log(`🚀 Provisioning default rules for new tenant ${tenantId}`);
+        ruleProvisioningResult = await provisionDefaultRules(tenantId, 'free', 'initial');
+        
+        if (ruleProvisioningResult.success) {
+          console.log(`✅ Provisioned ${ruleProvisioningResult.rules_created} default rules`);
+        } else {
+          console.warn('⚠️ Rule provisioning failed:', ruleProvisioningResult.error);
+        }
+      } else {
+        console.log(`👤 Existing tenant ${tenantId} reconnected - skipping rule provisioning`);
+      }
+      
+    } catch (provisioningError) {
+      console.error('Error during rule provisioning:', provisioningError);
+      // Don't fail the OAuth flow for rule provisioning errors
+    }
+
+    const response = {
       success: true,
       ...tokenData,
       user: {
@@ -111,7 +137,22 @@ router.post('/callback', async (req, res) => {
         company_id: companyId,
         company_name: companyName
       }
-    });
+    };
+
+    // Add rule provisioning info if available
+    if (ruleProvisioningResult) {
+      response.default_rules = {
+        provisioned: ruleProvisioningResult.success,
+        rules_created: ruleProvisioningResult.rules_created || 0,
+        rules_skipped: ruleProvisioningResult.rules_skipped || 0
+      };
+      
+      if (ruleProvisioningResult.success && ruleProvisioningResult.rules_created > 0) {
+        response.onboarding_message = `Welcome! We've set up ${ruleProvisioningResult.rules_created} notification rules to get you started.`;
+      }
+    }
+
+    res.json(response);
 
   } catch (error) {
     console.error('OAuth callback error:', error);

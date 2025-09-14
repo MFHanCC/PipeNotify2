@@ -148,6 +148,71 @@ async function runMigration() {
       // Don't fail the migration for this - these are non-critical
     }
 
+    // Add default rules support columns
+    console.log('🔄 Adding default rules support...');
+    
+    try {
+      // Add columns to track default rules and their templates
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;
+      `);
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS rule_template_id VARCHAR(100);
+      `);
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS auto_created_at TIMESTAMP WITH TIME ZONE;
+      `);
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(20);
+      `);
+      console.log('✅ Added default rules columns');
+
+      // Add indexes for efficient querying of default rules
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_rules_is_default ON rules(is_default);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_rules_template_id ON rules(rule_template_id);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_rules_plan_tier ON rules(plan_tier);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_rules_tenant_default ON rules(tenant_id, is_default);
+      `);
+      console.log('✅ Added default rules indexes');
+
+      // Create provisioning log table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS rule_provisioning_log (
+          id SERIAL PRIMARY KEY,
+          tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+          plan_tier VARCHAR(20) NOT NULL,
+          rules_created INTEGER DEFAULT 0,
+          provisioning_type VARCHAR(50) NOT NULL,
+          from_plan VARCHAR(20),
+          to_plan VARCHAR(20),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          created_rules JSONB DEFAULT '[]',
+          errors JSONB DEFAULT '[]'
+        );
+      `);
+      console.log('✅ Created rule provisioning log table');
+
+      // Add indexes for provisioning log
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_provisioning_log_tenant ON rule_provisioning_log(tenant_id);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_provisioning_log_created_at ON rule_provisioning_log(created_at);
+      `);
+      console.log('✅ Added provisioning log indexes');
+
+    } catch (error) {
+      console.error('⚠️  Error adding default rules support:', error.message);
+      // Don't fail the migration for this - these are non-critical
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {

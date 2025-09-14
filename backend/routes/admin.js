@@ -2097,4 +2097,94 @@ router.post('/debug/test-full-pipeline', async (req, res) => {
   }
 });
 
+// POST /api/v1/admin/provision-default-rules - Manually provision default rules
+router.post('/provision-default-rules', async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    const { planTier, force } = req.body;
+
+    console.log(`🔧 Manual rule provisioning requested for tenant ${tenantId}`, {
+      requestedPlan: planTier,
+      force: force
+    });
+
+    const { provisionDefaultRules, getProvisioningStatus } = require('../services/ruleProvisioning');
+
+    // Get current status first
+    const currentStatus = await getProvisioningStatus(tenantId);
+    
+    if (currentStatus.error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get provisioning status',
+        details: currentStatus.error
+      });
+    }
+
+    // Check if provisioning is needed (unless forced)
+    if (!force && !currentStatus.needs_provisioning) {
+      return res.json({
+        success: true,
+        message: 'Default rules already provisioned',
+        status: currentStatus,
+        rules_created: 0
+      });
+    }
+
+    // Provision rules
+    const result = await provisionDefaultRules(
+      tenantId, 
+      planTier || currentStatus.current_plan, 
+      'manual'
+    );
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `Successfully provisioned ${result.rules_created} default rules`,
+        ...result,
+        previous_status: currentStatus
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Rule provisioning failed',
+        details: result.error,
+        previous_status: currentStatus
+      });
+    }
+
+  } catch (error) {
+    console.error('Manual rule provisioning error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Rule provisioning failed',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/v1/admin/provisioning-status - Get rule provisioning status
+router.get('/provisioning-status', async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    const { getProvisioningStatus } = require('../services/ruleProvisioning');
+
+    const status = await getProvisioningStatus(tenantId);
+    
+    res.json({
+      success: true,
+      ...status
+    });
+
+  } catch (error) {
+    console.error('Error getting provisioning status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get provisioning status',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
