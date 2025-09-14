@@ -1368,12 +1368,38 @@ const Dashboard: React.FC = React.memo(() => {
                 </div>
                 
                 <div className="test-card">
-                  <h4>🔍 Component Testing</h4>
-                  <Suspense fallback={<ComponentLoader />}>
-                    <NotificationPreview 
-                      onRefresh={loadDashboardData}
-                    />
-                  </Suspense>
+                  <h4>📋 Quick Tests</h4>
+                  <p>Basic system functionality tests:</p>
+                  <div className="quick-test-buttons">
+                    <button 
+                      className="button-secondary"
+                      onClick={() => {
+                        console.log('🧪 Testing authentication...');
+                        alert('Authentication test: ' + (localStorage.getItem('auth_token') ? 'Token found' : 'No token'));
+                      }}
+                    >
+                      🔑 Test Auth
+                    </button>
+                    <button 
+                      className="button-secondary"
+                      onClick={() => {
+                        console.log('📊 Checking dashboard data...');
+                        alert(`Dashboard Status:\nRules: ${rules.length}\nLogs: ${logs.length}\nStats loaded: ${stats.totalNotifications !== undefined ? 'Yes' : 'No'}`);
+                      }}
+                    >
+                      📊 Check Data
+                    </button>
+                    <button 
+                      className="button-secondary"
+                      onClick={() => {
+                        const apiUrl = process.env.REACT_APP_API_URL;
+                        console.log('🌐 API URL check:', apiUrl);
+                        alert(`API Configuration:\nURL: ${apiUrl || 'Not set'}\nEnvironment: ${process.env.NODE_ENV || 'development'}`);
+                      }}
+                    >
+                      🌐 Check API
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

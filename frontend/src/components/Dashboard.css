@@ -1397,6 +1397,24 @@ select:focus,
   box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
+.quick-test-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.quick-test-buttons .button-secondary {
+  padding: 10px 16px;
+  font-size: 14px;
+  text-align: center;
+  white-space: nowrap;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @media (max-width: 768px) {
   .testing-content {
     grid-template-columns: 1fr;

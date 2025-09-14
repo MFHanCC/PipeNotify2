@@ -529,14 +529,15 @@ class ChatClient {
     let pipedriveUrl = null;
     
     if (objectId && objectType) {
-      // Generate Pipedrive URL based on object type
+      // Generate Pipedrive URL based on object type - use company domain if available
+      const baseDomain = webhookData.company_domain || 'app';
       const typeUrlMap = {
-        'deal': `https://app.pipedrive.com/pipeline/deal/${objectId}`,
-        'person': `https://app.pipedrive.com/person/${objectId}`,
-        'organization': `https://app.pipedrive.com/organization/${objectId}`,
-        'activity': `https://app.pipedrive.com/activities/calendar/${objectId}`
+        'deal': `https://${baseDomain}.pipedrive.com/pipeline/deal/${objectId}`,
+        'person': `https://${baseDomain}.pipedrive.com/person/${objectId}`,
+        'organization': `https://${baseDomain}.pipedrive.com/organization/${objectId}`,
+        'activity': `https://${baseDomain}.pipedrive.com/activities/calendar/${objectId}`
       };
-      pipedriveUrl = typeUrlMap[objectType] || `https://app.pipedrive.com/`;
+      pipedriveUrl = typeUrlMap[objectType] || `https://${baseDomain}.pipedrive.com/`;
     }
     
     // Add action buttons

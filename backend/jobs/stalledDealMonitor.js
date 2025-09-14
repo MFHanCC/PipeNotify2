@@ -32,29 +32,29 @@ async function findStalledDeals(tenantId) {
     // we'd need to track deal updates or call Pipedrive API
     const query = `
       SELECT DISTINCT
-        l.payload->>'object'->>'id' as deal_id,
-        l.payload->>'object'->>'title' as deal_title,
-        l.payload->>'object'->>'value' as deal_value,
-        l.payload->>'object'->>'currency' as deal_currency,
-        l.payload->>'object'->>'probability' as deal_probability,
-        l.payload->>'object'->>'stage_id' as stage_id,
-        l.payload->>'object'->>'user_id' as owner_id,
+        (l.payload->'object'->>'id') as deal_id,
+        (l.payload->'object'->>'title') as deal_title,
+        (l.payload->'object'->>'value') as deal_value,
+        (l.payload->'object'->>'currency') as deal_currency,
+        (l.payload->'object'->>'probability') as deal_probability,
+        (l.payload->'object'->>'stage_id') as stage_id,
+        (l.payload->'object'->>'user_id') as owner_id,
         MAX(l.created_at) as last_activity,
         NOW() - MAX(l.created_at) as days_since_activity
       FROM logs l
       WHERE l.tenant_id = $1 
         AND l.payload->>'event' LIKE 'deal.%'
         AND l.status = 'success'
-        AND l.payload->>'object'->>'id' IS NOT NULL
+        AND (l.payload->'object'->>'id') IS NOT NULL
         AND l.created_at >= NOW() - INTERVAL '30 days'  -- Only check deals active in last 30 days
       GROUP BY 
-        l.payload->>'object'->>'id',
-        l.payload->>'object'->>'title',
-        l.payload->>'object'->>'value',
-        l.payload->>'object'->>'currency', 
-        l.payload->>'object'->>'probability',
-        l.payload->>'object'->>'stage_id',
-        l.payload->>'object'->>'user_id'
+        (l.payload->'object'->>'id'),
+        (l.payload->'object'->>'title'),
+        (l.payload->'object'->>'value'),
+        (l.payload->'object'->>'currency'), 
+        (l.payload->'object'->>'probability'),
+        (l.payload->'object'->>'stage_id'),
+        (l.payload->'object'->>'user_id')
       HAVING NOW() - MAX(l.created_at) > INTERVAL '${STALLED_THRESHOLDS.warning} days'
       ORDER BY MAX(l.created_at) ASC
     `;

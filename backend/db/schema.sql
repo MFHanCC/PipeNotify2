@@ -51,7 +51,7 @@ CREATE TABLE rules (
     event_type TEXT NOT NULL, -- e.g., 'deal.updated', 'person.added'
     filters JSONB NOT NULL DEFAULT '{}', -- Event filtering criteria
     target_webhook_id INTEGER NOT NULL REFERENCES chat_webhooks(id) ON DELETE CASCADE,
-    template_mode TEXT DEFAULT 'simple' CHECK (template_mode IN ('simple', 'detailed', 'custom')),
+    template_mode TEXT DEFAULT 'simple' CHECK (template_mode IN ('simple', 'compact', 'detailed', 'custom')),
     custom_template TEXT, -- For custom template mode
     enabled BOOLEAN DEFAULT true,
     priority INTEGER DEFAULT 1, -- For rule ordering
