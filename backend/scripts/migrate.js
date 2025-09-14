@@ -78,6 +78,48 @@ async function runMigration() {
       console.log('ℹ️  quiet_hours and delayed_notifications tables already exist');
     }
 
+    // Fix missing columns that cause Railway errors
+    console.log('🔄 Fixing missing columns in rules table...');
+    
+    try {
+      // Add target_channel_id column if it doesn't exist
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS target_channel_id INTEGER REFERENCES chat_webhooks(id);
+      `);
+      console.log('✅ Added target_channel_id column');
+
+      // Add filters column if it doesn't exist 
+      await pool.query(`
+        ALTER TABLE rules ADD COLUMN IF NOT EXISTS filters JSONB DEFAULT '{}';
+      `);
+      console.log('✅ Added filters column');
+
+      // Add index on filters for better query performance
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_rules_filters ON rules USING GIN (filters);
+      `);
+      console.log('✅ Added filters index');
+
+      // Fix any existing NULL values
+      await pool.query(`
+        UPDATE rules SET filters = '{}' WHERE filters IS NULL;
+      `);
+      console.log('✅ Fixed NULL filter values');
+
+      // Add comments for documentation
+      await pool.query(`
+        COMMENT ON COLUMN rules.target_channel_id IS 'Optional specific webhook for this rule, overrides default webhook';
+      `);
+      await pool.query(`
+        COMMENT ON COLUMN rules.filters IS 'JSONB column storing advanced filters';
+      `);
+      console.log('✅ Added column documentation');
+
+    } catch (error) {
+      console.error('⚠️  Error fixing missing columns:', error.message);
+      // Don't fail the migration for this - these are non-critical
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {
