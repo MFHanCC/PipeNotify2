@@ -37,7 +37,15 @@ const FREE_TIER_RULES = [
     description: "Get alerted when new opportunities enter your pipeline",
     category: "pipeline",
     priority: 3
-  },
+  }
+];
+
+/**
+ * Starter Tier: 6 rules adding deal progression and value filtering
+ * Focus: Pipeline management and high-value opportunity tracking
+ */
+const STARTER_TIER_RULES = [
+  ...FREE_TIER_RULES,
   {
     name: "📝 Deal Updated",
     event_type: "deal.change",
@@ -47,15 +55,7 @@ const FREE_TIER_RULES = [
     description: "Get notified when deals are modified or updated",
     category: "pipeline",
     priority: 4
-  }
-];
-
-/**
- * Starter Tier: 5 rules adding deal progression and value filtering
- * Focus: Pipeline management and high-value opportunity tracking
- */
-const STARTER_TIER_RULES = [
-  ...FREE_TIER_RULES,
+  },
   {
     name: "📊 Deal Stage Changed",
     event_type: "deal.update",
