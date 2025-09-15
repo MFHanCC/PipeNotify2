@@ -166,6 +166,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         
         // Load setup status now that we're authenticated
         await checkSetupStatus();
+        
+        // Advance to step 3 (webhook setup) after successful Pipedrive connection
+        setCurrentStep(2);
       } else {
         console.error('OAuth callback failed');
         setIsPipedriveConnected(false);
