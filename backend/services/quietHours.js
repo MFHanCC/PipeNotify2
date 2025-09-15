@@ -14,9 +14,10 @@ try {
 
 /**
  * Default quiet hours configuration
+ * Note: timezone will be auto-detected by frontend, UTC is fallback only
  */
 const DEFAULT_QUIET_HOURS = {
-  timezone: 'UTC',
+  timezone: 'UTC', // Fallback only - frontend auto-detects user timezone
   start_time: '18:00',  // 6 PM
   end_time: '09:00',    // 9 AM next day
   weekends_enabled: false,
@@ -36,6 +37,7 @@ async function getQuietHours(tenantId) {
     
     if (result.rows.length === 0) {
       // Return default configuration if none exists
+      console.log(`⚠️ No timezone configured for tenant ${tenantId}, using UTC fallback. Frontend should auto-detect timezone.`);
       return {
         tenant_id: tenantId,
         ...DEFAULT_QUIET_HOURS,

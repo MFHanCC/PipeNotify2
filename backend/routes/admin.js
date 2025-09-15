@@ -48,6 +48,40 @@ router.get('/debug/timezone', async (req, res) => {
   }
 });
 
+// Auto-save user's detected timezone (authenticated endpoint)
+router.post('/timezone/save', authenticateToken, async (req, res) => {
+  try {
+    const tenantId = extractTenantId(req);
+    const { timezone } = req.body;
+    
+    if (!timezone) {
+      return res.status(400).json({ error: 'Timezone is required' });
+    }
+    
+    // Validate timezone format
+    try {
+      new Date().toLocaleString('en-US', { timeZone: timezone });
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid timezone format' });
+    }
+    
+    const { setQuietHours } = require('../services/quietHours');
+    const result = await setQuietHours(tenantId, { timezone });
+    
+    console.log(`✅ Auto-saved timezone for tenant ${tenantId}: ${timezone}`);
+    
+    res.json({
+      success: true,
+      tenantId,
+      timezone,
+      message: 'Timezone saved successfully'
+    });
+  } catch (error) {
+    console.error('Error saving user timezone:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Debug: Set timezone for tenant
 router.post('/debug/set-timezone', async (req, res) => {
   try {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './OnboardingWizard.css';
 import { getAuthToken, setAuthToken, getAuthHeaders, authenticatedFetch } from '../utils/auth';
 import { API_BASE_URL } from '../config/api';
+import { autoSetupTimezone } from '../utils/timezone';
 
 interface OnboardingStep {
   id: string;
@@ -186,6 +187,10 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         const data = await response.json();
         setAuthToken(data.access_token, data.refresh_token, data.expires_in);
         setIsPipedriveConnected(true);
+        
+        // Auto-detect and save user's timezone
+        console.log('🕐 Setting up user timezone...');
+        await autoSetupTimezone(API_BASE_URL);
         
         // Advance to step 3 (webhook setup) immediately after successful Pipedrive connection
         setCurrentStep(2);

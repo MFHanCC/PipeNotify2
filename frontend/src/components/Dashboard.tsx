@@ -5,6 +5,7 @@ import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAu
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import FeatureRestriction from './FeatureRestriction';
 import { API_BASE_URL } from '../config/api';
+import { autoSetupTimezone } from '../utils/timezone';
 
 // Lazy load heavy components to improve initial bundle size
 const WebhookManager = lazy(() => import('./WebhookManager'));
@@ -396,9 +397,17 @@ const Dashboard: React.FC = React.memo(() => {
     }
   }, [dateRange, statusFilter, ruleFilter, logsPage]);
 
-  // Load dashboard data
+  // Load dashboard data and setup timezone
   useEffect(() => {
-    loadDashboardData();
+    const initializeDashboard = async () => {
+      // Auto-detect and save user's timezone (for existing users who haven't set it)
+      await autoSetupTimezone(API_BASE_URL);
+      
+      // Load dashboard data
+      loadDashboardData();
+    };
+    
+    initializeDashboard();
   }, [loadDashboardData]);
 
   const toggleRule = async (ruleId: string) => {
