@@ -2,13 +2,13 @@
 .billing-dashboard {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 /* Header */
 .billing-header {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .billing-header h1 {
@@ -26,7 +26,7 @@
 
 /* Plan Overview */
 .plan-overview {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .plan-card {

@@ -297,6 +297,19 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="bulk-error">
+        <div className="error-icon">⚠️</div>
+        <h3>Unable to load bulk management</h3>
+        <p>{error}</p>
+        <button onClick={loadData} className="retry-button">
+          🔄 Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="bulk-rule-manager">
       <div className="bulk-header">

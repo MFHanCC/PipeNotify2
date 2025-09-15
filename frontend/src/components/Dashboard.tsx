@@ -137,9 +137,20 @@ const Dashboard: React.FC = React.memo(() => {
       message = 'Too many requests. Please wait a moment and try again.';
     } else if (error?.status >= 500) {
       message = 'Server error. Our team has been notified.';
+    } else if (error?.message) {
+      // Improve database constraint error messages
+      if (error.message.includes('null value in column') && error.message.includes('target_webhook_id')) {
+        message = 'Please select a Google Chat webhook before saving the rule.';
+      } else if (error.message.includes('violates not-null constraint')) {
+        message = 'Please fill in all required fields before saving.';
+      } else if (error.message.includes('duplicate key value')) {
+        message = 'A rule with this name already exists. Please choose a different name.';
+      } else {
+        message = error.message;
+      }
     }
     
-    setError(message);
+    showError(message);
   };
   // Plan features hook
   const { 
@@ -161,6 +172,19 @@ const Dashboard: React.FC = React.memo(() => {
   const [logs, setLogs] = useState<DeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
+  // Helper function to set error and show modal
+  const showError = (message: string) => {
+    setError(message);
+    setShowErrorModal(true);
+  };
+
+  // Helper function to clear error and hide modal
+  const clearError = () => {
+    clearError();
+    setShowErrorModal(false);
+  };
   const [isRetrying, setIsRetrying] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -236,7 +260,7 @@ const Dashboard: React.FC = React.memo(() => {
   // Retry mechanism
   const retryOperation = async (operation: () => Promise<void>, operationName: string) => {
     setIsRetrying(true);
-    setError(null);
+    clearError();
     try {
       await operation();
     } catch (error) {
@@ -248,14 +272,14 @@ const Dashboard: React.FC = React.memo(() => {
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
+    clearError();
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       const token = getAuthToken();
       
       if (!token) {
-        setError('No authentication token found. Please log in again.');
+        showError('No authentication token found. Please log in again.');
         window.location.href = '/onboarding';
         return;
       }
@@ -411,10 +435,10 @@ const Dashboard: React.FC = React.memo(() => {
         }));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        setError(`Failed to toggle rule: ${errorData.message || 'Unknown error'}`);
+        showError(`Failed to toggle rule: ${errorData.message || 'Unknown error'}`);
       }
     } catch (err) {
-      setError('Failed to toggle rule');
+      showError('Failed to toggle rule');
     }
   };
 
@@ -498,7 +522,7 @@ const Dashboard: React.FC = React.memo(() => {
 
   const saveEditRule = async (ruleId: string) => {
     // Clear previous errors
-    setError(null);
+    clearError();
     
     // Validate edit form and get errors directly
     const errors: {[key: string]: string} = {};
@@ -518,7 +542,7 @@ const Dashboard: React.FC = React.memo(() => {
     // If there are validation errors, show them in main error panel
     if (Object.keys(errors).length > 0) {
       const errorMessages = Object.values(errors);
-      setError(`Please fix the following: ${errorMessages.join(', ')}`);
+      showError(`Please fix the following: ${errorMessages.join(', ')}`);
       return;
     }
 
@@ -566,10 +590,10 @@ const Dashboard: React.FC = React.memo(() => {
         });
       } else {
         const errorData = await response.json().catch(() => ({}));
-        setError(`Failed to update rule: ${errorData.message || 'Please check all required fields are filled'}`);
+        showError(`Failed to update rule: ${errorData.message || 'Please check all required fields are filled'}`);
       }
     } catch (err) {
-      setError('Failed to update rule: Please check your internet connection and try again');
+      showError('Failed to update rule: Please check your internet connection and try again');
     }
   };
 
@@ -591,7 +615,7 @@ const Dashboard: React.FC = React.memo(() => {
         setStats(prev => ({ ...prev, activeRules: updatedRules.filter(r => r.enabled).length }));
       }
     } catch (err) {
-      setError('Failed to delete rule');
+      showError('Failed to delete rule');
     }
   };
 
@@ -739,7 +763,7 @@ const Dashboard: React.FC = React.memo(() => {
 
   const createNewRule = async () => {
     // Clear previous errors
-    setError(null);
+    clearError();
     
     // Validate form and get errors directly
     const errors: {[key: string]: string} = {};
@@ -759,7 +783,7 @@ const Dashboard: React.FC = React.memo(() => {
     // If there are validation errors, show them in main error panel
     if (Object.keys(errors).length > 0) {
       const errorMessages = Object.values(errors);
-      setError(`Please fix the following: ${errorMessages.join(', ')}`);
+      showError(`Please fix the following: ${errorMessages.join(', ')}`);
       return;
     }
 
@@ -1244,35 +1268,50 @@ const Dashboard: React.FC = React.memo(() => {
 
   return (
     <div className="dashboard dashboard-with-sidebar">
-      {error && (
-        <div className="error-banner">
-          <span className="error-icon">⚠️</span>
-          <div className="error-content">
-            <span className="error-message">{error}</span>
-            {networkStatus === 'offline' && (
-              <div className="network-status">
-                📶 You're currently offline. Check your connection and try again.
-              </div>
-            )}
-          </div>
-          <div className="error-actions">
-            <button 
-              className="retry-button"
-              onClick={() => retryOperation(loadDashboardData, 'reload dashboard')}
-              disabled={isRetrying}
-              aria-label="Retry loading dashboard data"
-              type="button"
-            >
-              {isRetrying ? '⏳' : '🔄'} Retry
-            </button>
-            <button 
-              className="error-close"
-              onClick={() => setError(null)}
-              aria-label="Close error message"
-              type="button"
-            >
-              ×
-            </button>
+      {/* Error Modal */}
+      {showErrorModal && error && (
+        <div className="error-modal-overlay" onClick={clearError}>
+          <div className="error-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="error-modal-header">
+              <span className="error-modal-icon">⚠️</span>
+              <h3>Error</h3>
+              <button 
+                className="error-modal-close"
+                onClick={clearError}
+                aria-label="Close error message"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <div className="error-modal-content">
+              <p className="error-modal-message">{error}</p>
+              {networkStatus === 'offline' && (
+                <div className="error-modal-network">
+                  📶 You're currently offline. Check your connection and try again.
+                </div>
+              )}
+            </div>
+            <div className="error-modal-actions">
+              <button 
+                className="error-modal-retry"
+                onClick={() => {
+                  clearError();
+                  retryOperation(loadDashboardData, 'reload dashboard');
+                }}
+                disabled={isRetrying}
+                type="button"
+              >
+                {isRetrying ? '⏳' : '🔄'} Retry
+              </button>
+              <button 
+                className="error-modal-ok"
+                onClick={clearError}
+                type="button"
+              >
+                OK
+              </button>
+            </div>
           </div>
         </div>
       )}
