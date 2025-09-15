@@ -161,14 +161,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         setAuthToken(data.access_token, data.refresh_token, data.expires_in);
         setIsPipedriveConnected(true);
         
+        // Advance to step 3 (webhook setup) immediately after successful Pipedrive connection
+        setCurrentStep(2);
+        
         // Clean up URL by removing the code parameter
         window.history.replaceState({}, document.title, window.location.pathname);
         
         // Load setup status now that we're authenticated
         await checkSetupStatus();
-        
-        // Advance to step 3 (webhook setup) after successful Pipedrive connection
-        setCurrentStep(2);
       } else {
         console.error('OAuth callback failed');
         setIsPipedriveConnected(false);
