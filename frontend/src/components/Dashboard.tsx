@@ -16,7 +16,6 @@ const QuietHours = lazy(() => import('./QuietHours'));
 const AnalyticsPanel = lazy(() => import('./AnalyticsPanel'));
 const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
-const OnboardingWizard = lazy(() => import('./OnboardingWizard'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
 const BillingDashboard = lazy(() => import('./BillingDashboard'));
 
@@ -201,7 +200,7 @@ const Dashboard: React.FC = React.memo(() => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'onboarding' | 'billing' | 'pricing' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     name: string; 
@@ -1441,15 +1440,6 @@ const Dashboard: React.FC = React.memo(() => {
             <span aria-hidden="true">📋</span> Bulk Management
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'onboarding' ? 'active' : ''}`}
-            onClick={() => setActiveTab('onboarding')}
-            aria-label="Setup and onboarding"
-            aria-current={activeTab === 'onboarding' ? 'page' : undefined}
-            type="button"
-          >
-            <span aria-hidden="true">🎓</span> Onboarding
-          </button>
-          <button 
             className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
             onClick={() => setActiveTab('billing')}
             aria-label="Billing and subscription management"
@@ -1591,14 +1581,6 @@ const Dashboard: React.FC = React.memo(() => {
             <Suspense fallback={<ComponentLoader />}>
               <BulkRuleManager 
                 onRefresh={loadDashboardData}
-              />
-            </Suspense>
-          )}
-          {activeTab === 'onboarding' && (
-            <Suspense fallback={<ComponentLoader />}>
-              <OnboardingWizard 
-                onComplete={() => setActiveTab('overview')}
-                onSkip={() => setActiveTab('overview')}
               />
             </Suspense>
           )}
