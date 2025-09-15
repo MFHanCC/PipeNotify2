@@ -107,6 +107,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       const token = getAuthToken();
       if (!token) {
         console.log('No auth token found, skipping setup status check');
+        // Clear webhook state when no token exists (e.g., incognito mode)
+        setWebhooks([]);
         return;
       }
 
@@ -120,9 +122,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         if (data.webhooks && data.webhooks.length > 0) {
           setRuleFormData(prev => ({ ...prev, target_webhook_id: data.webhooks[0].id }));
         }
+      } else {
+        // Clear webhook state on error (e.g., unauthorized)
+        setWebhooks([]);
       }
     } catch (error) {
       console.error('Error checking setup status:', error);
+      // Clear webhook state on error
+      setWebhooks([]);
     }
   };
 
