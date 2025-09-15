@@ -55,7 +55,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [isPipedriveConnected, setIsPipedriveConnected] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
-  const [isCheckingWebhooks, setIsCheckingWebhooks] = useState(false);
+  const [isCheckingWebhooks, setIsCheckingWebhooks] = useState(() => {
+    // If we're coming from OAuth callback, we should show loading state
+    const urlParams = new URLSearchParams(window.location.search);
+    return !!urlParams.get('code');
+  });
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   // Enhanced error handling
@@ -117,7 +121,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       setIsCheckingWebhooks(true);
       const apiUrl = API_BASE_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`);
+      // Add minimum delay to ensure loading state is visible
+      const [response] = await Promise.all([
+        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`),
+        new Promise(resolve => setTimeout(resolve, 800)) // Minimum 800ms delay
+      ]);
 
       if (response.ok) {
         const data = await response.json();
