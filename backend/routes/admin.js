@@ -8,6 +8,45 @@ const { getQuietHours } = require('../services/quietHours');
 
 // DEBUG ENDPOINTS - No auth required
 
+// Debug timezone for tenant
+router.get('/debug/timezone/:tenantId?', async (req, res) => {
+  try {
+    const tenantId = req.params.tenantId || 1; // Default to tenant 1 for testing
+    const quietHours = await getQuietHours(tenantId);
+    
+    res.json({
+      tenantId,
+      timezone: quietHours.timezone,
+      configured: quietHours.configured,
+      fullConfig: quietHours,
+      serverTime: new Date().toISOString(),
+      userTime: new Date().toLocaleString('en-US', { timeZone: quietHours.timezone }),
+      timeZoneOffset: new Date().getTimezoneOffset()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Set timezone for tenant
+router.post('/debug/set-timezone', async (req, res) => {
+  try {
+    const { tenantId = 1, timezone = 'UTC' } = req.body;
+    const { setQuietHours } = require('../services/quietHours');
+    
+    const result = await setQuietHours(tenantId, { timezone });
+    
+    res.json({
+      success: true,
+      tenantId,
+      timezone,
+      result
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Clean up test data for current user
 router.post('/debug/cleanup-test-data', async (req, res) => {
   try {
