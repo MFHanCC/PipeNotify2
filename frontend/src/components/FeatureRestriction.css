@@ -28,7 +28,7 @@
   right: -20px !important;
   left: auto !important;
   transform: translateY(-50%) !important;
-  z-index: 10;
+  z-index: 1100;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
