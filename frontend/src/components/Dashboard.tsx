@@ -4,6 +4,7 @@ import './Settings.css';
 import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError } from '../utils/auth';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import FeatureRestriction from './FeatureRestriction';
+import { API_BASE_URL } from '../config/api';
 
 // Lazy load heavy components to improve initial bundle size
 const WebhookManager = lazy(() => import('./WebhookManager'));
@@ -275,7 +276,6 @@ const Dashboard: React.FC = React.memo(() => {
     clearError();
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
       const token = getAuthToken();
       
       if (!token) {
@@ -300,16 +300,16 @@ const Dashboard: React.FC = React.memo(() => {
       });
 
       const [statsResponse, rulesResponse, logsResponse, webhooksResponse] = await Promise.all([
-        authenticatedFetch(`${apiUrl}/api/v1/monitoring/dashboard/${currentTenantId}?days=${days}`, { 
+        authenticatedFetch(`${API_BASE_URL}/api/v1/monitoring/dashboard/${currentTenantId}?days=${days}`, { 
           signal: AbortSignal.timeout(10000) // 10 second timeout
         }).catch(() => null),
-        authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, { 
+        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
-        authenticatedFetch(`${apiUrl}/api/v1/admin/logs?${logsParams}`, { 
+        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/logs?${logsParams}`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
-        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, { 
+        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/webhooks`, { 
           signal: AbortSignal.timeout(10000)
         }).catch(() => null),
       ]);
@@ -408,7 +408,7 @@ const Dashboard: React.FC = React.memo(() => {
 
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
         body: JSON.stringify({ 
           name: rule.name,
@@ -446,7 +446,7 @@ const Dashboard: React.FC = React.memo(() => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}/test`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}/test`, {
         method: 'POST',
       });
 
@@ -467,7 +467,7 @@ const Dashboard: React.FC = React.memo(() => {
       
       console.log('🚀 Provisioning default rules...');
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/provision-default-rules`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/provision-default-rules`, {
         method: 'POST',
         body: JSON.stringify({
           planTier: 'free',
@@ -560,7 +560,7 @@ const Dashboard: React.FC = React.memo(() => {
       
       console.log('🔧 Saving rule with data:', JSON.stringify(requestData, null, 2));
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
         body: JSON.stringify(requestData),
       });
@@ -605,7 +605,7 @@ const Dashboard: React.FC = React.memo(() => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/${ruleId}`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}`, {
         method: 'DELETE',
       });
 
@@ -714,7 +714,7 @@ const Dashboard: React.FC = React.memo(() => {
       console.log('🔍 Running comprehensive pipeline diagnosis...');
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/debug/pipeline-diagnosis`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/debug/pipeline-diagnosis`, {
         method: 'POST',
       });
       
@@ -791,7 +791,7 @@ const Dashboard: React.FC = React.memo(() => {
     try {
       const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, {
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules`, {
         method: 'POST',
         body: JSON.stringify({
           name: createFormData.name.trim(),
