@@ -9,9 +9,29 @@ const { getQuietHours } = require('../services/quietHours');
 // DEBUG ENDPOINTS - No auth required
 
 // Debug timezone for tenant
-router.get('/debug/timezone/:tenantId?', async (req, res) => {
+router.get('/debug/timezone/:tenantId', async (req, res) => {
   try {
-    const tenantId = req.params.tenantId || 1; // Default to tenant 1 for testing
+    const tenantId = req.params.tenantId || 1;
+    const quietHours = await getQuietHours(tenantId);
+    
+    res.json({
+      tenantId,
+      timezone: quietHours.timezone,
+      configured: quietHours.configured,
+      fullConfig: quietHours,
+      serverTime: new Date().toISOString(),
+      userTime: new Date().toLocaleString('en-US', { timeZone: quietHours.timezone }),
+      timeZoneOffset: new Date().getTimezoneOffset()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug timezone for default tenant (no params)
+router.get('/debug/timezone', async (req, res) => {
+  try {
+    const tenantId = 1; // Default to tenant 1
     const quietHours = await getQuietHours(tenantId);
     
     res.json({
