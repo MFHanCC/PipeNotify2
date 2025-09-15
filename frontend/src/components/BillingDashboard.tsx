@@ -146,7 +146,7 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
         <p>Manage your subscription and monitor usage</p>
       </div>
 
-      {/* Current Plan Section */}
+      {/* Compact Plan & Usage Overview */}
       <div className="plan-overview">
         <div className="plan-card">
           <div className="plan-info">
@@ -164,18 +164,18 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
                 )}
               </div>
               
-              {subscription && subscription.plan_tier !== 'free' && (
-                <div className="billing-cycle">
-                  <p>
-                    <strong>Current Period:</strong><br />
-                    {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}
-                  </p>
-                  {subscription.cancel_at_period_end && (
-                    <div className="cancellation-notice">
-                      <span className="warning-icon">⚠️</span>
-                      Subscription will end on {formatDate(subscription.current_period_end)}
-                    </div>
-                  )}
+              {/* Show key usage stats inline */}
+              {usage && (
+                <div className="inline-usage">
+                  <span className="usage-stat">
+                    📧 {usage.notifications_used}/{usage.notifications_limit} notifications
+                  </span>
+                  <span className="usage-stat">
+                    🔗 {usage.webhooks_used}/{usage.webhooks_limit} webhooks
+                  </span>
+                  <span className="usage-stat">
+                    ⚙️ {usage.rules_used}/{usage.rules_limit} rules
+                  </span>
                 </div>
               )}
             </div>
@@ -191,16 +191,6 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
                 >
                   {processingPortal ? 'Opening...' : 'Manage Billing'}
                 </button>
-                
-                {!subscription.cancel_at_period_end && (
-                  <button
-                    onClick={handleCancelSubscription}
-                    disabled={processingCancel}
-                    className="danger-button"
-                  >
-                    {processingCancel ? 'Canceling...' : 'Cancel Subscription'}
-                  </button>
-                )}
               </div>
             ) : (
               <button
@@ -214,10 +204,10 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
         </div>
       </div>
 
-      {/* Usage Overview */}
-      {usage && (
+      {/* Detailed Usage - Only show if approaching limits */}
+      {usage && usage.usage_percentage > 60 && (
         <div className="usage-overview">
-          <h2>Current Usage</h2>
+          <h2>Usage Details</h2>
           <div className="usage-grid">
             <div className="usage-card">
               <div className="usage-header">
@@ -245,50 +235,6 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
                   Approaching limit
                 </div>
               )}
-            </div>
-
-            <div className="usage-card">
-              <div className="usage-header">
-                <h3>Webhooks</h3>
-                <span className="usage-percentage">
-                  {usage.webhooks_limit > 0 ? Math.round((usage.webhooks_used / usage.webhooks_limit) * 100) : 0}%
-                </span>
-              </div>
-              <div className="usage-bar">
-                <div 
-                  className="usage-fill"
-                  style={{ 
-                    width: `${usage.webhooks_limit > 0 ? (usage.webhooks_used / usage.webhooks_limit) * 100 : 0}%`,
-                    backgroundColor: '#667eea'
-                  }}
-                ></div>
-              </div>
-              <div className="usage-numbers">
-                <span className="used">{usage.webhooks_used}</span>
-                <span className="limit">/ {usage.webhooks_limit}</span>
-              </div>
-            </div>
-
-            <div className="usage-card">
-              <div className="usage-header">
-                <h3>Rules</h3>
-                <span className="usage-percentage">
-                  {usage.rules_limit > 0 ? Math.round((usage.rules_used / usage.rules_limit) * 100) : 0}%
-                </span>
-              </div>
-              <div className="usage-bar">
-                <div 
-                  className="usage-fill"
-                  style={{ 
-                    width: `${usage.rules_limit > 0 ? (usage.rules_used / usage.rules_limit) * 100 : 0}%`,
-                    backgroundColor: '#10b981'
-                  }}
-                ></div>
-              </div>
-              <div className="usage-numbers">
-                <span className="used">{usage.rules_used}</span>
-                <span className="limit">/ {usage.rules_limit}</span>
-              </div>
             </div>
           </div>
         </div>

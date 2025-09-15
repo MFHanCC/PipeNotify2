@@ -120,7 +120,18 @@ class ApiService {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      
+      // Improve database constraint error messages
+      if (errorMessage.includes('null value in column') && errorMessage.includes('target_webhook_id')) {
+        errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      } else if (errorMessage.includes('violates not-null constraint')) {
+        errorMessage = 'Please fill in all required fields before saving.';
+      } else if (errorMessage.includes('duplicate key value')) {
+        errorMessage = 'A rule with this name already exists. Please choose a different name.';
+      }
+      
+      throw new Error(errorMessage);
     }
     
     return response.json();

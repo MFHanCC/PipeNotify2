@@ -460,8 +460,8 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
                     <div className="name-cell">
                       <strong>{rule.name}</strong>
                       <div className="message-preview">
-                        {rule.message_template.substring(0, 60)}
-                        {rule.message_template.length > 60 ? '...' : ''}
+                        {(rule.message_template || '').substring(0, 60)}
+                        {(rule.message_template || '').length > 60 ? '...' : ''}
                       </div>
                     </div>
                   </td>

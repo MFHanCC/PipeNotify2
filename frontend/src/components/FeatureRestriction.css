@@ -41,10 +41,11 @@
 .upgrade-tooltip {
   background: white;
   border: 1px solid #e1e5e9;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 280px;
+  border-radius: 6px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  max-width: 220px;
   text-align: center;
   position: relative;
 }
@@ -63,12 +64,12 @@
 }
 
 .upgrade-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
+  font-size: 18px;
+  margin-bottom: 6px;
 }
 
 .upgrade-text {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .upgrade-text strong {
@@ -95,9 +96,9 @@
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -105,8 +106,7 @@
 
 .upgrade-button:hover {
   background: linear-gradient(135deg, #2563eb, #1e40af);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
 }
 
 /* Special handling for form fields */
@@ -127,20 +127,21 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .upgrade-tooltip {
-    min-width: 240px;
-    padding: 12px;
+    min-width: 180px;
+    max-width: 200px;
+    padding: 8px 10px;
   }
   
   .upgrade-text strong {
-    font-size: 13px;
+    font-size: 12px;
   }
   
   .upgrade-text p {
-    font-size: 11px;
+    font-size: 10px;
   }
   
   .upgrade-button {
-    padding: 6px 12px;
-    font-size: 11px;
+    padding: 5px 10px;
+    font-size: 10px;
   }
 }
