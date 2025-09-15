@@ -17,7 +17,7 @@ if (!API_BASE_URL) {
   throw new Error('API_BASE_URL could not be determined');
 }
 
-// Log configuration for debugging
-console.log(`🔗 API Base URL: ${API_BASE_URL}`);
-console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-console.log(`📝 REACT_APP_API_URL: ${process.env.REACT_APP_API_URL}`);
+// Log configuration in development only
+if (process.env.NODE_ENV === 'development') {
+  console.log(`🔗 API Base URL: ${API_BASE_URL}`);
+}
