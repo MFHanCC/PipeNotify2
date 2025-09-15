@@ -51,7 +51,7 @@ router.get('/debug/timezone', async (req, res) => {
 // Auto-save user's detected timezone (authenticated endpoint)
 router.post('/timezone/save', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
     const { timezone } = req.body;
     
     if (!timezone) {
@@ -1765,7 +1765,7 @@ router.post('/rules/import', authenticateToken, async (req, res) => {
 // Get stalled deal monitoring settings
 router.get('/stalled-deals/settings', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
     
     // For now, return default settings since we haven't implemented settings storage yet
     const defaultSettings = {
@@ -1798,7 +1798,7 @@ router.get('/stalled-deals/settings', authenticateToken, async (req, res) => {
 // Save stalled deal monitoring settings
 router.post('/stalled-deals/settings', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
     const { settings } = req.body;
 
     // TODO: Implement settings storage in database
@@ -1822,7 +1822,7 @@ router.post('/stalled-deals/settings', authenticateToken, async (req, res) => {
 // Get stalled deal monitoring statistics
 router.get('/stalled-deals/stats', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
     
     // Query for stalled deal statistics from logs
     const statsQuery = `
@@ -1868,7 +1868,7 @@ router.get('/stalled-deals/stats', authenticateToken, async (req, res) => {
 // Test stalled deal alert
 router.post('/stalled-deals/test', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
     const { channelId } = req.body;
 
     // Import the stalled deal monitoring functions
@@ -1900,7 +1900,7 @@ router.post('/stalled-deals/test', authenticateToken, async (req, res) => {
 // Run stalled deal monitoring now
 router.post('/stalled-deals/run', authenticateToken, async (req, res) => {
   try {
-    const tenantId = extractTenantId(req);
+    const tenantId = req.tenantId;
 
     // Import the stalled deal monitoring functions
     const { runStalledDealMonitoring } = require('../jobs/stalledDealMonitor');
