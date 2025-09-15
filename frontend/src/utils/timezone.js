@@ -27,21 +27,28 @@ export function getUserTimezone() {
 export async function saveUserTimezone(apiUrl) {
   try {
     const timezone = getUserTimezone();
+    const token = localStorage.getItem('token');
+    
+    console.log('🕐 Attempting to save timezone:', timezone);
+    console.log('🔑 Using token:', token ? 'Present' : 'Missing');
     
     const response = await fetch(`${apiUrl}/api/v1/admin/timezone/save`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ timezone })
     });
 
+    console.log('🌐 Response status:', response.status);
+    
     if (response.ok) {
       console.log('✅ Timezone saved successfully:', timezone);
       return true;
     } else {
-      console.warn('⚠️ Failed to save timezone:', response.status);
+      const errorText = await response.text();
+      console.warn('⚠️ Failed to save timezone:', response.status, errorText);
       return false;
     }
   } catch (error) {
@@ -70,4 +77,17 @@ export async function autoSetupTimezone(apiUrl) {
     console.error('❌ Timezone auto-setup error:', error);
     return false;
   }
+}
+
+/**
+ * Manual timezone setup for debugging (expose on window for testing)
+ */
+if (typeof window !== 'undefined') {
+  window.setupTimezone = async () => {
+    const apiUrl = 'https://pipenotify.up.railway.app';
+    console.log('🔧 Manual timezone setup...');
+    const result = await autoSetupTimezone(apiUrl);
+    console.log('🔧 Manual setup result:', result);
+    return result;
+  };
 }
