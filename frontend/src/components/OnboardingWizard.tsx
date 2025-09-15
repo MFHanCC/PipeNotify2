@@ -347,7 +347,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     }
   };
 
-  const steps: OnboardingStep[] = [
+  const allSteps: OnboardingStep[] = [
     {
       id: 'welcome',
       title: 'Welcome to Pipenotify! 🎉',
@@ -757,6 +757,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     }
   ];
 
+  // Filter out the rule step from the steps array
+  const steps = allSteps.filter(step => step.id !== 'rule');
+
   const nextStep = async () => {
     const current = steps[currentStep];
     
@@ -766,9 +769,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       if (!success) return;
       // After creating webhook, automatically create default rules
       await createDefaultRules();
-      // Skip rule step - go directly to test
-      setCurrentStep(Math.min(currentStep + 2, steps.length - 1));
-      return;
     }
     
     setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
