@@ -25,12 +25,13 @@
 .upgrade-overlay {
   position: absolute;
   top: 50%;
-  right: -10px;
+  right: -20px;
   transform: translateY(-50%);
   z-index: 10;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
+  /* Force deployment - moved to right side */
 }
 
 .feature-restriction:hover .upgrade-overlay {

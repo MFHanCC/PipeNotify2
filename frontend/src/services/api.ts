@@ -122,10 +122,12 @@ class ApiService {
       const errorData = await response.json().catch(() => ({ error: 'Network error' }));
       let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
       
-      // Improve database constraint error messages
+      // Improve database constraint error messages - force deployment
       if (errorMessage.includes('null value in column') && errorMessage.includes('target_webhook_id')) {
         errorMessage = 'Please select a Google Chat webhook before saving the rule.';
       } else if (errorMessage.includes('target_webhook_id') && errorMessage.includes('violates not-null constraint')) {
+        errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      } else if (errorMessage.includes('target_webhook_id')) {
         errorMessage = 'Please select a Google Chat webhook before saving the rule.';
       } else if (errorMessage.includes('violates not-null constraint')) {
         errorMessage = 'Please fill in all required fields before saving.';
