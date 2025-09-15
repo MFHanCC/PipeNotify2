@@ -125,6 +125,8 @@ class ApiService {
       // Improve database constraint error messages
       if (errorMessage.includes('null value in column') && errorMessage.includes('target_webhook_id')) {
         errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      } else if (errorMessage.includes('target_webhook_id') && errorMessage.includes('violates not-null constraint')) {
+        errorMessage = 'Please select a Google Chat webhook before saving the rule.';
       } else if (errorMessage.includes('violates not-null constraint')) {
         errorMessage = 'Please fill in all required fields before saving.';
       } else if (errorMessage.includes('duplicate key value')) {

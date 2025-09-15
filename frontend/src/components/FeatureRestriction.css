@@ -25,8 +25,8 @@
 .upgrade-overlay {
   position: absolute;
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  right: -10px;
+  transform: translateY(-50%);
   z-index: 10;
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -53,14 +53,14 @@
 .upgrade-tooltip::before {
   content: '';
   position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  left: -8px;
+  transform: translateY(-50%);
   width: 0;
   height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-bottom: 8px solid white;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid white;
 }
 
 .upgrade-icon {

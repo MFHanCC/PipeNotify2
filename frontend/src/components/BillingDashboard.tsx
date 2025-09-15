@@ -264,31 +264,6 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
         </div>
       )}
 
-      {/* Feature Access */}
-      {Object.keys(featureAccess).length > 0 && (
-        <div className="feature-access">
-          <h2>Feature Access</h2>
-          <div className="features-grid">
-            {Object.entries(featureAccess).map(([featureName, access]) => (
-              <div key={featureName} className={`feature-item ${access.has_access ? 'enabled' : 'disabled'}`}>
-                <div className="feature-status">
-                  <span className={`status-icon ${access.has_access ? 'enabled' : 'disabled'}`}>
-                    {access.has_access ? '✓' : '✗'}
-                  </span>
-                  <span className="feature-name">
-                    {featureName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </span>
-                </div>
-                {!access.has_access && (
-                  <span className="required-plan">
-                    Requires {getPlanName(access.plan_required)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Support Section */}
       <div className="support-section">
