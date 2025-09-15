@@ -1462,19 +1462,37 @@ router.post('/test/notification', authenticateToken, async (req, res) => {
     // Use message override or template
     const message = message_override || rule.message_template;
 
-    // Send test notification
-    const axios = require('axios');
+    // Send test notification using ChatClient for proper timezone handling
+    const { defaultChatClient } = require('../services/chatClient');
     const startTime = Date.now();
     
     try {
-      const response = await axios.post(webhook.webhook_url, {
-        text: `🧪 **TEST NOTIFICATION**\n\n${message}\n\n*This is a test from Pipenotify*`
-      }, {
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json'
+      // Create test webhook data
+      const testWebhookData = {
+        event: rule.event_type,
+        object: {
+          id: 'test-123',
+          name: `Test ${rule.event_type.replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+          title: `Test ${rule.event_type.replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
+          value: 5000,
+          currency: 'USD'
+        },
+        user: {
+          name: 'Test User'
+        },
+        company: {
+          name: 'Demo Company'
         }
-      });
+      };
+
+      // Use ChatClient to send notification with proper timezone
+      const response = await defaultChatClient.sendNotification(
+        webhook.webhook_url,
+        testWebhookData,
+        rule.template_mode || 'simple',
+        message_override || rule.custom_template,
+        tenantId
+      );
 
       const responseTime = Date.now() - startTime;
 
