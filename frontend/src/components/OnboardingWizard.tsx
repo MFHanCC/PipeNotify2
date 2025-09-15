@@ -207,6 +207,51 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     }
   };
 
+  const createDefaultRules = async () => {
+    try {
+      if (!webhooks.length) {
+        console.log('No webhooks available, skipping default rule creation');
+        return true;
+      }
+
+      const apiUrl = API_BASE_URL;
+      const defaultRules = [
+        {
+          name: 'Deal Won Notifications',
+          event_type: 'deal.won',
+          target_webhook_id: webhooks[0].id,
+          template_mode: 'simple'
+        },
+        {
+          name: 'New Deal Notifications', 
+          event_type: 'deal.added',
+          target_webhook_id: webhooks[0].id,
+          template_mode: 'simple'
+        }
+      ];
+
+      // Create default rules based on user tier (could be expanded)
+      for (const rule of defaultRules) {
+        const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(rule)
+        });
+        
+        if (!response.ok) {
+          console.warn('Failed to create default rule:', rule.name);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error creating default rules:', error);
+      return false;
+    }
+  };
+
   const createWebhook = async () => {
     try {
       setIsLoading(true);
@@ -719,9 +764,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     if (current.id === 'webhook' && webhooks.length === 0) {
       const success = await createWebhook();
       if (!success) return;
-    } else if (current.id === 'rule') {
-      const success = await createRule();
-      if (!success) return;
+      // After creating webhook, automatically create default rules
+      await createDefaultRules();
+      // Skip rule step - go directly to test
+      setCurrentStep(Math.min(currentStep + 2, steps.length - 1));
+      return;
     }
     
     setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
@@ -737,8 +784,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     switch (current.id) {
       case 'webhook':
         return webhooks.length > 0 || (webhookFormData.name && webhookFormData.webhook_url);
-      case 'rule':
-        return ruleFormData.name && ruleFormData.event_type && ruleFormData.target_webhook_id;
+      // Skip rule validation since we auto-create default rules
       default:
         return true;
     }
