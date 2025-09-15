@@ -889,10 +889,24 @@ router.put('/rules/:id', async (req, res) => {
   } catch (error) {
     console.error('❌ Error updating rule:', error);
     console.error('❌ Error stack:', error.stack);
-    res.status(500).json({
-      error: 'Failed to update rule',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    
+    let errorMessage = error.message;
+    
+    // Improve database constraint error messages
+    if (errorMessage.includes('null value in column') && errorMessage.includes('target_webhook_id')) {
+      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+    } else if (errorMessage.includes('target_webhook_id') && errorMessage.includes('violates not-null constraint')) {
+      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+    } else if (errorMessage.includes('target_webhook_id')) {
+      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+    } else if (errorMessage.includes('violates not-null constraint')) {
+      errorMessage = 'Please fill in all required fields before saving.';
+    } else if (errorMessage.includes('duplicate key value')) {
+      errorMessage = 'A rule with this name already exists. Please choose a different name.';
+    }
+    
+    res.status(400).json({
+      error: errorMessage
     });
   }
 });

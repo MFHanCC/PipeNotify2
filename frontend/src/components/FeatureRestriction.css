@@ -22,16 +22,17 @@
   border-radius: 6px;
 }
 
-.upgrade-overlay {
-  position: absolute;
-  top: 50%;
-  right: -20px;
-  transform: translateY(-50%);
+.feature-restriction .upgrade-overlay {
+  position: absolute !important;
+  top: 50% !important;
+  right: -20px !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
   z-index: 10;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
-  /* Force deployment - moved to right side */
+  /* Force deployment - moved to right side with !important */
 }
 
 .feature-restriction:hover .upgrade-overlay {
