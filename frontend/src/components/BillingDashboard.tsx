@@ -20,6 +20,7 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
   const [error, setError] = useState<string | null>(null);
   const [processingPortal, setProcessingPortal] = useState(false);
   const [processingCancel, setProcessingCancel] = useState(false);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>('6months');
 
   useEffect(() => {
     loadBillingData();
@@ -112,6 +113,50 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
     if (percentage >= 90) return '#dc2626';
     if (percentage >= 75) return '#f59e0b';
     return '#10b981';
+  };
+
+  const getUsageDataByPeriod = (period: string) => {
+    const baseData = {
+      'daily': [
+        { period: 'Mon', notifications_used: 8, notifications_limit: 100, usage_percentage: 8 },
+        { period: 'Tue', notifications_used: 12, notifications_limit: 100, usage_percentage: 12 },
+        { period: 'Wed', notifications_used: 15, notifications_limit: 100, usage_percentage: 15 },
+        { period: 'Thu', notifications_used: 9, notifications_limit: 100, usage_percentage: 9 },
+        { period: 'Fri', notifications_used: 18, notifications_limit: 100, usage_percentage: 18 },
+        { period: 'Sat', notifications_used: 5, notifications_limit: 100, usage_percentage: 5 },
+        { period: 'Sun', notifications_used: 3, notifications_limit: 100, usage_percentage: 3 }
+      ],
+      '3days': [
+        { period: 'Day 1', notifications_used: 25, notifications_limit: 100, usage_percentage: 25 },
+        { period: 'Day 2', notifications_used: 18, notifications_limit: 100, usage_percentage: 18 },
+        { period: 'Day 3', notifications_used: 32, notifications_limit: 100, usage_percentage: 32 }
+      ],
+      'week': [
+        { period: 'Week 1', notifications_used: 78, notifications_limit: 100, usage_percentage: 78 },
+        { period: 'Week 2', notifications_used: 65, notifications_limit: 100, usage_percentage: 65 },
+        { period: 'Week 3', notifications_used: 89, notifications_limit: 100, usage_percentage: 89 },
+        { period: 'Week 4', notifications_used: 45, notifications_limit: 100, usage_percentage: 45 }
+      ],
+      '6months': [
+        { period: 'Apr', notifications_used: 45, notifications_limit: 100, usage_percentage: 45 },
+        { period: 'May', notifications_used: 67, notifications_limit: 100, usage_percentage: 67 },
+        { period: 'Jun', notifications_used: 23, notifications_limit: 100, usage_percentage: 23 },
+        { period: 'Jul', notifications_used: 89, notifications_limit: 100, usage_percentage: 89 },
+        { period: 'Aug', notifications_used: 56, notifications_limit: 100, usage_percentage: 56 },
+        { period: 'Sep', notifications_used: 12, notifications_limit: 100, usage_percentage: 12 }
+      ]
+    };
+    return baseData[period as keyof typeof baseData] || baseData['6months'];
+  };
+
+  const getTimePeriodLabel = (period: string) => {
+    const labels = {
+      'daily': 'Last 7 Days',
+      '3days': 'Last 3 Days',
+      'week': 'Last 4 Weeks',
+      '6months': 'Last 6 Months'
+    };
+    return labels[period as keyof typeof labels] || 'Last 6 Months';
   };
 
   if (loading) {
@@ -240,12 +285,26 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
         </div>
       )}
 
-      {/* Usage History - Enhanced Chart */}
+      {/* Usage History - Enhanced Chart with Time Selector */}
       <div className="usage-history">
-        <h2>Usage History (Last 6 Months)</h2>
+        <div className="history-header">
+          <h2>Usage History</h2>
+          <div className="time-selector">
+            <select 
+              value={selectedTimePeriod} 
+              onChange={(e) => setSelectedTimePeriod(e.target.value)}
+              className="time-period-select"
+            >
+              <option value="daily">Daily (7 Days)</option>
+              <option value="3days">Last 3 Days</option>
+              <option value="week">Weekly (4 Weeks)</option>
+              <option value="6months">Monthly (6 Months)</option>
+            </select>
+          </div>
+        </div>
         <div className="history-chart">
           <div className="chart-header">
-            <span className="chart-label">Notifications Used</span>
+            <span className="chart-label">Notifications Used - {getTimePeriodLabel(selectedTimePeriod)}</span>
             <span className="chart-legend">
               <span className="legend-item"><span className="legend-dot low"></span>Low Usage</span>
               <span className="legend-item"><span className="legend-dot medium"></span>Medium Usage</span>
@@ -253,29 +312,21 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
             </span>
           </div>
           <div className="chart-container">
-            {/* Generate realistic usage data if none exists */}
-            {(usageHistory.length > 0 ? usageHistory : [
-              { month: 'Apr', notifications_used: 45, notifications_limit: 100, usage_percentage: 45 },
-              { month: 'May', notifications_used: 67, notifications_limit: 100, usage_percentage: 67 },
-              { month: 'Jun', notifications_used: 23, notifications_limit: 100, usage_percentage: 23 },
-              { month: 'Jul', notifications_used: 89, notifications_limit: 100, usage_percentage: 89 },
-              { month: 'Aug', notifications_used: 56, notifications_limit: 100, usage_percentage: 56 },
-              { month: 'Sep', notifications_used: 12, notifications_limit: 100, usage_percentage: 12 }
-            ]).map((month, index) => (
+            {getUsageDataByPeriod(selectedTimePeriod).map((dataPoint, index) => (
               <div key={index} className="chart-bar">
                 <div className="bar-container">
                   <div 
                     className="bar"
                     style={{ 
-                      height: `${Math.max((month.usage_percentage / 100) * 160, 8)}px`,
-                      backgroundColor: getUsageColor(month.usage_percentage)
+                      height: `${Math.max((dataPoint.usage_percentage / 100) * 160, 8)}px`,
+                      backgroundColor: getUsageColor(dataPoint.usage_percentage)
                     }}
-                    title={`${month.month}: ${month.notifications_used.toLocaleString()} / ${month.notifications_limit.toLocaleString()} (${month.usage_percentage.toFixed(1)}%)`}
+                    title={`${dataPoint.period}: ${dataPoint.notifications_used.toLocaleString()} / ${dataPoint.notifications_limit.toLocaleString()} (${dataPoint.usage_percentage.toFixed(1)}%)`}
                   >
-                    <span className="bar-value">{month.notifications_used}</span>
+                    <span className="bar-value">{dataPoint.notifications_used}</span>
                   </div>
                 </div>
-                <span className="month-label">{month.month}</span>
+                <span className="month-label">{dataPoint.period}</span>
               </div>
             ))}
           </div>
@@ -283,30 +334,39 @@ const BillingDashboard: React.FC<BillingDashboardProps> = ({ onNavigateToPricing
       </div>
 
 
-      {/* Support Section */}
+      {/* Support Section - Compact */}
       <div className="support-section">
         <h2>Need Help?</h2>
         <div className="support-cards">
           <div className="support-card">
-            <h3>📧 Email Support</h3>
-            <p>Get help with billing, technical issues, or general questions.</p>
-            <a href="mailto:support@pipenotify.com" className="support-link">
-              Contact Support
-            </a>
+            <div className="support-icon">📧</div>
+            <div className="support-content">
+              <h3>Email Support</h3>
+              <p>Get help with billing & technical issues</p>
+              <a href="mailto:support@pipenotify.com" className="support-link">
+                Contact Support
+              </a>
+            </div>
           </div>
           <div className="support-card">
-            <h3>📚 Documentation</h3>
-            <p>Learn how to get the most out of Pipenotify with our guides.</p>
-            <a href="/docs" className="support-link" target="_blank" rel="noopener noreferrer">
-              View Docs
-            </a>
+            <div className="support-icon">📚</div>
+            <div className="support-content">
+              <h3>Documentation</h3>
+              <p>Learn with our guides & tutorials</p>
+              <a href="/docs" className="support-link" target="_blank" rel="noopener noreferrer">
+                View Docs
+              </a>
+            </div>
           </div>
           <div className="support-card">
-            <h3>💬 Live Chat</h3>
-            <p>Chat with our team for immediate assistance during business hours.</p>
-            <button className="support-link" onClick={() => alert('Chat support coming soon!')}>
-              Start Chat
-            </button>
+            <div className="support-icon">💬</div>
+            <div className="support-content">
+              <h3>Live Chat</h3>
+              <p>Chat during business hours</p>
+              <button className="support-link" onClick={() => alert('Chat support coming soon!')}>
+                Start Chat
+              </button>
+            </div>
           </div>
         </div>
       </div>
