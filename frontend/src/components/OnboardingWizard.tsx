@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './OnboardingWizard.css';
 import { getAuthToken, setAuthToken, getAuthHeaders, authenticatedFetch } from '../utils/auth';
+import { API_BASE_URL } from '../config/api';
 
 interface OnboardingStep {
   id: string;
@@ -103,7 +104,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         return;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`);
 
@@ -130,7 +131,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         return;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const response = await authenticatedFetch(`${apiUrl}/api/v1/oauth/profile`);
 
       setIsPipedriveConnected(response.ok);
@@ -145,7 +146,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const handleOAuthCallback = async (code: string) => {
     try {
       setIsCheckingConnection(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const response = await fetch(`${apiUrl}/api/v1/oauth/callback`, {
         method: 'POST',
@@ -180,7 +181,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const createWebhook = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
         method: 'POST',
@@ -206,7 +207,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const createRule = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules`, {
         method: 'POST',
@@ -235,7 +236,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const testNotification = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const selectedWebhook = webhooks.find(w => w.id === ruleFormData.target_webhook_id);
       if (!selectedWebhook) {

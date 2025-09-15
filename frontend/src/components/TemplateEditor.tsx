@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
 import './TemplateEditor.css';
 
@@ -35,7 +36,7 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
 
   const loadTemplateData = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const response = await fetch(`${apiUrl}/api/v1/templates/variables`);
       
       if (response.ok) {

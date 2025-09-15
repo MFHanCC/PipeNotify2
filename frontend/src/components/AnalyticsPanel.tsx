@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import { authenticatedFetch } from '../utils/auth';
 import './AnalyticsPanel.css';
@@ -61,7 +62,7 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       setIsLoading(true);
       setError(null);
       
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       
       const response = await authenticatedFetch(
         `${apiUrl}/api/v1/analytics/dashboard/${tenantId}?range=${dateRange}`,

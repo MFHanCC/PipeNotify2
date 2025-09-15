@@ -35,17 +35,16 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || (process.env.NODE_ENV === 'development' ? "http://localhost:3000" : "'self'")],
     },
   },
 }));
 
 // CORS configuration for Railway backend + Vercel frontend
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000', // Frontend URL
-  'http://localhost:3000', // Development fallback
-  process.env.FRONTEND_URL, // Dynamic production URL
-];
+  process.env.FRONTEND_URL, // Production frontend URL
+  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []), // Development only
+].filter(Boolean); // Remove any undefined values
 
 app.use(cors({
   origin: function (origin, callback) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './StalledDealMonitor.css';
 import StalledDealReports from './StalledDealReports';
+import { API_BASE_URL } from '../config/api';
 
 interface StalledDealThresholds {
   warning: number;
@@ -127,7 +128,7 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
 
   const loadSettings = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/stalled-deals/settings`, {
@@ -147,7 +148,7 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
 
   const loadStats = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/stalled-deals/stats`, {
@@ -169,7 +170,7 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
     try {
       setIsSaving(true);
       
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/stalled-deals/settings`, {
@@ -199,7 +200,7 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
     try {
       setIsTestingAlert(true);
       
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/stalled-deals/test`, {
@@ -227,7 +228,7 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
 
   const runMonitoringNow = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/stalled-deals/run`, {

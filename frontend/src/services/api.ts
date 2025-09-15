@@ -1,7 +1,7 @@
 // Pipedrive → Google Chat Integration API Service
 // Handles all backend communication for Railway-hosted API
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api';
 
 // Types for API responses
 interface ApiResponse<T> {

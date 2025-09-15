@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './BulkRuleManager.css';
 import { authenticatedFetch } from '../utils/auth';
+import { API_BASE_URL } from '../config/api';
 
 interface Rule {
   id: number;
@@ -105,7 +106,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
 
       const [rulesResponse, webhooksResponse] = await Promise.all([
         authenticatedFetch(`${apiUrl}/api/v1/admin/rules`).catch(() => null),
@@ -159,7 +160,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
 
     try {
       setIsProcessing(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
 
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/bulk`, {
         method: 'POST',
@@ -246,7 +247,7 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
       const fileContent = await file.text();
       const importData = JSON.parse(fileContent);
 
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/import`, {
         method: 'POST',
         body: JSON.stringify({

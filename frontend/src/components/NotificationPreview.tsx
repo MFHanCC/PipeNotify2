@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NotificationPreview.css';
+import { API_BASE_URL } from '../config/api';
 
 interface Rule {
   id: number;
@@ -125,7 +126,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
 
       const headers = {
@@ -215,7 +216,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
 
     try {
       setIsTesting(true);
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
 
       let eventData = testEvent;
@@ -303,7 +304,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
       <div className="preview-content">
         {/* Rule Selection */}
         <div className="preview-section">
-          <h3>=Ë Select Rule</h3>
+          <h3>=ï¿½ Select Rule</h3>
           <select
             value={selectedRule?.id || ''}
             onChange={(e) => {
@@ -333,7 +334,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
 
         {/* Webhook Selection */}
         <div className="preview-section">
-          <h3>=¬ Select Webhook</h3>
+          <h3>=ï¿½ Select Webhook</h3>
           <select
             value={selectedWebhook?.id || ''}
             onChange={(e) => {
@@ -353,7 +354,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
 
         {/* Event Data Selection */}
         <div className="preview-section">
-          <h3>¡ Test Event Data</h3>
+          <h3>ï¿½ Test Event Data</h3>
           <div className="event-selector">
             <select
               onChange={(e) => handleEventTemplateChange(e.target.value)}
@@ -391,7 +392,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
         {/* Message Preview */}
         {selectedRule && (
           <div className="preview-section">
-            <h3>=ñ Message Preview</h3>
+            <h3>=ï¿½ Message Preview</h3>
             <div className="message-template">
               <h4>Template:</h4>
               <pre className="template-code">{selectedRule.message_template}</pre>
@@ -410,7 +411,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
             disabled={!selectedRule || !selectedWebhook || isTesting}
             className="test-button"
           >
-            {isTesting ? 'ó Testing...' : '>ê Send Test Notification'}
+            {isTesting ? 'ï¿½ Testing...' : '>ï¿½ Send Test Notification'}
           </button>
         </div>
 
@@ -418,7 +419,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
         {testResults.length > 0 && (
           <div className="preview-section">
             <div className="results-header">
-              <h3>=Ê Test Results</h3>
+              <h3>=ï¿½ Test Results</h3>
               <button onClick={clearTestResults} className="clear-button">
                 Clear Results
               </button>
@@ -431,7 +432,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
                       {result.success ? '' : 'L'} {result.timestamp}
                     </div>
                     <div className="result-info">
-                      {result.rule_name} ’ {result.webhook_name}
+                      {result.rule_name} ï¿½ {result.webhook_name}
                     </div>
                   </div>
                   <div className="result-details">
@@ -453,7 +454,7 @@ const NotificationPreview: React.FC<NotificationPreviewProps> = ({ onRefresh }) 
 
       {/* Info Section */}
       <div className="preview-info">
-        <h4>=¡ Testing Tips</h4>
+        <h4>=ï¿½ Testing Tips</h4>
         <ul>
           <li><strong>Template Variables:</strong> Use <code>{'{{object.title}}'}</code> syntax to reference event data</li>
           <li><strong>Event Types:</strong> Test different Pipedrive events to ensure rule coverage</li>

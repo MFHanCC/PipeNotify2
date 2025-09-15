@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
 import './ChannelRouting.css';
 
@@ -141,7 +142,7 @@ const ChannelRouting: React.FC<ChannelRoutingProps> = ({ webhooks, onRefresh }) 
     try {
       setIsCreatingRules(true);
       
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL;
       const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
       
       const response = await fetch(`${apiUrl}/api/v1/admin/routing/create-rules`, {
