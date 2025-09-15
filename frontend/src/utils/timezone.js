@@ -27,10 +27,18 @@ export function getUserTimezone() {
 export async function saveUserTimezone(apiUrl) {
   try {
     const timezone = getUserTimezone();
-    const token = localStorage.getItem('token');
+    
+    // Use the proper auth token function
+    const { getAuthToken } = await import('./auth');
+    const token = getAuthToken();
     
     console.log('🕐 Attempting to save timezone:', timezone);
     console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+    
+    if (!token) {
+      console.warn('🔑 No authentication token found, skipping timezone save');
+      return false;
+    }
     
     const response = await fetch(`${apiUrl}/api/v1/admin/timezone/save`, {
       method: 'POST',
@@ -64,12 +72,27 @@ export async function saveUserTimezone(apiUrl) {
 export async function autoSetupTimezone(apiUrl) {
   try {
     console.log('🕐 Auto-setting up user timezone...');
+    
+    // Check if user is authenticated first
+    const { getAuthToken } = await import('./auth');
+    const token = getAuthToken();
+    
+    if (!token) {
+      console.log('🔑 User not authenticated yet, skipping timezone setup');
+      return false;
+    }
+    
     const success = await saveUserTimezone(apiUrl);
     
     if (success) {
       console.log('✅ Timezone auto-setup completed');
     } else {
-      console.warn('⚠️ Timezone auto-setup failed, using server default');
+      console.warn('⚠️ Timezone auto-setup failed, will retry later');
+      // Schedule a retry after a delay
+      setTimeout(() => {
+        console.log('🔄 Retrying timezone setup...');
+        autoSetupTimezone(apiUrl);
+      }, 2000);
     }
     
     return success;
