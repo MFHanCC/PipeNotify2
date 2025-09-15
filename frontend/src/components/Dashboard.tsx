@@ -183,7 +183,7 @@ const Dashboard: React.FC = React.memo(() => {
 
   // Helper function to clear error and hide modal
   const clearError = () => {
-    clearError();
+    setError(null);
     setShowErrorModal(false);
   };
   const [isRetrying, setIsRetrying] = useState(false);

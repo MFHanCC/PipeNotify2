@@ -13,14 +13,13 @@ export function usePlanFeatures() {
 
   const loadFeatures = async () => {
     try {
-      const tenantIdString = getTenantId();
-      if (!tenantIdString) {
-        throw new Error('No tenant ID found');
-      }
-
+      // Use same fallback logic as Dashboard component
+      const tenantIdString = getTenantId() || '1';
       const tenantId = parseInt(tenantIdString);
+      
       if (isNaN(tenantId)) {
-        throw new Error('Invalid tenant ID');
+        console.warn('Invalid tenant ID, using fallback features');
+        throw new Error('Invalid tenant ID - using fallback');
       }
 
       setLoading(true);
