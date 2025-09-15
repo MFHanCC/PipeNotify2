@@ -108,7 +108,7 @@ class ChatClient {
           break;
         case 'simple':
         default:
-          message = this.formatSimpleMessage(webhookData);
+          message = await this.formatSimpleMessage(webhookData, tenantId);
           break;
       }
 
@@ -128,7 +128,18 @@ class ChatClient {
    * Format simple text message from webhook data
    * @private
    */
-  formatSimpleMessage(webhookData) {
+  async formatSimpleMessage(webhookData, tenantId = null) {
+    // Get user's timezone
+    let userTimezone = 'UTC';
+    if (tenantId) {
+      try {
+        const quietHours = await getQuietHours(tenantId);
+        userTimezone = quietHours.timezone || 'UTC';
+      } catch (error) {
+        console.error('Error getting timezone:', error);
+      }
+    }
+
     const { event, object, user, previous } = webhookData;
     const objectType = object?.type || 'item';
     const objectName = object?.name || object?.title || `${objectType} #${object?.id}`;
@@ -408,6 +419,17 @@ class ChatClient {
         if (value) message += `\n💰 Value: *${value}*`;
         break;
     }
+
+    // Add timestamp in user's timezone
+    const timestamp = new Date().toLocaleString('en-US', { 
+      timeZone: userTimezone,
+      month: 'short',
+      day: 'numeric', 
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+    message += `\n⏰ ${timestamp}`;
 
     return { text: message };
   }
@@ -759,7 +781,7 @@ class ChatClient {
       return { text: processedMessage };
     } catch (error) {
       console.error('Error formatting custom message:', error);
-      return this.formatSimpleMessage(webhookData);
+      return await this.formatSimpleMessage(webhookData, tenantId);
     }
   }
 
