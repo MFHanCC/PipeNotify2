@@ -1135,6 +1135,10 @@ router.post('/webhooks/:id/test', async (req, res) => {
       });
     }
 
+    // Get user's timezone for proper timestamp formatting
+    const quietHours = await getQuietHours(tenantId);
+    const userTimezone = quietHours.timezone || 'UTC';
+
     // Send test message
     const axios = require('axios');
     const testMessage = {
