@@ -55,6 +55,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
   const [testResult, setTestResult] = useState<{success: boolean; message: string} | null>(null);
   const [isPipedriveConnected, setIsPipedriveConnected] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+  const [isCheckingWebhooks, setIsCheckingWebhooks] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   // Enhanced error handling
@@ -109,9 +110,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         console.log('No auth token found, skipping setup status check');
         // Clear webhook state when no token exists (e.g., incognito mode)
         setWebhooks([]);
+        setIsCheckingWebhooks(false);
         return;
       }
 
+      setIsCheckingWebhooks(true);
       const apiUrl = API_BASE_URL;
       
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`);
@@ -130,6 +133,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       console.error('Error checking setup status:', error);
       // Clear webhook state on error
       setWebhooks([]);
+    } finally {
+      setIsCheckingWebhooks(false);
     }
   };
 
@@ -397,13 +402,23 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       isCompleted: webhooks.length > 0,
       component: (
         <div className="webhook-step">
-          {webhooks.length > 0 ? (
+          {isCheckingWebhooks ? (
+            <div className="checking-webhooks">
+              <div className="connection-status checking">
+                <div className="status-icon">🔄</div>
+                <div className="status-content">
+                  <h3>Checking Your Configuration...</h3>
+                  <p>Looking for existing webhook settings...</p>
+                </div>
+              </div>
+            </div>
+          ) : webhooks.length > 0 ? (
             <div className="existing-webhooks">
               <div className="connection-status success">
                 <div className="status-icon">✅</div>
                 <div className="status-content">
                   <h3>Google Chat Already Connected!</h3>
-                  <p>You have {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''} configured:</p>
+                  <p>We found your existing configuration with {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''}:</p>
                 </div>
               </div>
               <div className="webhook-list">
