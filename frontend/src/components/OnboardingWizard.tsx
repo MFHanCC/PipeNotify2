@@ -31,7 +31,13 @@ interface RuleFormData {
 }
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip }) => {
-  const [currentStep, setCurrentStep] = useState(0);
+  // Initialize step based on whether we're handling OAuth callback
+  const [currentStep, setCurrentStep] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    // If we have OAuth code, we're coming from Pipedrive and should go to step 3
+    return code ? 2 : 0;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [webhooks, setWebhooks] = useState<any[]>([]);
