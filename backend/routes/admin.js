@@ -4,6 +4,7 @@ const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardSt
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
 const { createRoutingRules } = require('../services/channelRouter');
+const { getQuietHours } = require('../services/quietHours');
 
 // DEBUG ENDPOINTS - No auth required
 
@@ -1139,7 +1140,7 @@ router.post('/webhooks/:id/test', async (req, res) => {
     const testMessage = {
       text: `✅ Test notification from Pipenotify\n` +
             `🔔 Webhook: ${webhook.name}\n` +
-            `⏰ Time: ${new Date().toLocaleString()}\n` +
+            `⏰ Time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone })}\n` +
             `🚀 Status: Connection successful!`
     };
 
@@ -1356,6 +1357,10 @@ router.post('/test/notification', authenticateToken, async (req, res) => {
 
     const rule = ruleResult.rows[0];
     const webhook = webhookResult.rows[0];
+
+    // Get user's timezone for proper timestamp formatting
+    const quietHours = await getQuietHours(tenantId);
+    const userTimezone = quietHours.timezone || 'UTC';
 
     // Use message override or template
     const message = message_override || rule.message_template;

@@ -197,7 +197,7 @@ async function processNotification(webhookData) {
         }
 
         // Send notification to the routed Google Chat channel
-        const notificationResult = await sendNotification(rule, webhookData, targetWebhook);
+        const notificationResult = await sendNotification(rule, webhookData, targetWebhook, tenantId);
         
         if (notificationResult.success) {
           notificationsSent++;
@@ -353,7 +353,7 @@ function matchesFilters(webhookData, filters) {
 }
 
 // Helper function to send notification via Google Chat
-async function sendNotification(rule, webhookData, targetWebhook = null) {
+async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
   try {
     // Use target webhook URL if provided, otherwise fall back to rule's default
     const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
@@ -362,7 +362,8 @@ async function sendNotification(rule, webhookData, targetWebhook = null) {
       webhookUrl,
       webhookData,
       rule.template_mode,
-      rule.custom_template
+      rule.custom_template,
+      tenantId
     );
     
     return {

@@ -211,7 +211,8 @@ async function sendStalledDealAlerts(tenantId, stalledDeals) {
         }
       },
       'simple', // Use simple template mode
-      null
+      null,
+      tenantId
     );
     
     console.log(`✅ Stalled deal alert sent successfully for tenant ${tenantId}`);

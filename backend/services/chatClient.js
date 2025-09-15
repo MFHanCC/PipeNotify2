@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { processTemplate, getDefaultTemplate } = require('./templateEngine');
+const { getQuietHours } = require('./quietHours');
 
 /**
  * Google Chat webhook client for sending notifications
@@ -88,9 +89,10 @@ class ChatClient {
    * @param {Object} webhookData - Original Pipedrive webhook data
    * @param {string} templateMode - 'simple', 'detailed', 'card', or 'custom'
    * @param {string} customTemplate - Custom template (if mode is 'custom')
+   * @param {number} tenantId - Tenant ID for timezone lookup
    * @returns {Promise<Object>} Response from Google Chat
    */
-  async sendNotification(webhookUrl, webhookData, templateMode = 'simple', customTemplate = null) {
+  async sendNotification(webhookUrl, webhookData, templateMode = 'simple', customTemplate = null, tenantId = null) {
     try {
       let message;
 
@@ -102,7 +104,7 @@ class ChatClient {
           message = this.formatCardMessage(webhookData);
           break;
         case 'custom':
-          message = this.formatCustomMessage(webhookData, customTemplate);
+          message = await this.formatCustomMessage(webhookData, customTemplate, tenantId);
           break;
         case 'simple':
         default:
@@ -724,10 +726,21 @@ class ChatClient {
    * Format custom message using template engine
    * @private
    */
-  formatCustomMessage(webhookData, template) {
+  async formatCustomMessage(webhookData, template, tenantId = null) {
     if (!template) {
       // Use default template for the event type
       template = getDefaultTemplate(webhookData.event);
+    }
+    
+    // Get user's timezone
+    let userTimezone = 'UTC';
+    if (tenantId) {
+      try {
+        const quietHours = await getQuietHours(tenantId);
+        userTimezone = quietHours.timezone || 'UTC';
+      } catch (error) {
+        console.error('Error getting timezone:', error);
+      }
     }
 
     try {
@@ -735,10 +748,11 @@ class ChatClient {
       const processedMessage = processTemplate(template, webhookData, {
         format: 'text',
         strictMode: false,
+        timezone: userTimezone,
         fallbackValues: {
           'company.name': 'Pipedrive',
           'user.name': 'Unknown User',
-          'event.timestamp': new Date().toLocaleString()
+          'event.timestamp': new Date().toLocaleString('en-US', { timeZone: userTimezone })
         }
       });
 

@@ -139,11 +139,12 @@ function processTemplate(template, webhookData, options = {}) {
     const { 
       format = 'text', // 'text' | 'markdown' | 'html'
       fallbackValues = {},
-      strictMode = false 
+      strictMode = false,
+      timezone = 'UTC'
     } = options;
     
     // Extract variables from webhook data
-    const variables = extractVariables(webhookData);
+    const variables = extractVariables(webhookData, { timezone });
     
     // Add fallback values
     Object.assign(variables, fallbackValues);
@@ -194,15 +195,16 @@ function processTemplate(template, webhookData, options = {}) {
 /**
  * Extract variables from webhook data
  * @param {Object} webhookData - Webhook data
+ * @param {Object} options - Options including timezone
  * @returns {Object} Extracted variables
  */
-function extractVariables(webhookData) {
+function extractVariables(webhookData, options = {}) {
   const variables = {};
   const { event, object, current, previous, user, company } = webhookData;
   
   // System variables
   variables['event.type'] = event;
-  variables['event.timestamp'] = new Date().toLocaleString();
+  variables['event.timestamp'] = new Date().toLocaleString('en-US', { timeZone: options.timezone || 'UTC' });
   variables['company.name'] = company?.name || 'Pipedrive';
   
   // User variables

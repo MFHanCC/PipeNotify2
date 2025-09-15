@@ -368,7 +368,8 @@ async function processDelayedNotifications() {
           notificationData.webhook_url,
           notificationData.webhook_data,
           notificationData.template_mode || 'simple',
-          notificationData.custom_template
+          notificationData.custom_template,
+          notification.tenant_id
         );
         
         // Mark as sent
