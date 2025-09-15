@@ -835,8 +835,14 @@ async function startServer() {
   // Start server
   server = app.listen(PORT, () => {
     console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🔗 API status: http://localhost:${PORT}/api/v1/status`);
+    
+    // Use Railway public URL in production, localhost in development
+    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : `http://localhost:${PORT}`;
+    
+    console.log(`📊 Health check: ${baseUrl}/health`);
+    console.log(`🔗 API status: ${baseUrl}/api/v1/status`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     
     if (process.env.NODE_ENV === 'development') {

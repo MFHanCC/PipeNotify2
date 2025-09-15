@@ -111,6 +111,13 @@ class ApiService {
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
+    // Handle 304 Not Modified - return cached data or empty response
+    if (response.status === 304) {
+      // For 304 responses, we should use cached data, but since we don't have caching implemented,
+      // we'll treat this as an error that triggers the fallback in usePlanFeatures
+      throw new Error('Data not modified - using cached version');
+    }
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Network error' }));
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
