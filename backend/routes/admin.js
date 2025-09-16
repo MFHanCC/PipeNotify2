@@ -2571,4 +2571,85 @@ router.post('/emergency/fix-data', async (req, res) => {
   }
 });
 
+// DEBUG: Direct database inspection to understand the PostgreSQL casting issue
+router.get('/debug/database-state', async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    console.log('🔍 DEBUG: Inspecting database state for tenant:', tenantId);
+    
+    const debugInfo = {};
+    
+    // 1. Check all rules for this tenant
+    const rules = await pool.query(`
+      SELECT id, name, target_webhook_id, 
+             target_webhook_id::text as webhook_id_text,
+             LENGTH(target_webhook_id::text) as id_length,
+             enabled
+      FROM rules 
+      WHERE tenant_id = $1
+    `, [tenantId]);
+    
+    debugInfo.rules = rules.rows;
+    
+    // 2. Check all webhooks for this tenant
+    const webhooks = await pool.query(`
+      SELECT id, name, is_active 
+      FROM chat_webhooks 
+      WHERE tenant_id = $1
+    `, [tenantId]);
+    
+    debugInfo.webhooks = webhooks.rows;
+    
+    // 3. Check for any rules with problematic webhook IDs
+    const problematicRules = await pool.query(`
+      SELECT id, name, target_webhook_id, target_webhook_id::text as text_value
+      FROM rules 
+      WHERE tenant_id = $1 
+        AND (target_webhook_id::text = '' 
+             OR target_webhook_id IS NULL
+             OR LENGTH(target_webhook_id::text) = 0)
+    `, [tenantId]);
+    
+    debugInfo.problematicRules = problematicRules.rows;
+    
+    // 4. Try the exact health check query to see where it fails
+    try {
+      const healthTest = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM rules r 
+        WHERE r.tenant_id = $1 AND r.enabled = true 
+          AND (r.target_webhook_id IS NULL 
+               OR r.target_webhook_id::text = '')
+      `, [tenantId]);
+      
+      debugInfo.healthTestResult = {
+        success: true,
+        count: healthTest.rows[0].count
+      };
+    } catch (healthError) {
+      debugInfo.healthTestResult = {
+        success: false,
+        error: healthError.message
+      };
+    }
+    
+    console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
+    
+    res.json({
+      success: true,
+      tenantId,
+      debugInfo,
+      message: 'Database state inspection completed'
+    });
+    
+  } catch (error) {
+    console.error('❌ DEBUG inspection failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Database inspection failed'
+    });
+  }
+});
+
 module.exports = router;
