@@ -2378,7 +2378,17 @@ router.post('/rules/auto-fix-webhooks', async (req, res) => {
     // Get all rules with null or empty target_webhook_id
     const brokenRules = await pool.query(`
       SELECT id, name FROM rules 
-      WHERE tenant_id = $1 AND (target_webhook_id IS NULL OR target_webhook_id = '')
+      WHERE tenant_id = $1 
+        AND (target_webhook_id IS NULL 
+             OR target_webhook_id = '' 
+             OR NOT EXISTS (
+               SELECT 1 FROM chat_webhooks cw 
+               WHERE cw.id = CASE 
+                 WHEN rules.target_webhook_id = '' THEN NULL 
+                 ELSE rules.target_webhook_id::integer 
+               END 
+               AND cw.is_active = true
+             ))
     `, [tenantId]);
     
     if (brokenRules.rows.length === 0) {
@@ -2412,7 +2422,17 @@ router.post('/rules/auto-fix-webhooks', async (req, res) => {
     const updateResult = await pool.query(`
       UPDATE rules 
       SET target_webhook_id = $1, updated_at = NOW()
-      WHERE tenant_id = $2 AND (target_webhook_id IS NULL OR target_webhook_id = '')
+      WHERE tenant_id = $2 
+        AND (target_webhook_id IS NULL 
+             OR target_webhook_id = '' 
+             OR NOT EXISTS (
+               SELECT 1 FROM chat_webhooks cw 
+               WHERE cw.id = CASE 
+                 WHEN rules.target_webhook_id = '' THEN NULL 
+                 ELSE rules.target_webhook_id::integer 
+               END 
+               AND cw.is_active = true
+             ))
     `, [webhookId, tenantId]);
     
     const rulesFixed = updateResult.rowCount;
@@ -2446,8 +2466,11 @@ router.post('/cleanup/delayed-notifications', async (req, res) => {
       SET status = 'failed', 
           error_message = 'Cleaned up malformed data from previous version',
           updated_at = NOW()
-      WHERE notification_data = '[object Object]' 
-        AND status IS NULL
+      WHERE (notification_data::text = '[object Object]' 
+             OR notification_data::text LIKE '%[object Object]%'
+             OR (notification_data IS NOT NULL 
+                 AND jsonb_typeof(notification_data) != 'object'))
+        AND (status IS NULL OR status != 'failed')
     `);
     
     console.log(`🧹 Cleaned up ${result.rowCount} malformed delayed notifications`);
