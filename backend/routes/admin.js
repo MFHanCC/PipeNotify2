@@ -2523,12 +2523,12 @@ router.post('/emergency/fix-data', async (req, res) => {
     if (activeWebhook.rows.length > 0) {
       const webhookId = activeWebhook.rows[0].id;
       
-      // Update any rules that might have problematic webhook IDs
+      // Update any rules that might have problematic webhook IDs (NULL or empty strings)
       const fixResult = await pool.query(`
         UPDATE rules 
         SET target_webhook_id = $1, updated_at = NOW()
         WHERE tenant_id = $2 
-          AND (target_webhook_id IS NULL)
+          AND (target_webhook_id IS NULL OR target_webhook_id::text = '')
       `, [webhookId, tenantId]);
       
       if (fixResult.rowCount > 0) {

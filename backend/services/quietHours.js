@@ -292,9 +292,21 @@ async function queueDelayedNotification(tenantId, notificationData) {
     }
     
     // Store in database for delayed sending
-    const serializedData = typeof notificationData === 'string' 
-      ? notificationData 
-      : JSON.stringify(notificationData);
+    // Ensure proper JSON serialization to prevent [object Object] issues
+    let serializedData;
+    try {
+      if (typeof notificationData === 'string') {
+        // Verify it's valid JSON
+        JSON.parse(notificationData);
+        serializedData = notificationData;
+      } else {
+        serializedData = JSON.stringify(notificationData);
+      }
+    } catch (error) {
+      console.error('⚠️ Failed to serialize notification data:', error);
+      // Fallback to empty object instead of [object Object]
+      serializedData = JSON.stringify({});
+    }
     
     const result = await pool.query(`
       INSERT INTO delayed_notifications (tenant_id, notification_data, scheduled_for, created_at)
