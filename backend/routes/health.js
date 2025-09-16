@@ -427,10 +427,16 @@ async function checkConfigurationHealth() {
       SELECT COUNT(*) as count 
       FROM rules r 
       WHERE r.enabled = true 
-        AND NOT EXISTS (
-          SELECT 1 FROM chat_webhooks cw 
-          WHERE cw.id = r.target_webhook_id AND cw.is_active = true
-        )
+        AND (r.target_webhook_id IS NULL 
+             OR r.target_webhook_id = '' 
+             OR NOT EXISTS (
+               SELECT 1 FROM chat_webhooks cw 
+               WHERE cw.id = CASE 
+                 WHEN r.target_webhook_id = '' THEN NULL 
+                 ELSE r.target_webhook_id::integer 
+               END 
+               AND cw.is_active = true
+             ))
     `);
     if (parseInt(orphanedRules.rows[0].count) > 0) {
       issues.push(`${orphanedRules.rows[0].count} enabled rules have no active target webhook`);

@@ -103,8 +103,8 @@ async function createRule(tenantId, ruleData) {
 
 async function updateRule(tenantId, ruleId, updates) {
   try {
-    // CRITICAL FIX: Prevent null target_webhook_id updates
-    if (updates.hasOwnProperty('target_webhook_id') && updates.target_webhook_id === null) {
+    // CRITICAL FIX: Prevent null or empty target_webhook_id updates
+    if (updates.hasOwnProperty('target_webhook_id') && (updates.target_webhook_id === null || updates.target_webhook_id === '')) {
       console.log('🔧 DB: Preventing null target_webhook_id update - finding active webhook');
       
       // Find an active webhook for this tenant

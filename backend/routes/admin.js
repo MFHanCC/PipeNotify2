@@ -2375,10 +2375,10 @@ router.post('/rules/auto-fix-webhooks', async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     
-    // Get all rules with null target_webhook_id
+    // Get all rules with null or empty target_webhook_id
     const brokenRules = await pool.query(`
       SELECT id, name FROM rules 
-      WHERE tenant_id = $1 AND target_webhook_id IS NULL
+      WHERE tenant_id = $1 AND (target_webhook_id IS NULL OR target_webhook_id = '')
     `, [tenantId]);
     
     if (brokenRules.rows.length === 0) {
@@ -2412,7 +2412,7 @@ router.post('/rules/auto-fix-webhooks', async (req, res) => {
     const updateResult = await pool.query(`
       UPDATE rules 
       SET target_webhook_id = $1, updated_at = NOW()
-      WHERE tenant_id = $2 AND target_webhook_id IS NULL
+      WHERE tenant_id = $2 AND (target_webhook_id IS NULL OR target_webhook_id = '')
     `, [webhookId, tenantId]);
     
     const rulesFixed = updateResult.rowCount;
