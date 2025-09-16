@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiService from '../services/api';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import './WebhookManager.css';
 
 interface Webhook {
@@ -14,6 +15,7 @@ interface WebhookManagerProps {
 }
 
 const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => {
+  const { planTier, limits, loading: featuresLoading } = usePlanFeatures();
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,14 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
 
   const handleAddWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check webhook limit based on plan
+    const webhookLimit = limits?.webhooks || 1;
+    if (webhooks.length >= webhookLimit) {
+      const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
+      setError(`${planName} plan allows maximum ${webhookLimit} webhook${webhookLimit > 1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
+      return;
+    }
     
     if (!newWebhook.name.trim() || !newWebhook.webhook_url.trim()) {
       setError('Name and webhook URL are required');
@@ -182,9 +192,23 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         <h3>Google Chat Webhooks</h3>
         <button 
           className="btn-primary"
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            const webhookLimit = limits?.webhooks || 1;
+            if (!showAddForm && webhooks.length >= webhookLimit) {
+              return; // Don't show form if at limit
+            }
+            setShowAddForm(!showAddForm);
+          }}
+          disabled={featuresLoading || (!showAddForm && webhooks.length >= (limits?.webhooks || 1))}
+          title={webhooks.length >= (limits?.webhooks || 1) 
+            ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${limits?.webhooks || 1} webhook${(limits?.webhooks || 1) > 1 ? 's' : ''} max). Upgrade to add more webhooks.`
+            : 'Add a new Google Chat webhook'
+          }
         >
           {showAddForm ? 'Cancel' : '+ Add Webhook'}
+          {!showAddForm && webhooks.length >= (limits?.webhooks || 1) && (
+            <span style={{marginLeft: '4px', opacity: 0.7}}>({webhooks.length}/{limits?.webhooks || 1})</span>
+          )}
         </button>
       </div>
 
@@ -194,7 +218,14 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         </div>
       )}
 
-      {showAddForm && (
+      {webhooks.length > (limits?.webhooks || 1) && (
+        <div className="error-message">
+          ⚠️ You have {webhooks.length} webhooks but your {planTier} plan only allows {limits?.webhooks || 1}. 
+          Please delete {webhooks.length - (limits?.webhooks || 1)} webhook{webhooks.length - (limits?.webhooks || 1) > 1 ? 's' : ''} or upgrade your plan.
+        </div>
+      )}
+
+      {showAddForm && webhooks.length < (limits?.webhooks || 1) && (
         <div className="webhook-form">
           <h4>Add New Google Chat Webhook</h4>
           <form onSubmit={handleAddWebhook}>
