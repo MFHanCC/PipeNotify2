@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './TestingSection.css';
 
 interface TestResult {
@@ -22,6 +22,13 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
     lastChecked?: string;
   }>({ status: 'unknown' });
+  
+  // Automated health monitoring
+  const [autoMonitoring, setAutoMonitoring] = useState(true);
+  const [nextCheckIn, setNextCheckIn] = useState<number>(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastHealthCheck = useRef<number>(0);
+  const consecutiveHealthyChecks = useRef<number>(0);
 
   const sendLiveTest = async () => {
     setIsTestingLive(true);
@@ -133,6 +140,100 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     }
   };
 
+  // Automated health monitoring
+  const performAutoHealthCheck = async () => {
+    if (!autoMonitoring || document.hidden) return;
+    
+    // Don't auto-check if user is manually testing
+    if (isTestingSystem || isTestingLive) return;
+    
+    lastHealthCheck.current = Date.now();
+    await checkSystemHealth();
+    
+    // Smart interval: if system is consistently healthy, check less frequently
+    if (systemHealth.status === 'healthy') {
+      consecutiveHealthyChecks.current += 1;
+    } else {
+      consecutiveHealthyChecks.current = 0;
+    }
+  };
+
+  const getNextCheckInterval = () => {
+    // Base interval: 60 seconds
+    let interval = 60000;
+    
+    // If system has been healthy for a while, check less frequently
+    if (consecutiveHealthyChecks.current > 5) {
+      interval = 120000; // 2 minutes
+    }
+    if (consecutiveHealthyChecks.current > 15) {
+      interval = 300000; // 5 minutes
+    }
+    
+    return interval;
+  };
+
+  const startAutoMonitoring = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    const runCheck = () => {
+      performAutoHealthCheck();
+      
+      // Schedule next check
+      const nextInterval = getNextCheckInterval();
+      setNextCheckIn(nextInterval / 1000); // Convert to seconds for display
+      
+      intervalRef.current = setTimeout(runCheck, nextInterval);
+    };
+    
+    // Initial check in 2 seconds, then start regular interval
+    setTimeout(runCheck, 2000);
+  };
+
+  const stopAutoMonitoring = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setNextCheckIn(0);
+  };
+
+  // Setup auto-monitoring and cleanup
+  useEffect(() => {
+    if (autoMonitoring) {
+      startAutoMonitoring();
+    } else {
+      stopAutoMonitoring();
+    }
+    
+    return () => stopAutoMonitoring();
+  }, [autoMonitoring, systemHealth.status]);
+
+  // Countdown timer for next check
+  useEffect(() => {
+    if (nextCheckIn <= 0 || !autoMonitoring) return;
+    
+    const timer = setInterval(() => {
+      setNextCheckIn(prev => Math.max(0, prev - 1));
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [nextCheckIn, autoMonitoring]);
+
+  // Pause monitoring when tab is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoMonitoring();
+      } else if (autoMonitoring) {
+        startAutoMonitoring();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [autoMonitoring]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'healthy': return '✅';
@@ -219,6 +320,26 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
                   Last checked: {new Date(systemHealth.lastChecked).toLocaleTimeString()}
                 </div>
               )}
+              
+              {autoMonitoring && nextCheckIn > 0 && (
+                <div className="auto-check-countdown">
+                  Next auto-check in: {Math.floor(nextCheckIn / 60)}:{(nextCheckIn % 60).toString().padStart(2, '0')}
+                </div>
+              )}
+            </div>
+            
+            <div className="auto-monitoring-controls">
+              <label className="auto-monitoring-toggle">
+                <input
+                  type="checkbox"
+                  checked={autoMonitoring}
+                  onChange={(e) => setAutoMonitoring(e.target.checked)}
+                />
+                <span className="toggle-text">
+                  🔄 Auto-monitor (every {consecutiveHealthyChecks.current > 5 ? 
+                    consecutiveHealthyChecks.current > 15 ? '5 min' : '2 min' : '1 min'})
+                </span>
+              </label>
             </div>
             
             <button

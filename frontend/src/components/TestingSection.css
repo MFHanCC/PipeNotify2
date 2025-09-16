@@ -187,6 +187,64 @@
   font-size: 0.85rem;
 }
 
+.auto-check-countdown {
+  color: #059669;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.auto-monitoring-controls {
+  margin: 1rem 0 0.5rem 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.auto-monitoring-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-monitoring-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.auto-monitoring-toggle input[type="checkbox"]:checked {
+  background: #3b82f6;
+}
+
+.auto-monitoring-toggle input[type="checkbox"]:before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.auto-monitoring-toggle input[type="checkbox"]:checked:before {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+
 .result-summary {
   display: flex;
   flex-direction: column;
@@ -337,5 +395,21 @@
   
   .test-button.secondary:hover:not(:disabled) {
     background: #4b5563;
+  }
+  
+  .auto-check-countdown {
+    color: #10b981;
+  }
+  
+  .auto-monitoring-controls {
+    border-top-color: #4b5563;
+  }
+  
+  .auto-monitoring-toggle input[type="checkbox"] {
+    background: #4b5563;
+  }
+  
+  .toggle-text {
+    color: #f3f4f6;
   }
 }
