@@ -922,6 +922,17 @@ const Dashboard: React.FC = React.memo(() => {
           issues.push('Rule/Webhook configuration');
           fixes.push('webhook_assignment');
         }
+        // Also check for degraded status which may need fixes
+        if (diagnosis.status === 'degraded' && diagnosis.configuration !== 'healthy') {
+          if (!fixes.includes('webhook_assignment')) {
+            fixes.push('webhook_assignment');
+          }
+        }
+        
+        // Always suggest cleanup for malformed data (this is safe to run)
+        if (!fixes.includes('cleanup_notifications')) {
+          fixes.push('cleanup_notifications');
+        }
 
         const result = {
           id: Date.now(),
@@ -999,6 +1010,10 @@ const Dashboard: React.FC = React.memo(() => {
         case 'database_connection':
           endpoint = '/api/v1/health/heartbeat/force';
           successMessage = 'Database connection refreshed';
+          break;
+        case 'cleanup_notifications':
+          endpoint = '/api/v1/admin/cleanup/delayed-notifications';
+          successMessage = 'Malformed notification data cleaned up';
           break;
         default:
           throw new Error('Unknown fix type');
@@ -1971,6 +1986,7 @@ const Dashboard: React.FC = React.memo(() => {
                            fix === 'webhook_assignment' ? '🔗 Fix Webhook Assignment' :
                            fix === 'queue_restart' ? '⚡ Restart Queue System' :
                            fix === 'database_connection' ? '🗄️ Refresh Database' :
+                           fix === 'cleanup_notifications' ? '🧹 Clean Malformed Data' :
                            `🔧 Fix ${fix}`}
                         </button>
                       ))}

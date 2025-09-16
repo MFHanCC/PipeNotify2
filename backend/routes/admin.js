@@ -2437,4 +2437,35 @@ router.post('/rules/auto-fix-webhooks', async (req, res) => {
   }
 });
 
+// Clean up malformed delayed notifications
+router.post('/cleanup/delayed-notifications', async (req, res) => {
+  try {
+    // Mark all malformed notifications as failed
+    const result = await pool.query(`
+      UPDATE delayed_notifications 
+      SET status = 'failed', 
+          error_message = 'Cleaned up malformed data from previous version',
+          updated_at = NOW()
+      WHERE notification_data = '[object Object]' 
+        AND status IS NULL
+    `);
+    
+    console.log(`🧹 Cleaned up ${result.rowCount} malformed delayed notifications`);
+    
+    res.json({
+      success: true,
+      message: `Cleaned up ${result.rowCount} malformed notification records`,
+      recordsCleaned: result.rowCount
+    });
+    
+  } catch (error) {
+    console.error('Cleanup failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cleanup malformed notifications',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
