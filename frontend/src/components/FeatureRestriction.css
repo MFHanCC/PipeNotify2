@@ -23,16 +23,15 @@
 }
 
 .feature-restriction .upgrade-overlay {
-  position: absolute !important;
+  position: fixed !important;
   top: 50% !important;
-  right: -20px !important;
-  left: auto !important;
-  transform: translateY(-50%) !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
   z-index: 1100;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
-  /* Force deployment - moved to right side with !important */
+  /* Centered modal approach - prevents covering other content */
 }
 
 .feature-restriction:hover .upgrade-overlay {
@@ -43,26 +42,18 @@
 .upgrade-tooltip {
   background: white;
   border: 1px solid #e1e5e9;
-  border-radius: 6px;
-  padding: 10px 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-  max-width: 220px;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  min-width: 280px;
+  max-width: 320px;
   text-align: center;
   position: relative;
 }
 
 .upgrade-tooltip::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: -8px;
-  transform: translateY(-50%);
-  width: 0;
-  height: 0;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-right: 8px solid white;
+  display: none;
+  /* Removed arrow since it's now a centered modal */
 }
 
 .upgrade-icon {
