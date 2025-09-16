@@ -121,6 +121,20 @@ try {
   });
 }
 
+// Start heartbeat monitoring system
+console.log('🔄 STARTING HEARTBEAT MONITORING...');
+try {
+  require('./services/heartbeatMonitor');
+  console.log('✅ HEARTBEAT MONITORING STARTED');
+} catch (heartbeatError) {
+  console.error('❌ FAILED TO START HEARTBEAT MONITORING:', heartbeatError);
+  console.error('Heartbeat error details:', {
+    message: heartbeatError.message,
+    code: heartbeatError.code,
+    stack: heartbeatError.stack
+  });
+}
+
 // Start stalled deal monitoring system (daily cron job)
 console.log('🔄 STARTING STALLED DEAL MONITORING...');
 try {

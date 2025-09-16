@@ -999,22 +999,43 @@ router.put('/rules/:id', async (req, res) => {
     console.error('❌ Error stack:', error.stack);
     
     let errorMessage = error.message;
+    let statusCode = 400;
     
-    // Improve database constraint error messages
+    // Enhanced error handling for better UX
     if (errorMessage.includes('null value in column') && errorMessage.includes('target_webhook_id')) {
-      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      errorMessage = 'Rule update failed: No active webhook found. Please create a Google Chat webhook first.';
+      statusCode = 422;
     } else if (errorMessage.includes('target_webhook_id') && errorMessage.includes('violates not-null constraint')) {
-      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      errorMessage = 'Rule update failed: No active webhook found. Please create a Google Chat webhook first.';
+      statusCode = 422;
     } else if (errorMessage.includes('target_webhook_id')) {
-      errorMessage = 'Please select a Google Chat webhook before saving the rule.';
+      errorMessage = 'Rule update failed: Webhook configuration error. Please check your webhook settings.';
+      statusCode = 422;
     } else if (errorMessage.includes('violates not-null constraint')) {
-      errorMessage = 'Please fill in all required fields before saving.';
+      errorMessage = 'Rule update failed: Missing required information. Please check all fields.';
+      statusCode = 422;
     } else if (errorMessage.includes('duplicate key value')) {
-      errorMessage = 'A rule with this name already exists. Please choose a different name.';
+      errorMessage = 'Rule update failed: A rule with this name already exists. Please choose a different name.';
+      statusCode = 409;
+    } else if (errorMessage.includes('not found')) {
+      errorMessage = 'Rule update failed: Rule not found or access denied.';
+      statusCode = 404;
+    } else {
+      errorMessage = 'Rule update failed: ' + errorMessage;
+      statusCode = 500;
     }
     
-    res.status(400).json({
-      error: errorMessage
+    console.error('❌ Rule update error:', {
+      originalError: error.message,
+      userMessage: errorMessage,
+      statusCode,
+      ruleId: req.params.id,
+      tenantId: req.tenant?.id
+    });
+    
+    res.status(statusCode).json({
+      error: errorMessage,
+      code: error.code || 'UPDATE_FAILED'
     });
   }
 });

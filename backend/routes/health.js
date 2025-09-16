@@ -190,6 +190,73 @@ router.get('/tenants', async (req, res) => {
   }
 });
 
+// Heartbeat system status
+router.get('/heartbeat', (req, res) => {
+  try {
+    const { getHeartbeatStatus } = require('../services/heartbeatMonitor');
+    const status = getHeartbeatStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({
+      enabled: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Force heartbeat check
+router.post('/heartbeat/force', async (req, res) => {
+  try {
+    const { forceHeartbeat } = require('../services/heartbeatMonitor');
+    const result = await forceHeartbeat();
+    res.json({
+      message: 'Heartbeat check completed',
+      status: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Resilience system status
+router.get('/resilience', async (req, res) => {
+  try {
+    const { resilienceHealthCheck, getResilienceStatus } = require('../middleware/notificationResilience');
+    const [healthCheck, status] = await Promise.all([
+      resilienceHealthCheck(),
+      getResilienceStatus()
+    ]);
+    
+    res.json({
+      ...status,
+      healthCheck
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Reset circuit breaker
+router.post('/resilience/reset', (req, res) => {
+  try {
+    const { resetCircuitBreaker } = require('../middleware/notificationResilience');
+    const result = resetCircuitBreaker();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Test notification delivery
 router.post('/test-notification', async (req, res) => {
   try {

@@ -172,13 +172,21 @@ async function getQueueInfo() {
       notificationQueue.getFailed()
     ]);
 
-    // Test Redis connection
+    // Test Redis connection - fix for BullMQ v5
     let redisHealthy = false;
     try {
-      await notificationQueue.client.ping();
-      redisHealthy = true;
+      // BullMQ uses ioredis which exposes Redis client differently
+      const redis = await notificationQueue.client;
+      if (redis && typeof redis.ping === 'function') {
+        await redis.ping();
+        redisHealthy = true;
+      } else {
+        // Alternative: test with a simple operation
+        await notificationQueue.getWaiting(0, 0);
+        redisHealthy = true;
+      }
     } catch (redisError) {
-      console.error('Redis ping failed:', redisError);
+      console.error('Redis health check failed:', redisError.message);
     }
 
     return {

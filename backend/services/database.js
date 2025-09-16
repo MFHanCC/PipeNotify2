@@ -103,7 +103,39 @@ async function createRule(tenantId, ruleData) {
 
 async function updateRule(tenantId, ruleId, updates) {
   try {
-    const setClause = Object.keys(updates)
+    // CRITICAL FIX: Prevent null target_webhook_id updates
+    if (updates.hasOwnProperty('target_webhook_id') && updates.target_webhook_id === null) {
+      console.log('🔧 DB: Preventing null target_webhook_id update - finding active webhook');
+      
+      // Find an active webhook for this tenant
+      const activeWebhook = await pool.query(`
+        SELECT id FROM chat_webhooks 
+        WHERE tenant_id = $1 AND is_active = true 
+        ORDER BY created_at ASC 
+        LIMIT 1
+      `, [tenantId]);
+      
+      if (activeWebhook.rows.length > 0) {
+        updates.target_webhook_id = activeWebhook.rows[0].id;
+        console.log(`🔧 DB: Auto-assigned active webhook ${updates.target_webhook_id}`);
+      } else {
+        console.log('⚠️ DB: No active webhooks found - removing target_webhook_id from updates');
+        delete updates.target_webhook_id;
+      }
+    }
+    
+    // Remove any keys with undefined values
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([key, value]) => value !== undefined)
+    );
+    
+    if (Object.keys(cleanUpdates).length === 0) {
+      console.log('🔧 DB: No valid updates provided, skipping query');
+      const currentRule = await pool.query('SELECT * FROM rules WHERE tenant_id = $1 AND id = $2', [tenantId, ruleId]);
+      return currentRule.rows[0];
+    }
+    
+    const setClause = Object.keys(cleanUpdates)
       .map((key, index) => `${key} = $${index + 3}`)
       .join(', ');
     
@@ -114,18 +146,22 @@ async function updateRule(tenantId, ruleId, updates) {
       RETURNING *
     `;
     
-    const values = [tenantId, ruleId, ...Object.values(updates)];
+    const values = [tenantId, ruleId, ...Object.values(cleanUpdates)];
     
-    console.log('🔧 DB: Executing query:', query);
-    console.log('🔧 DB: With values:', JSON.stringify(values, null, 2));
+    // Reduced logging for rate limit compliance
+    console.log('🔧 DB: Updating rule', ruleId, 'with', Object.keys(cleanUpdates).length, 'fields');
     
     const result = await pool.query(query, values);
     
-    console.log('🔧 DB: Updated rule result:', JSON.stringify(result.rows[0], null, 2));
+    if (result.rows.length === 0) {
+      throw new Error(`Rule ${ruleId} not found for tenant ${tenantId}`);
+    }
+    
+    console.log('✅ DB: Rule updated successfully');
     
     return result.rows[0];
   } catch (error) {
-    console.error('Error updating rule:', error);
+    console.error('❌ DB: Error updating rule:', error.message);
     throw error;
   }
 }

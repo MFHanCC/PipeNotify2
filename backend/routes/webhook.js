@@ -5,10 +5,7 @@ const { validatePipedriveSignature } = require('../middleware/webhookValidation'
 
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks  
 router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
-  console.log('🔥 WEBHOOK RECEIVED - FULL DEBUGGING');
-  console.log('🔍 Request headers:', JSON.stringify(req.headers, null, 2));
-  console.log('🔍 Request body type:', typeof req.body);
-  console.log('🔍 Request body length:', req.body ? req.body.length || 'no length' : 'null');
+  console.log('🔥 WEBHOOK RECEIVED - Processing...');
   
   try {
     let webhookData = req.body;
@@ -46,13 +43,8 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
       }
     }
     
-    // Basic webhook info (reduced logging for rate limit)
-    console.log('🔔 WEBHOOK INFO:', {
-      entity: webhookData.meta?.entity,
-      action: webhookData.meta?.action,
-      id: webhookData.data?.id,
-      timestamp: new Date().toISOString()
-    });
+    // Basic webhook info (rate limit compliant)
+    console.log('🔔 Processing:', webhookData.meta?.entity, webhookData.meta?.action, 'ID:', webhookData.data?.id);
 
     // Transform Pipedrive webhook format to internal format
     if (webhookData.meta && webhookData.data) {
@@ -79,12 +71,7 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
         raw_meta: webhookData.meta
       };
       
-      console.log('🔄 TRANSFORMED PIPEDRIVE WEBHOOK:', {
-        original_entity: webhookData.meta.entity,
-        original_action: webhookData.meta.action,
-        transformed_event: transformedData.event,
-        object_id: transformedData.object.id
-      });
+      console.log('🔄 Transformed:', transformedData.event, 'ID:', transformedData.object.id);
       
       webhookData = transformedData;
     }
