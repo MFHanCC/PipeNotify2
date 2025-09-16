@@ -1,6 +1,6 @@
 {
   "name": "@pipenotify/backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pipedrive → Google Chat Integration Backend - Railway hosted Node.js service with OAuth 2.0 compliance for Pipedrive Marketplace",
   "main": "server.js",
   "scripts": {
