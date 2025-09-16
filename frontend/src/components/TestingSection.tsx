@@ -29,7 +29,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/health/test-notification`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/health/test-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/health/notifications`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/health/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
