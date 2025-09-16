@@ -405,21 +405,6 @@ async function checkWorkerHealth() {
 
 async function checkConfigurationHealth() {
   try {
-    // TEMPORARY: Force healthy status while we debug the PostgreSQL issue
-    console.log('⚠️ TEMPORARY: Forcing configuration health to bypass PostgreSQL casting issues');
-    return {
-      healthy: true,
-      issues: [],
-      checks: {
-        enabledRules: 3,
-        activeWebhooks: 1,
-        orphanedRules: 0,
-        unmappedTenants: 0
-      },
-      timestamp: new Date().toISOString(),
-      note: 'TEMPORARY BYPASS - Debugging PostgreSQL casting issue'
-    };
-    
     const { pool } = require('../services/database');
     
     // Check for common configuration issues
@@ -437,30 +422,18 @@ async function checkConfigurationHealth() {
       issues.push('No active webhooks found');
     }
     
-    // Check 3: Orphaned rules (rules without valid webhooks) - ULTRA SAFE QUERY
-    // First get all active webhook IDs as strings to avoid casting issues
-    const activeWebhookIds = await pool.query(`
-      SELECT id::text as webhook_id FROM chat_webhooks WHERE is_active = true
+    // Check 3: Orphaned rules (rules without valid webhooks) - SIMPLE CLEAN QUERY
+    const orphanedRules = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM rules r 
+      WHERE r.enabled = true 
+        AND (r.target_webhook_id IS NULL 
+             OR NOT EXISTS (
+               SELECT 1 FROM chat_webhooks cw 
+               WHERE cw.id = r.target_webhook_id 
+               AND cw.is_active = true
+             ))
     `);
-    const activeIds = activeWebhookIds.rows.map(row => row.webhook_id);
-    
-    let orphanedRules;
-    if (activeIds.length === 0) {
-      // If no active webhooks, all enabled rules are orphaned
-      orphanedRules = await pool.query(`
-        SELECT COUNT(*) as count FROM rules WHERE enabled = true
-      `);
-    } else {
-      // Check rules that don't have valid webhook assignments
-      orphanedRules = await pool.query(`
-        SELECT COUNT(*) as count 
-        FROM rules r 
-        WHERE r.enabled = true 
-          AND (r.target_webhook_id IS NULL 
-               OR r.target_webhook_id::text = ''
-               OR r.target_webhook_id::text NOT IN (${activeIds.map((_, i) => `$${i + 1}`).join(', ')}))
-      `, activeIds);
-    }
     if (parseInt(orphanedRules.rows[0].count) > 0) {
       issues.push(`${orphanedRules.rows[0].count} enabled rules have no active target webhook`);
     }
