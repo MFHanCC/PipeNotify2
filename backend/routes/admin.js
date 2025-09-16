@@ -903,16 +903,30 @@ router.get('/rules', async (req, res) => {
 });
 
 // POST /api/v1/admin/rules - Create new rule
-router.post('/rules', async (req, res) => {
+router.post('/rules', authenticateToken, async (req, res) => {
   try {
     const { name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled } = req.body;
-    const tenantId = req.tenant.id; // Get tenant ID from JWT token
+    const tenantId = req.tenantId;
 
     // Validate required fields
     if (!name || !event_type || !target_webhook_id) {
       return res.status(400).json({
         error: 'Missing required fields',
         required: ['name', 'event_type', 'target_webhook_id']
+      });
+    }
+
+    // Check plan limits before creating rule
+    const { getUsageStatistics } = require('../middleware/quotaEnforcement');
+    const usage = await getUsageStatistics(tenantId);
+    
+    if (usage.rules.current_count >= usage.rules.limit) {
+      return res.status(403).json({
+        error: 'Rule limit exceeded',
+        message: `Your ${usage.plan_name} plan allows ${usage.rules.limit} rules maximum. You currently have ${usage.rules.current_count} rules.`,
+        current_count: usage.rules.current_count,
+        limit: usage.rules.limit,
+        plan_name: usage.plan_name
       });
     }
 
@@ -1121,9 +1135,9 @@ router.get('/webhooks', async (req, res) => {
 });
 
 // POST /api/v1/admin/webhooks - Create new webhook
-router.post('/webhooks', async (req, res) => {
+router.post('/webhooks', authenticateToken, async (req, res) => {
   try {
-    const tenantId = req.tenant.id;
+    const tenantId = req.tenantId;
     const { name, webhook_url, description } = req.body;
 
     // Validate required fields
@@ -1139,6 +1153,20 @@ router.post('/webhooks', async (req, res) => {
       return res.status(400).json({
         error: 'Invalid webhook URL',
         message: 'Must be a Google Chat webhook URL'
+      });
+    }
+
+    // Check plan limits before creating webhook
+    const { getUsageStatistics } = require('../middleware/quotaEnforcement');
+    const usage = await getUsageStatistics(tenantId);
+    
+    if (usage.webhooks.current_count >= usage.webhooks.limit) {
+      return res.status(403).json({
+        error: 'Webhook limit exceeded',
+        message: `Your ${usage.plan_name} plan allows ${usage.webhooks.limit} webhooks maximum. You currently have ${usage.webhooks.current_count} webhooks.`,
+        current_count: usage.webhooks.current_count,
+        limit: usage.webhooks.limit,
+        plan_name: usage.plan_name
       });
     }
 
