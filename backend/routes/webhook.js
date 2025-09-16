@@ -90,14 +90,14 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
     }
 
     // Transform deal status changes to specific events (deal.won, deal.lost)
-    if (webhookData.event === 'deal.update' && webhookData.object?.status) {
+    if ((webhookData.event === 'deal.update' || webhookData.event === 'deal.change') && webhookData.object?.status) {
       const status = webhookData.object.status.toLowerCase();
       if (status === 'won') {
         webhookData.event = 'deal.won';
-        console.log('🎉 Transformed deal.update with status=won to deal.won event');
+        console.log('🎉 Transformed deal.change/update with status=won to deal.won event');
       } else if (status === 'lost') {
         webhookData.event = 'deal.lost';
-        console.log('📉 Transformed deal.update with status=lost to deal.lost event');
+        console.log('📉 Transformed deal.change/update with status=lost to deal.lost event');
       }
     }
 
