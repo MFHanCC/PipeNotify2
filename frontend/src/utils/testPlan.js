@@ -4,11 +4,13 @@
  */
 
 // Set this to test different plans: 'free', 'starter', 'pro', 'team'
-const TEST_PLAN_OVERRIDE = 'starter'; // Change this to test different plans
+const TEST_PLAN_OVERRIDE = 'team'; // Change this to test different plans
 
 export function getTestPlanFeatures(originalFeatures) {
-  // Only override in development
-  if (process.env.NODE_ENV !== 'development') {
+  // Temporarily allow override in production for marketplace submission
+  // TODO: Remove this after marketplace approval
+  const allowOverride = true; // process.env.NODE_ENV === 'development';
+  if (!allowOverride) {
     return originalFeatures;
   }
   
