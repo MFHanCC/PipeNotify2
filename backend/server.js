@@ -107,6 +107,20 @@ try {
   });
 }
 
+// Start worker monitoring system
+console.log('🔄 STARTING WORKER MONITORING...');
+try {
+  require('./jobs/workerMonitor');
+  console.log('✅ WORKER MONITORING STARTED');
+} catch (monitorError) {
+  console.error('❌ FAILED TO START WORKER MONITORING:', monitorError);
+  console.error('Monitor error details:', {
+    message: monitorError.message,
+    code: monitorError.code,
+    stack: monitorError.stack
+  });
+}
+
 // Start stalled deal monitoring system (daily cron job)
 console.log('🔄 STARTING STALLED DEAL MONITORING...');
 try {
@@ -130,6 +144,7 @@ app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/templates', templatesRoutes);
 app.use('/api/v1/analytics', require('./routes/analytics'));
+app.use('/api/v1/health', require('./routes/health'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

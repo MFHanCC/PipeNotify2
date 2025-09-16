@@ -158,9 +158,51 @@ async function getQueueStats() {
   }
 }
 
+// Get queue information for health checks
+async function getQueueInfo() {
+  try {
+    if (!notificationQueue) {
+      throw new Error('Notification queue not initialized');
+    }
+
+    const [waiting, active, completed, failed] = await Promise.all([
+      notificationQueue.getWaiting(),
+      notificationQueue.getActive(),
+      notificationQueue.getCompleted(),
+      notificationQueue.getFailed()
+    ]);
+
+    // Test Redis connection
+    let redisHealthy = false;
+    try {
+      await notificationQueue.client.ping();
+      redisHealthy = true;
+    } catch (redisError) {
+      console.error('Redis ping failed:', redisError);
+    }
+
+    return {
+      connected: true,
+      waiting: waiting.length,
+      active: active.length,
+      completed: completed.length,
+      failed: failed.length,
+      redis: redisHealthy ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
 module.exports = {
   notificationQueue,
   addNotificationJob,
   getQueueStats,
+  getQueueInfo,
   redisConfig
 };

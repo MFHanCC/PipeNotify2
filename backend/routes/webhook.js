@@ -146,14 +146,49 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
         stack: queueError.stack
       });
       
-      // Return success to Pipedrive but log the queue issue
-      res.status(200).json({
-        message: 'Webhook received but queuing failed',
-        event: webhookData.event,
-        timestamp: new Date().toISOString(),
-        status: 'queue_failed',
-        error: queueError.message
-      });
+      // 🚨 EMERGENCY FALLBACK: Process notification directly if queue fails
+      console.log('🚨 ACTIVATING EMERGENCY NOTIFICATION FALLBACK');
+      
+      try {
+        const { processNotificationDirect } = require('../services/notificationFallback');
+        const fallbackResult = await processNotificationDirect(webhookData);
+        
+        if (fallbackResult.success && fallbackResult.notificationsSent > 0) {
+          console.log(`✅ EMERGENCY FALLBACK SUCCESS: ${fallbackResult.notificationsSent} notifications sent`);
+          
+          return res.status(200).json({
+            message: 'Webhook processed via emergency fallback',
+            event: webhookData.event,
+            timestamp: new Date().toISOString(),
+            status: 'emergency_success',
+            notificationsSent: fallbackResult.notificationsSent,
+            processingTime: fallbackResult.processingTime
+          });
+        } else {
+          console.log(`⚠️ EMERGENCY FALLBACK COMPLETED: ${fallbackResult.notificationsSent} notifications sent`);
+          
+          return res.status(200).json({
+            message: 'Webhook processed via emergency fallback (no notifications)',
+            event: webhookData.event,
+            timestamp: new Date().toISOString(),
+            status: 'emergency_no_notifications',
+            reason: fallbackResult.error || 'No matching rules or webhooks'
+          });
+        }
+        
+      } catch (fallbackError) {
+        console.error('❌ EMERGENCY FALLBACK ALSO FAILED:', fallbackError);
+        
+        // Even fallback failed - this is a critical system issue
+        return res.status(200).json({
+          message: 'Webhook received but both queue and fallback failed',
+          event: webhookData.event,
+          timestamp: new Date().toISOString(),
+          status: 'critical_failure',
+          queueError: queueError.message,
+          fallbackError: fallbackError.message
+        });
+      }
     }
 
   } catch (error) {
