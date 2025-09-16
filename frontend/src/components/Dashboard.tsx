@@ -158,6 +158,7 @@ const Dashboard: React.FC = React.memo(() => {
     hasFeature, 
     getFeatureRequiredPlan, 
     planTier, 
+    limits,
     loading: featuresLoading 
   } = usePlanFeatures();
 
