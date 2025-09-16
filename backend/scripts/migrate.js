@@ -213,6 +213,53 @@ async function runMigration() {
       // Don't fail the migration for this - these are non-critical
     }
 
+    // Fix delayed_notifications table missing updated_at column
+    try {
+      console.log('🔄 Fixing delayed_notifications table...');
+      
+      // Add updated_at column if missing
+      await pool.query(`
+        DO $$ 
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name = 'delayed_notifications' 
+                AND column_name = 'updated_at'
+            ) THEN
+                ALTER TABLE delayed_notifications ADD COLUMN updated_at TIMESTAMP DEFAULT NOW();
+                
+                -- Update existing rows to have created_at as updated_at
+                UPDATE delayed_notifications SET updated_at = created_at WHERE updated_at IS NULL;
+                
+                -- Add trigger for auto-updating updated_at
+                CREATE OR REPLACE FUNCTION update_delayed_notifications_updated_at()
+                RETURNS TRIGGER AS $func$
+                BEGIN
+                  NEW.updated_at = NOW();
+                  RETURN NEW;
+                END;
+                $func$ language 'plpgsql';
+
+                CREATE TRIGGER update_delayed_notifications_updated_at
+                  BEFORE UPDATE ON delayed_notifications
+                  FOR EACH ROW
+                  EXECUTE PROCEDURE update_delayed_notifications_updated_at();
+                  
+                -- Add comment
+                COMMENT ON COLUMN delayed_notifications.updated_at IS 'Timestamp when record was last updated';
+                
+                RAISE NOTICE 'Added updated_at column to delayed_notifications table';
+            END IF;
+        END $$;
+      `);
+      
+      console.log('✅ Fixed delayed_notifications table structure');
+      
+    } catch (error) {
+      console.error('⚠️  Error fixing delayed_notifications table:', error.message);
+      // Don't fail for this non-critical fix
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {

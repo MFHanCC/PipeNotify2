@@ -2371,12 +2371,14 @@ router.get('/provisioning-status', async (req, res) => {
 });
 
 // Auto-fix webhook assignments for rules with null target_webhook_id
-// Railway deployment force update: 2025-09-16
+// CRITICAL FIX: Handle empty string target_webhook_id with CASE statement
+// Railway deployment force update: 2025-09-16-v2
 router.post('/rules/auto-fix-webhooks', async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     
     // Get all rules with null or empty target_webhook_id
+    console.log('🔧 DEBUG: Using FIXED auto-fix query with CASE statement v2');
     const brokenRules = await pool.query(`
       SELECT id, name FROM rules 
       WHERE tenant_id = $1 
