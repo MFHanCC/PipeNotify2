@@ -18,6 +18,7 @@ const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
 const BillingDashboard = lazy(() => import('./BillingDashboard'));
+const TestingSection = lazy(() => import('./TestingSection'));
 
 // Loading component for Suspense fallback
 const ComponentLoader: React.FC = () => (
@@ -811,14 +812,7 @@ const Dashboard: React.FC = React.memo(() => {
     }
   };
 
-  // Testing state
-  const [testResults, setTestResults] = useState<any[]>([]);
-  const [testInProgress, setTestInProgress] = useState<{[key: string]: boolean}>({});
-  const [diagnosisStatus, setDiagnosisStatus] = useState<any>(null);
-
-  const addTestResult = (test: any) => {
-    setTestResults(prev => [test, ...prev.slice(0, 4)]); // Keep last 5 results
-  };
+  // Testing section now handled by dedicated TestingSection component
 
   // Live notification test
   const sendTestNotification = async () => {
@@ -1901,193 +1895,12 @@ const Dashboard: React.FC = React.memo(() => {
             </Suspense>
           )}
           {activeTab === 'testing' && (
-            <div className="testing-section">
-              <div className="section-header">
-                <h3>🧪 Pipeline Testing</h3>
-                <p>Test the complete Pipedrive → Google Chat notification pipeline</p>
-              </div>
-              
-              <div className="testing-content">
-                {/* Live Test Notification */}
-                <div className="test-card priority">
-                  <h4>🚀 Live Notification Test</h4>
-                  <p>Send an actual test notification to your Google Chat and verify delivery:</p>
-                  <button 
-                    className="button-primary live-test-btn"
-                    onClick={sendTestNotification}
-                    disabled={testInProgress.liveTest}
-                  >
-                    {testInProgress.liveTest ? '🔄 Sending...' : '🚀 Send Test Message'}
-                  </button>
-                  <small>This will send a real notification to your Google Chat channel</small>
-                </div>
-
-                {/* Pipeline Diagnosis */}
-                <div className="test-card">
-                  <h4>🔍 Pipeline Diagnosis</h4>
-                  <p>Comprehensive diagnosis of the notification pipeline:</p>
-                  
-                  {diagnosisStatus && (
-                    <div className="diagnosis-progress">
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{width: `${diagnosisStatus.progress}%`}}
-                        ></div>
-                      </div>
-                      <p className="progress-text">{diagnosisStatus.step}</p>
-                    </div>
-                  )}
-                  
-                  <ul>
-                    <li>🔍 Redis connection & queue status</li>
-                    <li>🏢 Tenant lookup verification</li>
-                    <li>📋 Active rules analysis</li>
-                    <li>🔗 Google Chat webhook validation</li>
-                    <li>🧪 End-to-end pipeline test</li>
-                    <li>📊 Recent logs examination</li>
-                  </ul>
-                  <button 
-                    className="button-primary test-pipeline-btn"
-                    onClick={testFullPipeline}
-                    disabled={testInProgress.diagnosis}
-                  >
-                    {testInProgress.diagnosis ? '🔄 Diagnosing...' : '🔍 Run Full Diagnosis'}
-                  </button>
-                </div>
-
-                {/* Test Results History */}
-                {testResults.length > 0 && (
-                  <div className="test-card">
-                    <h4>📊 Test Results History</h4>
-                    <div className="test-history">
-                      {testResults.map((result, index) => (
-                        <div key={result.id} className={`test-result ${result.success ? 'success' : 'failure'}`}>
-                          <div className="result-header">
-                            <span className="result-icon">
-                              {result.success ? '✅' : '❌'}
-                            </span>
-                            <span className="result-type">
-                              {result.type === 'live_notification' ? 'Live Test' :
-                               result.type === 'full_diagnosis' ? 'Full Diagnosis' :
-                               result.type === 'quick_fix' ? 'Quick Fix' : 'Test'}
-                            </span>
-                            <span className="result-time">
-                              {new Date(result.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <div className="result-message">{result.message}</div>
-                          {result.suggestedFixes && result.suggestedFixes.length > 0 && (
-                            <div className="suggested-fixes">
-                              <small>Suggested fixes available below ↓</small>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="test-stats">
-                      <span>Success Rate: {Math.round((testResults.filter(r => r.success).length / testResults.length) * 100)}%</span>
-                      <span>Total Tests: {testResults.length}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* One-Click Fixes */}
-                {testResults.some(r => r.suggestedFixes && r.suggestedFixes.length > 0) && (
-                  <div className="test-card fixes">
-                    <h4>🔧 One-Click Fixes</h4>
-                    <p>Auto-remediation for detected issues:</p>
-                    <div className="fix-buttons">
-                      {testResults
-                        .filter(r => r.suggestedFixes && r.suggestedFixes.length > 0)
-                        .slice(0, 1)[0]?.suggestedFixes?.map((fix: string) => (
-                        <button
-                          key={fix}
-                          className="button-warning fix-btn"
-                          onClick={() => applyQuickFix(fix)}
-                          disabled={testInProgress[fix]}
-                        >
-                          {testInProgress[fix] ? '🔄 Applying...' : 
-                           fix === 'webhook_assignment' ? '🔗 Fix Webhook Assignment' :
-                           fix === 'queue_restart' ? '⚡ Restart Queue System' :
-                           fix === 'database_connection' ? '🗄️ Refresh Database' :
-                           fix === 'cleanup_notifications' ? '🧹 Clean Malformed Data' :
-                           fix === 'emergency_fix' ? '🚨 Emergency Fix All Issues' :
-                           fix === 'debug_database' ? '🔍 Debug Database State' :
-                           fix === 'fix_tenant_mapping' ? '🏢 Fix Tenant Mapping' :
-                           `🔧 Fix ${fix}`}
-                        </button>
-                      ))}
-                    </div>
-                    <small>These fixes address issues found in recent diagnosis</small>
-                  </div>
-                )}
-                
-                {/* Quick Tests */}
-                <div className="test-card">
-                  <h4>📋 Quick Tests</h4>
-                  <p>Basic system functionality tests:</p>
-                  <div className="quick-test-buttons">
-                    <button 
-                      className="button-secondary"
-                      onClick={() => {
-                        console.log('🧪 Testing authentication...');
-                        const hasToken = localStorage.getItem('auth_token');
-                        addTestResult({
-                          id: Date.now(),
-                          type: 'auth_test',
-                          timestamp: new Date().toISOString(),
-                          success: !!hasToken,
-                          message: hasToken ? '✅ Authentication token found' : '❌ No authentication token'
-                        });
-                        alert('Authentication test: ' + (hasToken ? 'Token found' : 'No token'));
-                      }}
-                    >
-                      🔑 Test Auth
-                    </button>
-                    <button 
-                      className="button-secondary"
-                      onClick={() => {
-                        console.log('📊 Checking dashboard data...');
-                        const dataLoaded = stats.totalNotifications !== undefined;
-                        addTestResult({
-                          id: Date.now(),
-                          type: 'data_test',
-                          timestamp: new Date().toISOString(),
-                          success: dataLoaded,
-                          message: dataLoaded ? 
-                            `✅ Dashboard data loaded: ${rules.length} rules, ${logs.length} logs` :
-                            '❌ Dashboard data not loaded'
-                        });
-                        alert(`Dashboard Status:\nRules: ${rules.length}\nLogs: ${logs.length}\nStats loaded: ${dataLoaded ? 'Yes' : 'No'}`);
-                      }}
-                    >
-                      📊 Check Data
-                    </button>
-                    <button 
-                      className="button-secondary"
-                      onClick={() => {
-                        const apiUrl = process.env.REACT_APP_API_URL;
-                        console.log('🌐 API URL check:', apiUrl);
-                        const isConfigured = !!apiUrl && apiUrl !== 'http://localhost:3001';
-                        addTestResult({
-                          id: Date.now(),
-                          type: 'api_test',
-                          timestamp: new Date().toISOString(),
-                          success: isConfigured,
-                          message: isConfigured ? 
-                            `✅ API properly configured: ${apiUrl}` :
-                            '❌ API not configured for production'
-                        });
-                        alert(`API Configuration:\nURL: ${apiUrl || 'Not set'}\nEnvironment: ${process.env.NODE_ENV || 'development'}`);
-                      }}
-                    >
-                      🌐 Check API
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Suspense fallback={<ComponentLoader />}>
+              <TestingSection onTestComplete={(result) => {
+                // Optional: You can still track test results if needed
+                console.log('Test completed:', result);
+              }} />
+            </Suspense>
           )}
           {activeTab === 'bulk-management' && (
             <Suspense fallback={<ComponentLoader />}>
