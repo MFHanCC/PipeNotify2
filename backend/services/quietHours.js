@@ -292,11 +292,15 @@ async function queueDelayedNotification(tenantId, notificationData) {
     }
     
     // Store in database for delayed sending
+    const serializedData = typeof notificationData === 'string' 
+      ? notificationData 
+      : JSON.stringify(notificationData);
+    
     const result = await pool.query(`
       INSERT INTO delayed_notifications (tenant_id, notification_data, scheduled_for, created_at)
       VALUES ($1, $2, $3, NOW())
       RETURNING id
-    `, [tenantId, JSON.stringify(notificationData), nextAllowed.next_allowed]);
+    `, [tenantId, serializedData, nextAllowed.next_allowed]);
     
     console.log(`📅 Notification queued for delayed delivery: ${result.rows[0].id}, scheduled for ${nextAllowed.next_allowed}`);
     
@@ -363,7 +367,36 @@ async function processDelayedNotifications() {
     
     for (const notification of result.rows) {
       try {
-        const notificationData = JSON.parse(notification.notification_data);
+        let notificationData;
+        
+        // Handle malformed JSON data from previous versions
+        try {
+          notificationData = JSON.parse(notification.notification_data);
+        } catch (parseError) {
+          console.error(`⚠️ Malformed notification data for ID ${notification.id}: ${notification.notification_data}`);
+          
+          // Mark as failed and skip
+          await pool.query(`
+            UPDATE delayed_notifications 
+            SET status = 'failed', error_message = 'Malformed JSON data'
+            WHERE id = $1
+          `, [notification.id]);
+          
+          continue;
+        }
+        
+        // Validate required fields
+        if (!notificationData.webhook_url || !notificationData.webhook_data) {
+          console.error(`⚠️ Missing required fields in notification ${notification.id}`);
+          
+          await pool.query(`
+            UPDATE delayed_notifications 
+            SET status = 'failed', error_message = 'Missing required notification fields'
+            WHERE id = $1
+          `, [notification.id]);
+          
+          continue;
+        }
         
         // Send the notification
         await defaultChatClient.sendNotification(

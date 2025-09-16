@@ -2370,4 +2370,71 @@ router.get('/provisioning-status', async (req, res) => {
   }
 });
 
+// Auto-fix webhook assignments for rules with null target_webhook_id
+router.post('/rules/auto-fix-webhooks', async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    
+    // Get all rules with null target_webhook_id
+    const brokenRules = await pool.query(`
+      SELECT id, name FROM rules 
+      WHERE tenant_id = $1 AND target_webhook_id IS NULL
+    `, [tenantId]);
+    
+    if (brokenRules.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No broken webhook assignments found',
+        rulesFixed: 0,
+        details: 'All rules already have valid webhook assignments'
+      });
+    }
+    
+    // Get the first active webhook for this tenant
+    const activeWebhook = await pool.query(`
+      SELECT id FROM chat_webhooks 
+      WHERE tenant_id = $1 AND is_active = true 
+      ORDER BY created_at ASC 
+      LIMIT 1
+    `, [tenantId]);
+    
+    if (activeWebhook.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active webhooks found',
+        details: 'Cannot auto-fix rules without an active webhook. Please create a webhook first.'
+      });
+    }
+    
+    const webhookId = activeWebhook.rows[0].id;
+    
+    // Fix all broken rules
+    const updateResult = await pool.query(`
+      UPDATE rules 
+      SET target_webhook_id = $1, updated_at = NOW()
+      WHERE tenant_id = $2 AND target_webhook_id IS NULL
+    `, [webhookId, tenantId]);
+    
+    const rulesFixed = updateResult.rowCount;
+    
+    console.log(`🔧 Auto-fixed ${rulesFixed} rules with webhook assignment for tenant ${tenantId}`);
+    
+    res.json({
+      success: true,
+      message: `Successfully fixed ${rulesFixed} rule${rulesFixed !== 1 ? 's' : ''}`,
+      rulesFixed,
+      webhookAssigned: webhookId,
+      fixedRules: brokenRules.rows.map(r => r.name)
+    });
+    
+  } catch (error) {
+    console.error('Auto-fix webhooks error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to auto-fix webhook assignments',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

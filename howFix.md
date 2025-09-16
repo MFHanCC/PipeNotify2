@@ -823,5 +823,63 @@ useState<'overview' | ... | 'settings'>('overview')
 
 ---
 
-*Last Updated: 2025-09-13*  
+## HF-020: Webhooks Received But No Notifications Sent - deal.change vs deal.update
+**Date**: 2025-09-16  
+**Problem**: Webhooks being received and processed but no Google Chat notifications sent despite rules configured correctly  
+**Symptoms**:
+- Railway logs show webhooks received and jobs queued successfully
+- Manual test notifications work perfectly  
+- Rules exist and are enabled in dashboard
+- 📋 Found 0 rules for event: deal.change in logs
+
+**Root Cause**: Event type mismatch between Pipedrive webhook actions and rule transformation logic:
+1. **Pipedrive sends**: `action: 'change'` → transforms to `deal.change`
+2. **Rules expect**: `deal.won`, `deal.lost`, `deal.create`  
+3. **Original fix**: Only handled `deal.update` events for status transformation
+4. **Result**: `deal.change` events with status changes not transformed to `deal.won`/`deal.lost`
+
+**Evidence from logs**:
+```
+🔄 TRANSFORMED PIPEDRIVE WEBHOOK: {
+  original_entity: 'deal',
+  original_action: 'change',  ← Pipedrive sends 'change' not 'update'
+  transformed_event: 'deal.change',
+  object_id: 134
+}
+📋 Found 0 rules for event: deal.change ← No rules match this event
+```
+
+**Solution**: Updated webhook transformation to handle both `deal.update` AND `deal.change` events
+**Files Changed**:
+- `backend/routes/webhook.js:93` - Added `|| webhookData.event === 'deal.change'` condition
+
+**Code Changes**:
+```javascript
+// Before - only handled deal.update
+if (webhookData.event === 'deal.update' && webhookData.object?.status) {
+
+// After - handles both event types  
+if ((webhookData.event === 'deal.update' || webhookData.event === 'deal.change') && webhookData.object?.status) {
+```
+
+**Commits**: 
+- `e11fb1a` - Initial fix for deal.update transformation
+- `827843c` - Hotfix to include deal.change events
+
+**Verification Steps**:
+1. Create deal in Pipedrive → Should trigger "New Deal Created" notification
+2. Mark deal as WON → Should trigger "Deal Won Celebration" notification  
+3. Mark deal as LOST → Should trigger "Deal Lost Alert" notification
+4. Check Railway logs for transformation messages:
+   - `🎉 Transformed deal.change/update with status=won to deal.won event`
+   - `📉 Transformed deal.change/update with status=lost to deal.lost event`
+
+**Prevention**: 
+- Always check actual webhook payloads in logs to verify event types
+- Test webhook transformation with real Pipedrive data, not just manual tests
+- Document both expected and actual webhook formats from third-party services
+
+---
+
+*Last Updated: 2025-09-16*  
 *Next Review: When new issues are encountered*

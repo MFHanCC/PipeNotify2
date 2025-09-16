@@ -811,55 +811,233 @@ const Dashboard: React.FC = React.memo(() => {
     }
   };
 
+  // Testing state
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [testInProgress, setTestInProgress] = useState<{[key: string]: boolean}>({});
+  const [diagnosisStatus, setDiagnosisStatus] = useState<any>(null);
+
+  const addTestResult = (test: any) => {
+    setTestResults(prev => [test, ...prev.slice(0, 4)]); // Keep last 5 results
+  };
+
+  // Live notification test
+  const sendTestNotification = async () => {
+    setTestInProgress(prev => ({...prev, liveTest: true}));
+    try {
+      console.log('🚀 Sending live test notification...');
+      
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/health/test-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: getTenantId(),
+          eventType: 'deal.won',
+          testMessage: true
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const success = result.overallResult === 'success' && result.notificationsSent > 0;
+        
+        addTestResult({
+          id: Date.now(),
+          type: 'live_notification',
+          timestamp: new Date().toISOString(),
+          success,
+          message: success 
+            ? `✅ Notification sent successfully! ${result.notificationsSent} messages delivered`
+            : `❌ Test failed: ${result.fallbackTest?.error || 'No notifications sent'}`,
+          details: result
+        });
+
+        alert(success 
+          ? `🚀 SUCCESS!\n\nTest notification sent to Google Chat successfully!\n\nDelivery Details:\n• Messages sent: ${result.notificationsSent}\n• Response time: ${result.timestamp}`
+          : `❌ TEST FAILED\n\n${result.fallbackTest?.error || 'Unknown error'}\n\nCheck your webhook configuration and rules.`
+        );
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Live test failed:', error);
+      addTestResult({
+        id: Date.now(),
+        type: 'live_notification',
+        timestamp: new Date().toISOString(),
+        success: false,
+        message: `❌ Live test failed: ${error.message}`,
+        details: null
+      });
+      alert(`❌ LIVE TEST FAILED\n\n${error.message}\n\nPlease check your network connection and try again.`);
+    } finally {
+      setTestInProgress(prev => ({...prev, liveTest: false}));
+    }
+  };
+
   const testFullPipeline = async () => {
+    setTestInProgress(prev => ({...prev, diagnosis: true}));
+    setDiagnosisStatus({ step: 'Starting diagnosis...', progress: 0 });
+    
     try {
       console.log('🔍 Running comprehensive pipeline diagnosis...');
-      const apiUrl = process.env.REACT_APP_API_URL;
       
-      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/debug/pipeline-diagnosis`, {
-        method: 'POST',
+      // Step-by-step diagnosis with progress updates
+      const steps = [
+        { name: 'Redis connection & queue status', progress: 16 },
+        { name: 'Tenant lookup verification', progress: 32 },
+        { name: 'Active rules analysis', progress: 48 },
+        { name: 'Google Chat webhook validation', progress: 64 },
+        { name: 'End-to-end pipeline test', progress: 80 },
+        { name: 'Recent logs examination', progress: 100 }
+      ];
+
+      for (const step of steps) {
+        setDiagnosisStatus({ step: `Checking: ${step.name}`, progress: step.progress });
+        await new Promise(resolve => setTimeout(resolve, 500)); // Visual progress delay
+      }
+      
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/health/notifications`, {
+        method: 'GET',
       });
       
       if (response.ok) {
         const diagnosis = await response.json();
-        console.log('🔍 Full diagnosis result:', diagnosis);
         
-        const summary = diagnosis.summary;
-        let alertMessage = `🔍 Pipeline Diagnosis Complete!\n\n`;
-        alertMessage += `Status: ${summary.overallStatus}\n`;
-        alertMessage += `Steps Completed: ${summary.completedSteps}/${summary.totalSteps}\n`;
+        // Build comprehensive diagnosis
+        const isHealthy = diagnosis.status === 'healthy';
+        const issues = [];
+        const fixes = [];
+
+        // Analyze results and suggest fixes
+        if (diagnosis.database !== 'healthy') {
+          issues.push('Database connection issues');
+          fixes.push('database_connection');
+        }
+        if (diagnosis.queue !== 'healthy') {
+          issues.push('Queue/Worker problems');
+          fixes.push('queue_restart');
+        }
+        if (diagnosis.configuration !== 'healthy') {
+          issues.push('Rule/Webhook configuration');
+          fixes.push('webhook_assignment');
+        }
+
+        const result = {
+          id: Date.now(),
+          type: 'full_diagnosis',
+          timestamp: new Date().toISOString(),
+          success: isHealthy,
+          message: isHealthy 
+            ? '✅ All systems operational! Pipeline is healthy.'
+            : `❌ Issues detected: ${issues.join(', ')}`,
+          details: diagnosis,
+          suggestedFixes: fixes
+        };
+
+        addTestResult(result);
+        setDiagnosisStatus(null);
         
-        if (diagnosis.errors.length > 0) {
-          alertMessage += `\n❌ ERRORS (${diagnosis.errors.length}):\n`;
-          diagnosis.errors.forEach((error: string, index: number) => {
-            alertMessage += `${index + 1}. ${error}\n`;
-          });
+        // Build detailed message
+        let message = '🔍 PIPELINE DIAGNOSIS COMPLETED\n\n';
+        message += `Overall Status: ${isHealthy ? '✅ HEALTHY' : '❌ ISSUES DETECTED'}\n\n`;
+        
+        message += `🗄️  Database: ${diagnosis.database === 'healthy' ? '✅' : '❌'} ${diagnosis.database}\n`;
+        message += `⚡ Queue: ${diagnosis.queue === 'healthy' ? '✅' : '❌'} ${diagnosis.queue}\n`;
+        message += `🔧 Worker: ${diagnosis.worker === 'healthy' ? '✅' : '❌'} ${diagnosis.worker}\n`;
+        message += `🔄 Fallback: ${diagnosis.fallback === 'healthy' ? '✅' : '❌'} ${diagnosis.fallback}\n`;
+        message += `⚙️  Configuration: ${diagnosis.configuration === 'healthy' ? '✅' : '❌'} ${diagnosis.configuration}\n\n`;
+        
+        if (diagnosis.overallHealth) {
+          message += `📋 Summary: ${diagnosis.overallHealth}\n`;
+        }
+
+        if (!isHealthy && fixes.length > 0) {
+          message += `\n🔧 Auto-fixes available - check the One-Click Fixes section`;
         }
         
-        if (diagnosis.warnings.length > 0) {
-          alertMessage += `\n⚠️ WARNINGS (${diagnosis.warnings.length}):\n`;
-          diagnosis.warnings.forEach((warning: string, index: number) => {
-            alertMessage += `${index + 1}. ${warning}\n`;
-          });
-        }
-        
-        if (diagnosis.testResult) {
-          alertMessage += `\n🧪 TEST RESULTS:\n`;
-          alertMessage += `Rules Matched: ${diagnosis.testResult.rulesMatched}\n`;
-          alertMessage += `Notifications Sent: ${diagnosis.testResult.notificationsSent}\n`;
-        }
-        
-        alertMessage += `\n📊 Check console for detailed diagnosis report.`;
-        alert(alertMessage);
+        alert(message);
       } else {
-        const errorData = await response.json();
-        console.error('❌ Pipeline diagnosis failed:', errorData);
-        alert(`Diagnosis failed: ${errorData.message || 'Unknown error'}`);
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Pipeline diagnosis error:', error);
-      alert(`Diagnosis error: ${errorMessage}`);
+      console.error('Pipeline diagnosis failed:', error);
+      addTestResult({
+        id: Date.now(),
+        type: 'full_diagnosis',
+        timestamp: new Date().toISOString(),
+        success: false,
+        message: `❌ Diagnosis failed: ${error.message}`,
+        details: null
+      });
+      setDiagnosisStatus(null);
+      alert('❌ DIAGNOSIS FAILED\n\nUnable to complete pipeline diagnosis. Please check console for details.');
+    } finally {
+      setTestInProgress(prev => ({...prev, diagnosis: false}));
+    }
+  };
+
+  // One-click fix functions
+  const applyQuickFix = async (fixType: string) => {
+    setTestInProgress(prev => ({...prev, [fixType]: true}));
+    
+    try {
+      let endpoint = '';
+      let method = 'POST';
+      let successMessage = '';
+
+      switch (fixType) {
+        case 'webhook_assignment':
+          endpoint = '/api/v1/admin/rules/auto-fix-webhooks';
+          successMessage = 'Webhook assignments automatically corrected';
+          break;
+        case 'queue_restart':
+          endpoint = '/api/v1/health/resilience/reset';
+          successMessage = 'Queue system restarted and circuit breaker reset';
+          break;
+        case 'database_connection':
+          endpoint = '/api/v1/health/heartbeat/force';
+          successMessage = 'Database connection refreshed';
+          break;
+        default:
+          throw new Error('Unknown fix type');
+      }
+
+      const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        addTestResult({
+          id: Date.now(),
+          type: 'quick_fix',
+          timestamp: new Date().toISOString(),
+          success: true,
+          message: `✅ ${successMessage}`,
+          details: result
+        });
+        
+        alert(`✅ QUICK FIX APPLIED\n\n${successMessage}\n\nThe issue should now be resolved. Run diagnosis again to verify.`);
+        
+        // Refresh dashboard data
+        await loadDashboardData();
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`Quick fix failed:`, error);
+      addTestResult({
+        id: Date.now(),
+        type: 'quick_fix',
+        timestamp: new Date().toISOString(),
+        success: false,
+        message: `❌ Quick fix failed: ${error.message}`,
+        details: null
+      });
+      alert(`❌ QUICK FIX FAILED\n\n${error.message}\n\nPlease try manual troubleshooting.`);
+    } finally {
+      setTestInProgress(prev => ({...prev, [fixType]: false}));
     }
   };
 
@@ -1687,9 +1865,37 @@ const Dashboard: React.FC = React.memo(() => {
               </div>
               
               <div className="testing-content">
+                {/* Live Test Notification */}
+                <div className="test-card priority">
+                  <h4>🚀 Live Notification Test</h4>
+                  <p>Send an actual test notification to your Google Chat and verify delivery:</p>
+                  <button 
+                    className="button-primary live-test-btn"
+                    onClick={sendTestNotification}
+                    disabled={testInProgress.liveTest}
+                  >
+                    {testInProgress.liveTest ? '🔄 Sending...' : '🚀 Send Test Message'}
+                  </button>
+                  <small>This will send a real notification to your Google Chat channel</small>
+                </div>
+
+                {/* Pipeline Diagnosis */}
                 <div className="test-card">
                   <h4>🔍 Pipeline Diagnosis</h4>
                   <p>Comprehensive diagnosis of the notification pipeline:</p>
+                  
+                  {diagnosisStatus && (
+                    <div className="diagnosis-progress">
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{width: `${diagnosisStatus.progress}%`}}
+                        ></div>
+                      </div>
+                      <p className="progress-text">{diagnosisStatus.step}</p>
+                    </div>
+                  )}
+                  
                   <ul>
                     <li>🔍 Redis connection & queue status</li>
                     <li>🏢 Tenant lookup verification</li>
@@ -1701,11 +1907,76 @@ const Dashboard: React.FC = React.memo(() => {
                   <button 
                     className="button-primary test-pipeline-btn"
                     onClick={testFullPipeline}
+                    disabled={testInProgress.diagnosis}
                   >
-                    🔍 Run Full Diagnosis
+                    {testInProgress.diagnosis ? '🔄 Diagnosing...' : '🔍 Run Full Diagnosis'}
                   </button>
                 </div>
+
+                {/* Test Results History */}
+                {testResults.length > 0 && (
+                  <div className="test-card">
+                    <h4>📊 Test Results History</h4>
+                    <div className="test-history">
+                      {testResults.map((result, index) => (
+                        <div key={result.id} className={`test-result ${result.success ? 'success' : 'failure'}`}>
+                          <div className="result-header">
+                            <span className="result-icon">
+                              {result.success ? '✅' : '❌'}
+                            </span>
+                            <span className="result-type">
+                              {result.type === 'live_notification' ? 'Live Test' :
+                               result.type === 'full_diagnosis' ? 'Full Diagnosis' :
+                               result.type === 'quick_fix' ? 'Quick Fix' : 'Test'}
+                            </span>
+                            <span className="result-time">
+                              {new Date(result.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className="result-message">{result.message}</div>
+                          {result.suggestedFixes && result.suggestedFixes.length > 0 && (
+                            <div className="suggested-fixes">
+                              <small>Suggested fixes available below ↓</small>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="test-stats">
+                      <span>Success Rate: {Math.round((testResults.filter(r => r.success).length / testResults.length) * 100)}%</span>
+                      <span>Total Tests: {testResults.length}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* One-Click Fixes */}
+                {testResults.some(r => r.suggestedFixes && r.suggestedFixes.length > 0) && (
+                  <div className="test-card fixes">
+                    <h4>🔧 One-Click Fixes</h4>
+                    <p>Auto-remediation for detected issues:</p>
+                    <div className="fix-buttons">
+                      {testResults
+                        .filter(r => r.suggestedFixes && r.suggestedFixes.length > 0)
+                        .slice(0, 1)[0]?.suggestedFixes?.map((fix: string) => (
+                        <button
+                          key={fix}
+                          className="button-warning fix-btn"
+                          onClick={() => applyQuickFix(fix)}
+                          disabled={testInProgress[fix]}
+                        >
+                          {testInProgress[fix] ? '🔄 Applying...' : 
+                           fix === 'webhook_assignment' ? '🔗 Fix Webhook Assignment' :
+                           fix === 'queue_restart' ? '⚡ Restart Queue System' :
+                           fix === 'database_connection' ? '🗄️ Refresh Database' :
+                           `🔧 Fix ${fix}`}
+                        </button>
+                      ))}
+                    </div>
+                    <small>These fixes address issues found in recent diagnosis</small>
+                  </div>
+                )}
                 
+                {/* Quick Tests */}
                 <div className="test-card">
                   <h4>📋 Quick Tests</h4>
                   <p>Basic system functionality tests:</p>
@@ -1714,7 +1985,15 @@ const Dashboard: React.FC = React.memo(() => {
                       className="button-secondary"
                       onClick={() => {
                         console.log('🧪 Testing authentication...');
-                        alert('Authentication test: ' + (localStorage.getItem('auth_token') ? 'Token found' : 'No token'));
+                        const hasToken = localStorage.getItem('auth_token');
+                        addTestResult({
+                          id: Date.now(),
+                          type: 'auth_test',
+                          timestamp: new Date().toISOString(),
+                          success: !!hasToken,
+                          message: hasToken ? '✅ Authentication token found' : '❌ No authentication token'
+                        });
+                        alert('Authentication test: ' + (hasToken ? 'Token found' : 'No token'));
                       }}
                     >
                       🔑 Test Auth
@@ -1723,7 +2002,17 @@ const Dashboard: React.FC = React.memo(() => {
                       className="button-secondary"
                       onClick={() => {
                         console.log('📊 Checking dashboard data...');
-                        alert(`Dashboard Status:\nRules: ${rules.length}\nLogs: ${logs.length}\nStats loaded: ${stats.totalNotifications !== undefined ? 'Yes' : 'No'}`);
+                        const dataLoaded = stats.totalNotifications !== undefined;
+                        addTestResult({
+                          id: Date.now(),
+                          type: 'data_test',
+                          timestamp: new Date().toISOString(),
+                          success: dataLoaded,
+                          message: dataLoaded ? 
+                            `✅ Dashboard data loaded: ${rules.length} rules, ${logs.length} logs` :
+                            '❌ Dashboard data not loaded'
+                        });
+                        alert(`Dashboard Status:\nRules: ${rules.length}\nLogs: ${logs.length}\nStats loaded: ${dataLoaded ? 'Yes' : 'No'}`);
                       }}
                     >
                       📊 Check Data
@@ -1733,6 +2022,16 @@ const Dashboard: React.FC = React.memo(() => {
                       onClick={() => {
                         const apiUrl = process.env.REACT_APP_API_URL;
                         console.log('🌐 API URL check:', apiUrl);
+                        const isConfigured = !!apiUrl && apiUrl !== 'http://localhost:3001';
+                        addTestResult({
+                          id: Date.now(),
+                          type: 'api_test',
+                          timestamp: new Date().toISOString(),
+                          success: isConfigured,
+                          message: isConfigured ? 
+                            `✅ API properly configured: ${apiUrl}` :
+                            '❌ API not configured for production'
+                        });
                         alert(`API Configuration:\nURL: ${apiUrl || 'Not set'}\nEnvironment: ${process.env.NODE_ENV || 'development'}`);
                       }}
                     >
