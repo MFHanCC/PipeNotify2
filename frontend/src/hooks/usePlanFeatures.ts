@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiService, { PlanFeatures } from '../services/api';
 import { getTenantId } from '../utils/auth';
+import { getTestPlanFeatures } from '../utils/testPlan';
 
 export function usePlanFeatures() {
   const [features, setFeatures] = useState<PlanFeatures | null>(null);
@@ -24,14 +25,15 @@ export function usePlanFeatures() {
 
       setLoading(true);
       const featuresData = await apiService.getPlanFeatures(tenantId);
-      setFeatures(featuresData);
+      const testOverrideFeatures = getTestPlanFeatures(featuresData);
+      setFeatures(testOverrideFeatures);
       setError(null);
     } catch (err) {
       console.error('Failed to load plan features:', err);
       setError(err instanceof Error ? err.message : 'Failed to load plan features');
       
       // Fallback to free plan features - Free tier has exactly 3 rules: Deal Won, Deal Lost, New Deal
-      setFeatures({
+      const fallbackFeatures = {
         tenant_id: parseInt(getTenantId() || '0'),
         plan_tier: 'free',
         limits: {
@@ -61,7 +63,10 @@ export function usePlanFeatures() {
           time_filtering: { available: false, available_in_plans: ['pro', 'team'] }
         },
         can_upgrade: true
-      });
+      };
+      
+      const testOverrideFallback = getTestPlanFeatures(fallbackFeatures);
+      setFeatures(testOverrideFallback);
     } finally {
       setLoading(false);
     }
