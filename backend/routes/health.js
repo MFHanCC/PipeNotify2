@@ -422,19 +422,15 @@ async function checkConfigurationHealth() {
       issues.push('No active webhooks found');
     }
     
-    // Check 3: Orphaned rules (rules without valid webhooks)
+    // Check 3: Orphaned rules (rules without valid webhooks) - SIMPLIFIED QUERY
     const orphanedRules = await pool.query(`
       SELECT COUNT(*) as count 
       FROM rules r 
       WHERE r.enabled = true 
         AND (r.target_webhook_id IS NULL 
-             OR r.target_webhook_id = '' 
              OR NOT EXISTS (
                SELECT 1 FROM chat_webhooks cw 
-               WHERE cw.id = CASE 
-                 WHEN r.target_webhook_id = '' THEN NULL 
-                 ELSE r.target_webhook_id::integer 
-               END 
+               WHERE cw.id = r.target_webhook_id 
                AND cw.is_active = true
              ))
     `);
