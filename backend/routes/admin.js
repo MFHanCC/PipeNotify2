@@ -2371,6 +2371,7 @@ router.get('/provisioning-status', async (req, res) => {
 });
 
 // Auto-fix webhook assignments for rules with null target_webhook_id
+// Railway deployment force update: 2025-09-16
 router.post('/rules/auto-fix-webhooks', async (req, res) => {
   try {
     const tenantId = req.tenant.id;
