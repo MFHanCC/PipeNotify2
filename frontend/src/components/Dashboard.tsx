@@ -921,6 +921,7 @@ const Dashboard: React.FC = React.memo(() => {
         if (diagnosis.configuration !== 'healthy') {
           issues.push('Rule/Webhook configuration');
           fixes.push('emergency_fix'); // Use emergency fix instead of broken webhook_assignment
+          fixes.push('fix_tenant_mapping'); // Fix tenant mapping issue
         }
         // Also check for degraded status which may need fixes
         if (diagnosis.status === 'degraded' && diagnosis.configuration !== 'healthy') {
@@ -1028,6 +1029,10 @@ const Dashboard: React.FC = React.memo(() => {
           endpoint = '/api/v1/admin/debug/database-state';
           method = 'GET';
           successMessage = 'Database state inspection completed - check console for details';
+          break;
+        case 'fix_tenant_mapping':
+          endpoint = '/api/v1/admin/fix/tenant-mapping';
+          successMessage = 'Tenant mapping configured - configuration should now be healthy';
           break;
         default:
           throw new Error('Unknown fix type');
@@ -2009,6 +2014,7 @@ const Dashboard: React.FC = React.memo(() => {
                            fix === 'cleanup_notifications' ? '🧹 Clean Malformed Data' :
                            fix === 'emergency_fix' ? '🚨 Emergency Fix All Issues' :
                            fix === 'debug_database' ? '🔍 Debug Database State' :
+                           fix === 'fix_tenant_mapping' ? '🏢 Fix Tenant Mapping' :
                            `🔧 Fix ${fix}`}
                         </button>
                       ))}
