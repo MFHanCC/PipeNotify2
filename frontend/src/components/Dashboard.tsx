@@ -860,15 +860,16 @@ const Dashboard: React.FC = React.memo(() => {
       }
     } catch (error) {
       console.error('Live test failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       addTestResult({
         id: Date.now(),
         type: 'live_notification',
         timestamp: new Date().toISOString(),
         success: false,
-        message: `❌ Live test failed: ${error.message}`,
+        message: `❌ Live test failed: ${errorMessage}`,
         details: null
       });
-      alert(`❌ LIVE TEST FAILED\n\n${error.message}\n\nPlease check your network connection and try again.`);
+      alert(`❌ LIVE TEST FAILED\n\n${errorMessage}\n\nPlease check your network connection and try again.`);
     } finally {
       setTestInProgress(prev => ({...prev, liveTest: false}));
     }
@@ -961,12 +962,13 @@ const Dashboard: React.FC = React.memo(() => {
       }
     } catch (error) {
       console.error('Pipeline diagnosis failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       addTestResult({
         id: Date.now(),
         type: 'full_diagnosis',
         timestamp: new Date().toISOString(),
         success: false,
-        message: `❌ Diagnosis failed: ${error.message}`,
+        message: `❌ Diagnosis failed: ${errorMessage}`,
         details: null
       });
       setDiagnosisStatus(null);
@@ -1027,15 +1029,16 @@ const Dashboard: React.FC = React.memo(() => {
       }
     } catch (error) {
       console.error(`Quick fix failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       addTestResult({
         id: Date.now(),
         type: 'quick_fix',
         timestamp: new Date().toISOString(),
         success: false,
-        message: `❌ Quick fix failed: ${error.message}`,
+        message: `❌ Quick fix failed: ${errorMessage}`,
         details: null
       });
-      alert(`❌ QUICK FIX FAILED\n\n${error.message}\n\nPlease try manual troubleshooting.`);
+      alert(`❌ QUICK FIX FAILED\n\n${errorMessage}\n\nPlease try manual troubleshooting.`);
     } finally {
       setTestInProgress(prev => ({...prev, [fixType]: false}));
     }
