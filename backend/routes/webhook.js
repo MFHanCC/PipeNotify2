@@ -89,6 +89,18 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
       webhookData = transformedData;
     }
 
+    // Transform deal status changes to specific events (deal.won, deal.lost)
+    if (webhookData.event === 'deal.update' && webhookData.object?.status) {
+      const status = webhookData.object.status.toLowerCase();
+      if (status === 'won') {
+        webhookData.event = 'deal.won';
+        console.log('🎉 Transformed deal.update with status=won to deal.won event');
+      } else if (status === 'lost') {
+        webhookData.event = 'deal.lost';
+        console.log('📉 Transformed deal.update with status=lost to deal.lost event');
+      }
+    }
+
     // Validate transformed webhook structure
     if (!webhookData.event || !webhookData.object) {
       console.error('❌ WEBHOOK VALIDATION FAILED:', {
