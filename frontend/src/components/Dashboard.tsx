@@ -1058,6 +1058,15 @@ const Dashboard: React.FC = React.memo(() => {
         </div>
       </div>
       
+      {/* Show warning if user has more rules than plan allows */}
+      {planTier === 'free' && rules.length > (limits?.rules || 3) && (
+        <div className="plan-limit-warning">
+          ⚠️ You have {rules.length} rules but Free plan allows {limits?.rules || 3}. 
+          Delete {rules.length - (limits?.rules || 3)} rule{rules.length - (limits?.rules || 3) > 1 ? 's' : ''} or 
+          <a href="/pricing" style={{color: '#3b82f6', marginLeft: '4px'}}>upgrade your plan</a>.
+        </div>
+      )}
+      
       <div className="rules-list">
         {rules.map((rule) => (
           <div key={rule.id} className="rule-card">
@@ -1544,24 +1553,40 @@ const Dashboard: React.FC = React.memo(() => {
               <span aria-hidden="true">🔕</span> Quiet Hours
             </button>
           </FeatureRestriction>
-          <button 
-            className={`nav-tab ${activeTab === 'stalled-deals' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stalled-deals')}
-            aria-label="Stalled deals monitoring"
-            aria-current={activeTab === 'stalled-deals' ? 'page' : undefined}
-            type="button"
+          <FeatureRestriction
+            isAvailable={hasFeature('stalled_alerts')}
+            requiredPlan={getFeatureRequiredPlan('stalled_alerts')}
+            currentPlan={planTier}
+            featureName="Stalled Deal Alerts"
+            upgradeHint="Monitor and get alerts for stalled deals"
           >
-            <span aria-hidden="true">📊</span> Stalled Deals
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-            aria-label="Analytics and reporting"
-            aria-current={activeTab === 'analytics' ? 'page' : undefined}
-            type="button"
+            <button 
+              className={`nav-tab ${activeTab === 'stalled-deals' ? 'active' : ''} ${!hasFeature('stalled_alerts') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('stalled_alerts') && setActiveTab('stalled-deals')}
+              aria-label="Stalled deals monitoring"
+              aria-current={activeTab === 'stalled-deals' ? 'page' : undefined}
+              type="button"
+            >
+              <span aria-hidden="true">📊</span> Stalled Deals
+            </button>
+          </FeatureRestriction>
+          <FeatureRestriction
+            isAvailable={hasFeature('usage_analytics')}
+            requiredPlan={getFeatureRequiredPlan('usage_analytics')}
+            currentPlan={planTier}
+            featureName="Usage Analytics"
+            upgradeHint="View detailed analytics and usage reports"
           >
-            <span aria-hidden="true">📊</span> Analytics
-          </button>
+            <button 
+              className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${!hasFeature('usage_analytics') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('usage_analytics') && setActiveTab('analytics')}
+              aria-label="Analytics and reporting"
+              aria-current={activeTab === 'analytics' ? 'page' : undefined}
+              type="button"
+            >
+              <span aria-hidden="true">📊</span> Analytics
+            </button>
+          </FeatureRestriction>
           <button 
             className={`nav-tab ${activeTab === 'testing' ? 'active' : ''}`}
             onClick={() => setActiveTab('testing')}
@@ -1622,7 +1647,7 @@ const Dashboard: React.FC = React.memo(() => {
               />
             </Suspense>
           )}
-          {activeTab === 'routing' && (
+          {activeTab === 'routing' && hasFeature('channel_routing') && (
             <Suspense fallback={<ComponentLoader />}>
               <ChannelRouting 
                 webhooks={availableWebhooks.map(w => ({ ...w, is_active: true, description: '' }))}
@@ -1630,14 +1655,14 @@ const Dashboard: React.FC = React.memo(() => {
               />
             </Suspense>
           )}
-          {activeTab === 'quiet-hours' && (
+          {activeTab === 'quiet-hours' && hasFeature('quiet_hours') && (
             <Suspense fallback={<ComponentLoader />}>
               <QuietHours 
                 onRefresh={loadDashboardData}
               />
             </Suspense>
           )}
-          {activeTab === 'stalled-deals' && (
+          {activeTab === 'stalled-deals' && hasFeature('stalled_alerts') && (
             <Suspense fallback={<ComponentLoader />}>
               <StalledDealMonitor 
                 webhooks={availableWebhooks.map(w => ({ ...w, is_active: true }))}
@@ -1645,7 +1670,7 @@ const Dashboard: React.FC = React.memo(() => {
               />
             </Suspense>
           )}
-          {activeTab === 'analytics' && (
+          {activeTab === 'analytics' && hasFeature('usage_analytics') && (
             <Suspense fallback={<ComponentLoader />}>
               <AnalyticsPanel 
                 tenantId={tenantId}
@@ -1756,11 +1781,11 @@ const Dashboard: React.FC = React.memo(() => {
                     </div>
                     <ul className="features">
                       <li>✅ 100 notifications/month</li>
-                      <li>✅ 1 webhook</li>
-                      <li>✅ 3 basic rules (Deal Won/Lost/New)</li>
+                      <li>✅ 1 webhook maximum</li>
+                      <li>✅ 3 basic rules maximum (Deal Won/Lost/New)</li>
                       <li>✅ Basic message templates</li>
                       <li>❌ No advanced filtering</li>
-                      <li>✅ 7-day logs</li>
+                      <li>✅ 7-day log retention</li>
                     </ul>
                     <button className="plan-button current">Current Plan</button>
                   </div>
@@ -1772,11 +1797,11 @@ const Dashboard: React.FC = React.memo(() => {
                     </div>
                     <ul className="features">
                       <li>✅ 1,000 notifications/month</li>
-                      <li>✅ 3 webhooks</li>
-                      <li>✅ 10 smart rules + Deal Updated</li>
+                      <li>✅ 3 webhooks maximum</li>
+                      <li>✅ 10 smart rules maximum + Deal Updated</li>
                       <li>✅ Value/stage/owner filtering</li>
                       <li>✅ Enhanced message templates</li>
-                      <li>✅ 30-day logs</li>
+                      <li>✅ 30-day log retention</li>
                     </ul>
                     <button className="plan-button upgrade">Upgrade</button>
                   </div>
