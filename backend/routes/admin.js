@@ -2502,18 +2502,18 @@ router.post('/emergency/fix-data', async (req, res) => {
     
     const fixes = [];
     
-    // Fix 1: Convert empty string target_webhook_id to NULL
-    const emptyStringFix = await pool.query(`
-      UPDATE rules 
-      SET target_webhook_id = NULL 
-      WHERE tenant_id = $1 AND target_webhook_id = ''
+    // STEP 1: First, let's see what we're dealing with
+    const debugQuery = await pool.query(`
+      SELECT id, name, target_webhook_id, 
+             CASE WHEN target_webhook_id IS NULL THEN 'NULL'
+                  ELSE target_webhook_id::text END as webhook_id_text
+      FROM rules 
+      WHERE tenant_id = $1
     `, [tenantId]);
     
-    if (emptyStringFix.rowCount > 0) {
-      fixes.push(`Fixed ${emptyStringFix.rowCount} rules with empty string webhook IDs`);
-    }
+    console.log('🔍 Rules debug info:', debugQuery.rows);
     
-    // Fix 2: Assign NULL webhook IDs to active webhook
+    // Fix 1: Handle problematic webhook IDs by working with what we have
     const activeWebhook = await pool.query(`
       SELECT id FROM chat_webhooks 
       WHERE tenant_id = $1 AND is_active = true 
@@ -2523,18 +2523,20 @@ router.post('/emergency/fix-data', async (req, res) => {
     if (activeWebhook.rows.length > 0) {
       const webhookId = activeWebhook.rows[0].id;
       
-      const nullFix = await pool.query(`
+      // Update any rules that might have problematic webhook IDs
+      const fixResult = await pool.query(`
         UPDATE rules 
         SET target_webhook_id = $1, updated_at = NOW()
-        WHERE tenant_id = $2 AND target_webhook_id IS NULL
+        WHERE tenant_id = $2 
+          AND (target_webhook_id IS NULL)
       `, [webhookId, tenantId]);
       
-      if (nullFix.rowCount > 0) {
-        fixes.push(`Assigned ${nullFix.rowCount} rules to webhook ${webhookId}`);
+      if (fixResult.rowCount > 0) {
+        fixes.push(`Fixed ${fixResult.rowCount} rules with NULL webhook IDs`);
       }
     }
     
-    // Fix 3: Simple delayed_notifications cleanup
+    // Fix 2: Simple delayed_notifications cleanup
     try {
       const cleanupResult = await pool.query(`
         DELETE FROM delayed_notifications 
