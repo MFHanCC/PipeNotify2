@@ -2494,4 +2494,79 @@ router.post('/cleanup/delayed-notifications', async (req, res) => {
   }
 });
 
+// EMERGENCY FIX: Simple data cleanup without complex queries
+router.post('/emergency/fix-data', async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    console.log('🚨 EMERGENCY DATA FIX for tenant:', tenantId);
+    
+    const fixes = [];
+    
+    // Fix 1: Convert empty string target_webhook_id to NULL
+    const emptyStringFix = await pool.query(`
+      UPDATE rules 
+      SET target_webhook_id = NULL 
+      WHERE tenant_id = $1 AND target_webhook_id = ''
+    `, [tenantId]);
+    
+    if (emptyStringFix.rowCount > 0) {
+      fixes.push(`Fixed ${emptyStringFix.rowCount} rules with empty string webhook IDs`);
+    }
+    
+    // Fix 2: Assign NULL webhook IDs to active webhook
+    const activeWebhook = await pool.query(`
+      SELECT id FROM chat_webhooks 
+      WHERE tenant_id = $1 AND is_active = true 
+      ORDER BY created_at ASC LIMIT 1
+    `, [tenantId]);
+    
+    if (activeWebhook.rows.length > 0) {
+      const webhookId = activeWebhook.rows[0].id;
+      
+      const nullFix = await pool.query(`
+        UPDATE rules 
+        SET target_webhook_id = $1, updated_at = NOW()
+        WHERE tenant_id = $2 AND target_webhook_id IS NULL
+      `, [webhookId, tenantId]);
+      
+      if (nullFix.rowCount > 0) {
+        fixes.push(`Assigned ${nullFix.rowCount} rules to webhook ${webhookId}`);
+      }
+    }
+    
+    // Fix 3: Simple delayed_notifications cleanup
+    try {
+      const cleanupResult = await pool.query(`
+        DELETE FROM delayed_notifications 
+        WHERE tenant_id = $1 
+          AND (notification_data IS NULL 
+               OR notification_data::text LIKE '%[object Object]%')
+      `, [tenantId]);
+      
+      if (cleanupResult.rowCount > 0) {
+        fixes.push(`Removed ${cleanupResult.rowCount} malformed delayed notifications`);
+      }
+    } catch (cleanupError) {
+      fixes.push(`Delayed notifications cleanup skipped: ${cleanupError.message}`);
+    }
+    
+    console.log('✅ Emergency fixes applied:', fixes);
+    
+    res.json({
+      success: true,
+      message: 'Emergency data fixes applied',
+      fixes: fixes,
+      totalFixes: fixes.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Emergency fix failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Emergency fix failed',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

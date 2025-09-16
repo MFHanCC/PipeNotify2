@@ -920,12 +920,12 @@ const Dashboard: React.FC = React.memo(() => {
         }
         if (diagnosis.configuration !== 'healthy') {
           issues.push('Rule/Webhook configuration');
-          fixes.push('webhook_assignment');
+          fixes.push('emergency_fix'); // Use emergency fix instead of broken webhook_assignment
         }
         // Also check for degraded status which may need fixes
         if (diagnosis.status === 'degraded' && diagnosis.configuration !== 'healthy') {
-          if (!fixes.includes('webhook_assignment')) {
-            fixes.push('webhook_assignment');
+          if (!fixes.includes('emergency_fix')) {
+            fixes.push('emergency_fix');
           }
         }
         
@@ -1014,6 +1014,10 @@ const Dashboard: React.FC = React.memo(() => {
         case 'cleanup_notifications':
           endpoint = '/api/v1/admin/cleanup/delayed-notifications';
           successMessage = 'Malformed notification data cleaned up';
+          break;
+        case 'emergency_fix':
+          endpoint = '/api/v1/admin/emergency/fix-data';
+          successMessage = 'Emergency data fixes applied - all configuration issues resolved';
           break;
         default:
           throw new Error('Unknown fix type');
@@ -1987,6 +1991,7 @@ const Dashboard: React.FC = React.memo(() => {
                            fix === 'queue_restart' ? '⚡ Restart Queue System' :
                            fix === 'database_connection' ? '🗄️ Refresh Database' :
                            fix === 'cleanup_notifications' ? '🧹 Clean Malformed Data' :
+                           fix === 'emergency_fix' ? '🚨 Emergency Fix All Issues' :
                            `🔧 Fix ${fix}`}
                         </button>
                       ))}
