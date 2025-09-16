@@ -2503,7 +2503,8 @@ router.post('/fix/tenant-mapping', async (req, res) => {
     console.log('🔧 FIXING TENANT MAPPING for tenant:', tenantId, 'company_id:', pipedrive_company_id);
     
     // Default to a standard company ID if none provided
-    const companyId = pipedrive_company_id || '13887824'; // Use provided or default
+    // Convert to integer since pipedrive_company_id is likely an integer column
+    const companyId = pipedrive_company_id ? parseInt(pipedrive_company_id) : 13887824;
     
     // Update tenant with Pipedrive company mapping
     const updateResult = await pool.query(`
@@ -2695,7 +2696,7 @@ router.get('/debug/database-state', async (req, res) => {
       SELECT id, company_name, pipedrive_company_id,
              CASE 
                WHEN pipedrive_company_id IS NULL THEN 'NULL'
-               WHEN pipedrive_company_id = '' THEN 'EMPTY_STRING'
+               WHEN pipedrive_company_id::text = '' THEN 'EMPTY_STRING'
                ELSE 'HAS_VALUE'
              END as mapping_status
       FROM tenants 
@@ -2709,7 +2710,7 @@ router.get('/debug/database-state', async (req, res) => {
       SELECT COUNT(*) as count 
       FROM tenants t
       WHERE t.id = $1
-        AND (t.pipedrive_company_id IS NULL OR t.pipedrive_company_id = '')
+        AND (t.pipedrive_company_id IS NULL OR t.pipedrive_company_id::text = '')
         AND EXISTS (SELECT 1 FROM rules r WHERE r.tenant_id = t.id AND r.enabled = true)
     `, [tenantId]);
     

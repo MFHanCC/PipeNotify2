@@ -442,7 +442,7 @@ async function checkConfigurationHealth() {
     const unmappedTenants = await pool.query(`
       SELECT COUNT(*) as count 
       FROM tenants t
-      WHERE (t.pipedrive_company_id IS NULL OR t.pipedrive_company_id = '')
+      WHERE (t.pipedrive_company_id IS NULL OR t.pipedrive_company_id::text = '')
         AND EXISTS (SELECT 1 FROM rules r WHERE r.tenant_id = t.id AND r.enabled = true)
     `);
     if (parseInt(unmappedTenants.rows[0].count) > 0) {
