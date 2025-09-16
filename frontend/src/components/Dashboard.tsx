@@ -933,6 +933,11 @@ const Dashboard: React.FC = React.memo(() => {
         if (!fixes.includes('cleanup_notifications')) {
           fixes.push('cleanup_notifications');
         }
+        
+        // Add debug option to help diagnose persistent issues
+        if (!fixes.includes('debug_database')) {
+          fixes.push('debug_database');
+        }
 
         const result = {
           id: Date.now(),
@@ -1019,6 +1024,11 @@ const Dashboard: React.FC = React.memo(() => {
           endpoint = '/api/v1/admin/emergency/fix-data';
           successMessage = 'Emergency data fixes applied - all configuration issues resolved';
           break;
+        case 'debug_database':
+          endpoint = '/api/v1/admin/debug/database-state';
+          method = 'GET';
+          successMessage = 'Database state inspection completed - check console for details';
+          break;
         default:
           throw new Error('Unknown fix type');
       }
@@ -1039,7 +1049,13 @@ const Dashboard: React.FC = React.memo(() => {
           details: result
         });
         
-        alert(`✅ QUICK FIX APPLIED\n\n${successMessage}\n\nThe issue should now be resolved. Run diagnosis again to verify.`);
+        // Special handling for debug database state
+        if (fixType === 'debug_database') {
+          console.log('🔍 DEBUG DATABASE STATE:', result.debugInfo);
+          alert(`✅ DATABASE DEBUG COMPLETED\n\n${successMessage}\n\nCheck the browser console (F12) for detailed database information.`);
+        } else {
+          alert(`✅ QUICK FIX APPLIED\n\n${successMessage}\n\nThe issue should now be resolved. Run diagnosis again to verify.`);
+        }
         
         // Refresh dashboard data
         await loadDashboardData();
@@ -1992,6 +2008,7 @@ const Dashboard: React.FC = React.memo(() => {
                            fix === 'database_connection' ? '🗄️ Refresh Database' :
                            fix === 'cleanup_notifications' ? '🧹 Clean Malformed Data' :
                            fix === 'emergency_fix' ? '🚨 Emergency Fix All Issues' :
+                           fix === 'debug_database' ? '🔍 Debug Database State' :
                            `🔧 Fix ${fix}`}
                         </button>
                       ))}
