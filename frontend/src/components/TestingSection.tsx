@@ -29,7 +29,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/test/notification`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/health/test-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,19 +37,26 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
         },
         body: JSON.stringify({
           eventType: 'deal.won',
-          testMessage: 'Live test from PipeNotify dashboard'
+          companyId: '13887824',
+          tenantId: 'auto' // Let backend determine from token
         }),
       });
 
       const result = await response.json();
       const duration = Date.now() - startTime;
       
+      // Health endpoint returns different format: overallResult, notificationsSent
+      const success = response.ok && (result.overallResult === 'success' || result.notificationsSent > 0);
+      const message = success 
+        ? `✅ Test notification sent successfully! ${result.notificationsSent || 1} messages delivered`
+        : `❌ Test failed: ${result.fallbackTest?.error || result.message || 'No notifications sent'}`;
+      
       const testResult: TestResult = {
         id: Date.now(),
         type: 'live_test',
         timestamp: new Date().toISOString(),
-        success: response.ok && result.success,
-        message: result.message || 'Test notification sent successfully',
+        success,
+        message,
         duration
       };
       
@@ -86,8 +93,11 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
 
       const result = await response.json();
       
+      // Parse health status correctly
+      const status = result.status || 'unknown';
+      
       setSystemHealth({
-        status: result.status || 'unknown',
+        status: status as 'healthy' | 'degraded' | 'unhealthy' | 'unknown',
         lastChecked: new Date().toISOString()
       });
       
@@ -95,8 +105,8 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
         id: Date.now(),
         type: 'system_health',
         timestamp: new Date().toISOString(),
-        success: result.status === 'healthy',
-        message: result.overallHealth || `System status: ${result.status}`
+        success: response.ok && status === 'healthy',
+        message: result.overallHealth || `System status: ${status.toUpperCase()}`
       };
       
       setLastTestResult(testResult);
