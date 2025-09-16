@@ -291,6 +291,43 @@ async function identifyTenant(webhookData) {
       }
     }
     
+    // PRODUCTION FIX: If no tenant found, check if there's a default tenant with rules/webhooks
+    // This handles the case where users created rules via frontend before webhook registration
+    if (!tenant) {
+      console.log(`🔍 No tenant found for company_id: ${webhookData.company_id}, checking for default tenant with active rules`);
+      
+      const database = require('../services/database');
+      const defaultTenantWithRules = await database.pool.query(`
+        SELECT DISTINCT t.id, t.company_name, COUNT(r.id) as rule_count, COUNT(cw.id) as webhook_count
+        FROM tenants t
+        LEFT JOIN rules r ON t.id = r.tenant_id AND r.enabled = true
+        LEFT JOIN chat_webhooks cw ON t.id = cw.tenant_id AND cw.is_active = true
+        WHERE t.pipedrive_company_id IS NULL OR t.pipedrive_company_id = ''
+        GROUP BY t.id, t.company_name
+        HAVING COUNT(r.id) > 0 AND COUNT(cw.id) > 0
+        ORDER BY t.id ASC
+        LIMIT 1
+      `);
+      
+      if (defaultTenantWithRules.rows.length > 0) {
+        const defaultTenant = defaultTenantWithRules.rows[0];
+        console.log(`🔧 Found default tenant ${defaultTenant.id} with ${defaultTenant.rule_count} rules and ${defaultTenant.webhook_count} webhooks`);
+        console.log(`🔧 Mapping tenant ${defaultTenant.id} to company_id: ${webhookData.company_id}`);
+        
+        // Update the default tenant to handle this company_id
+        await database.pool.query(`
+          UPDATE tenants 
+          SET pipedrive_company_id = $1,
+              company_name = COALESCE(NULLIF(company_name, ''), 'Pipedrive Account'),
+              updated_at = NOW()
+          WHERE id = $2
+        `, [webhookData.company_id, defaultTenant.id]);
+        
+        console.log(`✅ Successfully mapped tenant ${defaultTenant.id} to handle company_id: ${webhookData.company_id}`);
+        return defaultTenant.id;
+      }
+    }
+    
     if (tenant) {
       console.log(`✅ Found tenant: ${tenant.id} for company_id: ${webhookData.company_id}`);
       return tenant.id;
