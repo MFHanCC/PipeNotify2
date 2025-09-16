@@ -398,6 +398,11 @@
   line-height: 1.5;
 }
 
+.feature-item.unavailable {
+  color: #9ca3af;
+  opacity: 0.7;
+}
+
 .feature-check {
   color: #22c55e;
   font-weight: 700;
@@ -405,6 +410,10 @@
   font-size: 1.1rem;
   margin-top: 0.1rem;
   flex-shrink: 0;
+}
+
+.feature-check.unavailable {
+  color: #ef4444;
 }
 
 /* Plan Footer */

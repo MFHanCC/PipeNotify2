@@ -29,6 +29,46 @@ const PricingToggle: React.FC<PricingToggleProps> = ({ billingCycle, onToggle })
   );
 };
 
+const getFeatureList = (tier: string) => {
+  const features = [
+    // Basic notification features
+    { name: 'Deal Won notifications', available: true },
+    { name: 'Deal Lost notifications', available: true },
+    { name: 'New Deal notifications', available: true },
+    { name: 'Deal Updated notifications', available: tier !== 'free' },
+    
+    // Filtering capabilities
+    { name: 'Basic message templates', available: true },
+    { name: 'Deal value filtering', available: tier !== 'free' },
+    { name: 'Pipeline & stage filtering', available: tier !== 'free' },
+    { name: 'Owner-based filtering', available: tier !== 'free' },
+    
+    // Advanced features
+    { name: 'Custom message templates', available: tier === 'pro' || tier === 'team' },
+    { name: 'Smart channel routing', available: tier === 'pro' || tier === 'team' },
+    { name: 'Quiet hours scheduling', available: tier === 'pro' || tier === 'team' },
+    { name: 'Advanced probability filtering', available: tier === 'pro' || tier === 'team' },
+    
+    // Enterprise features
+    { name: 'Team analytics dashboard', available: tier === 'team' },
+    { name: 'API access', available: tier === 'team' },
+    { name: 'Priority support', available: tier === 'team' },
+  ];
+
+  // Show different subsets for each tier
+  if (tier === 'free') {
+    return features.slice(0, 8); // Show basic + filtering (unavailable) to highlight upgrade
+  } else if (tier === 'starter') {
+    return features.slice(0, 8); // Show up to filtering features
+  } else if (tier === 'pro') {
+    return features.slice(4, 12); // Show filtering + advanced features
+  } else if (tier === 'team') {
+    return features.slice(8); // Show advanced + enterprise features
+  }
+  
+  return features;
+};
+
 interface PricingPageProps {
   onPlanSelect?: (planTier: string) => void;
   currentSubscription?: Subscription | null;
@@ -287,10 +327,10 @@ const PricingPage: React.FC<PricingPageProps> = ({
                 )}
               </div>
               <p className="plan-description">
-                {plan.tier === 'free' && 'Perfect for trying out Pipenotify'}
-                {plan.tier === 'starter' && 'Great for small teams and individuals'}
-                {plan.tier === 'pro' && 'Ideal for growing businesses'}
-                {plan.tier === 'team' && 'Enterprise-grade features and support'}
+                {plan.tier === 'free' && 'Basic notifications for essential deal events'}
+                {plan.tier === 'starter' && 'Smart filtering and Deal Updated notifications'}
+                {plan.tier === 'pro' && 'Advanced automation with custom templates'}
+                {plan.tier === 'team' && 'Enterprise features with priority support'}
               </p>
             </div>
 
@@ -308,10 +348,12 @@ const PricingPage: React.FC<PricingPageProps> = ({
               </div>
 
               <ul className="feature-list">
-                {plan.features.slice(3).map((feature, index) => (
-                  <li key={index} className="feature-item">
-                    <span className="feature-check">✓</span>
-                    {feature}
+                {getFeatureList(plan.tier).map((feature, index) => (
+                  <li key={index} className={`feature-item ${feature.available ? '' : 'unavailable'}`}>
+                    <span className={`feature-check ${feature.available ? 'available' : 'unavailable'}`}>
+                      {feature.available ? '✓' : '✗'}
+                    </span>
+                    {feature.name}
                   </li>
                 ))}
               </ul>

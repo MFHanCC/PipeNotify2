@@ -30,18 +30,20 @@ export function usePlanFeatures() {
       console.error('Failed to load plan features:', err);
       setError(err instanceof Error ? err.message : 'Failed to load plan features');
       
-      // Fallback to free plan features
+      // Fallback to free plan features - Free tier has exactly 3 rules: Deal Won, Deal Lost, New Deal
       setFeatures({
         tenant_id: parseInt(getTenantId() || '0'),
         plan_tier: 'free',
         limits: {
           notifications: 100,
           webhooks: 1,
-          rules: 3,
+          rules: 3, // Exactly 3 rules: Deal Won, Deal Lost, New Deal
           log_retention_days: 7,
           advanced_rules: 0
         },
         features: {
+          // Deal Updated moved to Starter tier
+          deal_updated_notifications: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
           value_filtering: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
           enhanced_formatting: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
           stage_filtering: { available: false, available_in_plans: ['starter', 'pro', 'team'] },

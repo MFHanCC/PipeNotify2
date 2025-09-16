@@ -36,10 +36,9 @@ const FeatureRestriction: React.FC<FeatureRestrictionProps> = ({
       </div>
       <div className="upgrade-overlay">
         <div className="upgrade-tooltip">
-          <div className="upgrade-icon">🔒</div>
           <div className="upgrade-text">
-            <strong>{featureName}</strong>
-            <p>Available in {planNames[requiredPlan as keyof typeof planNames]} plan and above</p>
+            <div><span className="upgrade-icon">🔒</span><strong>{featureName}</strong></div>
+            <p>{planNames[requiredPlan as keyof typeof planNames]}+ plan required</p>
             {upgradeHint && <p className="upgrade-hint">{upgradeHint}</p>}
           </div>
           <button 
