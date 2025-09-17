@@ -513,22 +513,36 @@
 .faq-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: 2.5rem;
   text-align: left;
   margin-bottom: 2rem;
+}
+
+.faq-item {
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border-left: 4px solid #e5e7eb;
+  transition: border-color 0.2s ease;
+}
+
+.faq-item:hover {
+  border-left-color: #3b82f6;
 }
 
 .faq-item h3 {
   font-size: 1.125rem;
   font-weight: 600;
   color: #111827;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.3;
 }
 
 .faq-item p {
   color: #6b7280;
   margin: 0;
   line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .enterprise-note {
@@ -579,7 +593,7 @@
   
   .faq-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 2rem 3rem;
+    gap: 2.5rem 3rem;
   }
 }
 

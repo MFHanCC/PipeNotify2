@@ -100,8 +100,8 @@ const plans: Plan[] = [
       'Custom integrations',
       'SLA guarantee'
     ],
-    cta: 'Talk to sales',
-    ctaType: 'enterprise',
+    cta: 'Get started',
+    ctaType: 'primary',
     limits: {
       notifications: 'Unlimited',
       webhooks: 'Unlimited',
@@ -153,8 +153,6 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
         } else {
           window.location.href = '/signup';
         }
-      } else if (planTier === 'team') {
-        window.location.href = 'mailto:sales@pipenotify.com?subject=Team Plan Inquiry';
       } else {
         const { checkout_url } = await apiService.createCheckoutSession(planTier);
         
@@ -407,6 +405,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
           <div className="faq-item">
             <h3>What support do I get?</h3>
             <p>Free & Starter: Email support. Professional: Live chat. Team: Dedicated account manager with phone support and SLA.</p>
+          </div>
+          <div className="faq-item">
+            <h3>Is my data secure with PipeNotify?</h3>
+            <p>Absolutely. We use enterprise-grade encryption, are SOC 2 compliant, and only access the minimum data needed for notifications. Your Pipedrive data never leaves secure channels.</p>
           </div>
         </div>
         
