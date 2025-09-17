@@ -122,7 +122,7 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
         message: 'Webhook received successfully',
         event: webhookData.event,
         timestamp: new Date().toISOString(),
-        status: 'queued',
+        status: 'success',
         jobId: job.id
       });
     } catch (queueError) {

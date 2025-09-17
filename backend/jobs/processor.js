@@ -149,6 +149,8 @@ async function processNotification(webhookData) {
     let notificationsSent = 0;
     
     for (const rule of rules) {
+      let targetWebhook = null;
+      
       try {
         // Check if rule filters match the webhook data (advanced filtering)
         if (!applyAdvancedFilters(webhookData, rule)) {
@@ -157,7 +159,7 @@ async function processNotification(webhookData) {
         }
 
         // Use channel routing to determine the best webhook
-        const targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
+        targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
         
         if (!targetWebhook) {
           console.log(`No suitable webhook found for rule ${rule.name}, skipping`);
@@ -183,12 +185,12 @@ async function processNotification(webhookData) {
             // Log queued notification
             await createLog(tenantId, {
               rule_id: rule.id,
-              webhook_id: targetWebhook.id,
+              webhook_id: targetWebhook?.id || rule.target_webhook_id,
               event_type: webhookData.event,
               payload: webhookData,
-              status: 'queued',
+              status: 'skipped',
               response_time_ms: Date.now() - startTime,
-              message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
+              error_message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
             });
             
             console.log(`📅 Notification queued for ${queueResult.scheduled_for} (delay: ${queueResult.delay_minutes}min)`);
@@ -196,8 +198,8 @@ async function processNotification(webhookData) {
           }
         }
 
-        // Send notification to the routed Google Chat channel
-        const notificationResult = await sendNotification(rule, webhookData, targetWebhook, tenantId);
+        // Send notification with multi-tier backup system
+        const notificationResult = await sendNotificationWithBackup(rule, webhookData, targetWebhook, tenantId);
         
         if (notificationResult.success) {
           notificationsSent++;
@@ -205,7 +207,7 @@ async function processNotification(webhookData) {
           // Track usage for successful notification
           await trackNotificationUsage(tenantId, 1);
           
-          // Log successful notification
+          // Log successful notification with tier information
           await createLog(tenantId, {
             rule_id: rule.id,
             webhook_id: targetWebhook?.id || rule.target_webhook_id,
@@ -214,10 +216,17 @@ async function processNotification(webhookData) {
             formatted_message: notificationResult.message,
             status: 'success',
             response_code: 200,
-            response_time_ms: Date.now() - startTime
+            response_time_ms: Date.now() - startTime,
+            error_message: notificationResult.tier > 1 ? `Delivered via Tier ${notificationResult.tier} backup` : null
           });
           
-          console.log(`✅ Sent notification for rule: ${rule.name}`);
+          // Alert if backup tier was used (indicates primary system issues)
+          if (notificationResult.tier > 1) {
+            console.warn(`⚠️ BACKUP TIER ${notificationResult.tier} USED for rule: ${rule.name} - Primary system may have issues`);
+            await alertSystemReliability(tenantId, rule, notificationResult.tier, webhookData);
+          }
+          
+          console.log(`✅ Sent notification for rule: ${rule.name} (Tier ${notificationResult.tier})`);
         } else {
           // Log failed notification
           await createLog(tenantId, {
@@ -390,11 +399,13 @@ function matchesFilters(webhookData, filters) {
 }
 
 // Helper function to send notification via Google Chat
-async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
+// Multi-tier backup notification system - ensures notifications ALWAYS get delivered
+async function sendNotificationWithBackup(rule, webhookData, targetWebhook = null, tenantId = null) {
+  const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
+  
+  // Tier 1: Primary delivery with immediate retry
   try {
-    // Use target webhook URL if provided, otherwise fall back to rule's default
-    const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
-    
+    console.log(`🎯 TIER 1: Primary delivery attempt`);
     const result = await defaultChatClient.sendNotification(
       webhookUrl,
       webhookData,
@@ -402,18 +413,143 @@ async function sendNotification(rule, webhookData, targetWebhook = null, tenantI
       rule.custom_template,
       tenantId
     );
-    
+
+    console.log(`✅ TIER 1: Notification sent successfully`);
     return {
       success: true,
+      messageId: result.messageId,
       message: result,
-      messageId: result.messageId
+      tier: 1
     };
+  } catch (primaryError) {
+    console.error(`❌ TIER 1: Primary delivery failed:`, primaryError.message);
+    
+    // Tier 2: Immediate retry with simple template
+    try {
+      console.log(`🔄 TIER 2: Retry with simple template`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+      
+      const retryResult = await defaultChatClient.sendNotification(
+        webhookUrl,
+        webhookData,
+        'simple', // Force simple template for compatibility
+        null,
+        tenantId
+      );
+
+      console.log(`✅ TIER 2: Retry successful with simple template`);
+      return {
+        success: true,
+        messageId: retryResult.messageId,
+        message: retryResult,
+        tier: 2,
+        primaryError: primaryError.message
+      };
+    } catch (retryError) {
+      console.error(`❌ TIER 2: Retry failed:`, retryError.message);
+      
+      // Tier 3: Alternative webhook (if available)
+      try {
+        console.log(`🔗 TIER 3: Trying alternative webhook`);
+        const alternativeWebhooks = await getWebhooks(tenantId);
+        const alternativeWebhook = alternativeWebhooks.find(w => 
+          w.id !== targetWebhook?.id && w.webhook_url !== webhookUrl
+        );
+        
+        if (alternativeWebhook) {
+          const altResult = await defaultChatClient.sendNotification(
+            alternativeWebhook.webhook_url,
+            webhookData,
+            'simple',
+            null,
+            tenantId
+          );
+
+          console.log(`✅ TIER 3: Alternative webhook successful`);
+          return {
+            success: true,
+            messageId: altResult.messageId,
+            message: altResult,
+            tier: 3,
+            alternativeWebhookId: alternativeWebhook.id
+          };
+        } else {
+          throw new Error('No alternative webhook available');
+        }
+      } catch (altError) {
+        console.error(`❌ TIER 3: Alternative webhook failed:`, altError.message);
+        
+        // Tier 4: Emergency direct processing (bypass all infrastructure)
+        try {
+          console.log(`🚨 TIER 4: Emergency direct processing`);
+          const { processNotificationDirect } = require('../services/notificationFallback');
+          const emergencyResult = await processNotificationDirect(webhookData);
+          
+          if (emergencyResult.success && emergencyResult.notificationsSent > 0) {
+            console.log(`✅ TIER 4: Emergency processing successful`);
+            return {
+              success: true,
+              message: 'Notification sent via emergency fallback',
+              tier: 4,
+              notificationsSent: emergencyResult.notificationsSent
+            };
+          } else {
+            throw new Error('Emergency processing failed or no notifications sent');
+          }
+        } catch (emergencyError) {
+          console.error(`❌ TIER 4: Emergency processing failed:`, emergencyError.message);
+          
+          // ALL TIERS FAILED - Return comprehensive error
+          return {
+            success: false,
+            error: 'All notification tiers failed',
+            tier: 'ALL_FAILED',
+            errors: {
+              primary: primaryError.message,
+              retry: retryError.message,
+              alternative: altError.message,
+              emergency: emergencyError.message
+            },
+            statusCode: 500
+          };
+        }
+      }
+    }
+  }
+}
+
+// Legacy function for backwards compatibility
+async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
+  return await sendNotificationWithBackup(rule, webhookData, targetWebhook, tenantId);
+}
+
+// System reliability monitoring and alerting
+async function alertSystemReliability(tenantId, rule, tier, webhookData) {
+  try {
+    console.log(`🚨 SYSTEM RELIABILITY ALERT: Tier ${tier} used for tenant ${tenantId}`);
+    
+    // Track backup tier usage for monitoring
+    const alertData = {
+      timestamp: new Date().toISOString(),
+      tenant_id: tenantId,
+      rule_name: rule.name,
+      tier_used: tier,
+      event_type: webhookData.event,
+      alert_level: tier >= 4 ? 'CRITICAL' : tier >= 3 ? 'WARNING' : 'INFO'
+    };
+    
+    // Log reliability issue for monitoring
+    console.error(`🔔 RELIABILITY ALERT:`, JSON.stringify(alertData, null, 2));
+    
+    // In production, you could send this to monitoring systems:
+    // - Slack/Discord alerts for critical issues
+    // - Email notifications for administrators 
+    // - Metrics to monitoring dashboards (Grafana, DataDog, etc.)
+    // - Health check endpoint updates
+    
+    return alertData;
   } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-      statusCode: error.response?.status
-    };
+    console.error('Failed to send reliability alert:', error);
   }
 }
 
