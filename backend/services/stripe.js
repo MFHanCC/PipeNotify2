@@ -448,18 +448,26 @@ async function getSubscription(tenantId) {
     if (tableCheck.rows.length === 0) {
       console.log('⚠️  subscriptions table does not exist. Run migration: npm run migrate');
       
-      // Check if this is the enterprise customer (tenant with company_id 13887824)
+      // Check if this is an enterprise/team customer
       try {
-        const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
-        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
-          console.log('🚀 Enterprise customer detected - assigning Team plan features without table');
-          return {
-            tenant_id: tenantId,
-            plan_tier: 'team',
-            status: 'active',
-            monthly_notification_count: 0,
-            plan_config: PLAN_CONFIGS.team
-          };
+        const tenantCheck = await pool.query('SELECT pipedrive_company_id, company_name FROM tenants WHERE id = $1', [tenantId]);
+        if (tenantCheck.rows.length > 0) {
+          const tenant = tenantCheck.rows[0];
+          
+          // Known enterprise customer
+          if (tenant.pipedrive_company_id == 13887824) {
+            console.log('🚀 Known enterprise customer detected - assigning Team plan features');
+            return {
+              tenant_id: tenantId,
+              plan_tier: 'team',
+              status: 'active',
+              monthly_notification_count: 0,
+              plan_config: PLAN_CONFIGS.team
+            };
+          }
+          
+          // TODO: Add additional Team plan customer detection logic here
+          // For now, we'll check in the subscription creation logic below
         }
       } catch (tenantCheckError) {
         console.error('Error checking tenant details:', tenantCheckError);
@@ -480,16 +488,26 @@ async function getSubscription(tenantId) {
     `, [tenantId]);
 
     if (result.rows.length === 0) {
-      // Check if this is the enterprise customer before creating subscription
+      // Check if this is an enterprise/team customer before creating subscription
       let planTier = 'free';
       let planPeriodEnd = null;
       
       try {
-        const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
-        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
-          console.log('🚀 Enterprise customer detected - auto-upgrading to Team plan');
-          planTier = 'team';
-          planPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+        const tenantCheck = await pool.query('SELECT pipedrive_company_id, company_name FROM tenants WHERE id = $1', [tenantId]);
+        if (tenantCheck.rows.length > 0) {
+          const tenant = tenantCheck.rows[0];
+          
+          // Known enterprise customer
+          if (tenant.pipedrive_company_id == 13887824) {
+            console.log('🚀 Known enterprise customer detected - auto-upgrading to Team plan');
+            planTier = 'team';
+            planPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+          }
+          
+          // TODO: Add logic for other Team plan customers
+          // For immediate fix, you can add specific company IDs or names here
+          
+          console.log(`📋 Tenant details: Company="${tenant.company_name}", PipedriveID="${tenant.pipedrive_company_id}"`);
         }
       } catch (tenantCheckError) {
         console.error('Error checking tenant details:', tenantCheckError);
