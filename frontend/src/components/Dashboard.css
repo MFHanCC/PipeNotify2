@@ -1025,6 +1025,51 @@ input:checked + .toggle-slider:before {
   width: 100%;
 }
 
+/* Two-column layout for rule forms */
+.rule-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.rule-form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Basic info column */
+.rule-form-basic {
+  grid-column: 1;
+}
+
+/* Template and filters column */
+.rule-form-advanced {
+  grid-column: 2;
+}
+
+/* Full width sections that span both columns */
+.rule-form-full-width {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Responsive: Stack on smaller screens */
+@media (max-width: 1024px) {
+  .rule-form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .rule-form-basic,
+  .rule-form-advanced {
+    grid-column: 1;
+  }
+}
+
 .edit-name-input {
   padding: 8px 12px;
   border: 2px solid #e5e7eb;

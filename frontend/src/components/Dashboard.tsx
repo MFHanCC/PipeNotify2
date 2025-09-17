@@ -1026,113 +1026,121 @@ const Dashboard: React.FC = React.memo(() => {
               <div className="rule-info">
                 {editingRule === rule.id ? (
                   <div className="edit-form">
-                    <div className="form-group">
-                      <label htmlFor="edit-rule-name">Rule Name *</label>
-                      <input
-                        id="edit-rule-name"
-                        type="text"
-                        value={editFormData.name}
-                        onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                        placeholder="e.g., Deal Won Notifications"
-                        className="form-input"
-                      />
-                    </div>
+                    <div className="rule-form-grid">
+                      {/* Left Column: Basic Information */}
+                      <div className="rule-form-column rule-form-basic">
+                        <div className="form-group">
+                          <label htmlFor="edit-rule-name">Rule Name *</label>
+                          <input
+                            id="edit-rule-name"
+                            type="text"
+                            value={editFormData.name}
+                            onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                            placeholder="e.g., Deal Won Notifications"
+                            className="form-input"
+                          />
+                        </div>
 
-                    <div className="form-group">
-                      <label htmlFor="edit-event-type">Event Type *</label>
-                      <select
-                        id="edit-event-type"
-                        value={editFormData.event_type}
-                        onChange={(e) => setEditFormData({...editFormData, event_type: e.target.value})}
-                        className="form-select"
-                      >
-                        {planTier === 'free' ? (
-                          // Free tier: Show current rule's event type + allowed ones
-                          <>
-                            <option value="deal.won">Deal Won</option>
-                            <option value="deal.lost">Deal Lost</option>
-                            <option value="deal.create">New Deal</option>
-                            {/* Allow editing existing Deal Updated rules but mark others as restricted */}
-                            {editFormData.event_type === 'deal.updated' ? (
-                              <option value="deal.updated">Deal Updated (current)</option>
+                        <div className="form-group">
+                          <label htmlFor="edit-event-type">Event Type *</label>
+                          <select
+                            id="edit-event-type"
+                            value={editFormData.event_type}
+                            onChange={(e) => setEditFormData({...editFormData, event_type: e.target.value})}
+                            className="form-select"
+                          >
+                            {planTier === 'free' ? (
+                              // Free tier: Show current rule's event type + allowed ones
+                              <>
+                                <option value="deal.won">Deal Won</option>
+                                <option value="deal.lost">Deal Lost</option>
+                                <option value="deal.create">New Deal</option>
+                                {/* Allow editing existing Deal Updated rules but mark others as restricted */}
+                                {editFormData.event_type === 'deal.updated' ? (
+                                  <option value="deal.updated">Deal Updated (current)</option>
+                                ) : (
+                                  <option value="deal.updated" disabled>Deal Updated (Starter+ only)</option>
+                                )}
+                              </>
                             ) : (
-                              <option value="deal.updated" disabled>Deal Updated (Starter+ only)</option>
+                              // Paid tiers: All events available
+                              <>
+                                <option value="deal.updated">Deal Updated</option>
+                                <option value="deal.won">Deal Won</option>
+                                <option value="deal.lost">Deal Lost</option>
+                                <option value="deal.create">New Deal</option>
+                                <option value="deal.added">Deal Added (Legacy)</option>
+                                <option value="person.added">Person Added</option>
+                                <option value="person.updated">Person Updated</option>
+                                <option value="activity.added">Activity Added</option>
+                              </>
                             )}
-                          </>
-                        ) : (
-                          // Paid tiers: All events available
-                          <>
-                            <option value="deal.updated">Deal Updated</option>
-                            <option value="deal.won">Deal Won</option>
-                            <option value="deal.lost">Deal Lost</option>
-                            <option value="deal.create">New Deal</option>
-                            <option value="deal.added">Deal Added (Legacy)</option>
-                            <option value="person.added">Person Added</option>
-                            <option value="person.updated">Person Updated</option>
-                            <option value="activity.added">Activity Added</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
+                          </select>
+                        </div>
 
-                    <div className="form-group">
-                      <label htmlFor="edit-target-webhook">Target Google Chat *</label>
-                      <select
-                        id="edit-target-webhook"
-                        value={editFormData.target_webhook_id}
-                        onChange={(e) => setEditFormData({...editFormData, target_webhook_id: e.target.value})}
-                        className="form-select"
-                      >
-                        <option value="">Select a webhook</option>
-                        {availableWebhooks.length === 0 ? (
-                          <option value="" disabled>No webhooks available - go through onboarding first</option>
-                        ) : (
-                          availableWebhooks.map(webhook => (
-                            <option key={webhook.id} value={webhook.id}>
-                              {webhook.name}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
+                        <div className="form-group">
+                          <label htmlFor="edit-target-webhook">Target Google Chat *</label>
+                          <select
+                            id="edit-target-webhook"
+                            value={editFormData.target_webhook_id}
+                            onChange={(e) => setEditFormData({...editFormData, target_webhook_id: e.target.value})}
+                            className="form-select"
+                          >
+                            <option value="">Select a webhook</option>
+                            {availableWebhooks.length === 0 ? (
+                              <option value="" disabled>No webhooks available - go through onboarding first</option>
+                            ) : (
+                              availableWebhooks.map(webhook => (
+                                <option key={webhook.id} value={webhook.id}>
+                                  {webhook.name}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
 
-                    {/* Message Template Editor */}
-                    <TemplateEditor
-                      value={{
-                        template_mode: editFormData.template_mode,
-                        custom_template: undefined
-                      }}
-                      onChange={(templateData) => setEditFormData({
-                        ...editFormData,
-                        template_mode: templateData.template_mode
-                      })}
-                      eventType={editFormData.event_type}
-                    />
+                        <div className="form-group">
+                          <label className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={editFormData.enabled}
+                              onChange={(e) => setEditFormData({...editFormData, enabled: e.target.checked})}
+                            />
+                            <span>Enable rule</span>
+                          </label>
+                        </div>
+                      </div>
 
-                    <div className="form-group">
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={editFormData.enabled}
-                          onChange={(e) => setEditFormData({...editFormData, enabled: e.target.checked})}
+                      {/* Right Column: Message Template & Advanced Filters */}
+                      <div className="rule-form-column rule-form-advanced">
+                        {/* Message Template Editor */}
+                        <TemplateEditor
+                          value={{
+                            template_mode: editFormData.template_mode,
+                            custom_template: undefined
+                          }}
+                          onChange={(templateData) => setEditFormData({
+                            ...editFormData,
+                            template_mode: templateData.template_mode
+                          })}
+                          eventType={editFormData.event_type}
                         />
-                        <span>Enable rule</span>
-                      </label>
+                        
+                        {/* Advanced Filters */}
+                        <FeatureRestriction
+                          isAvailable={hasFeature('advanced_filtering')}
+                          requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
+                          currentPlan={planTier}
+                          featureName="Advanced Filters"
+                          upgradeHint="Filter notifications by deal value, stage, owner, and more"
+                        >
+                          <RuleFilters
+                            filters={editFormData.filters}
+                            onChange={(filters) => hasFeature('advanced_filtering') && setEditFormData({...editFormData, filters})}
+                          />
+                        </FeatureRestriction>
+                      </div>
                     </div>
-                    
-                    {/* Advanced Filters */}
-                    <FeatureRestriction
-                      isAvailable={hasFeature('advanced_filtering')}
-                      requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
-                      currentPlan={planTier}
-                      featureName="Advanced Filters"
-                      upgradeHint="Filter notifications by deal value, stage, owner, and more"
-                    >
-                      <RuleFilters
-                        filters={editFormData.filters}
-                        onChange={(filters) => hasFeature('advanced_filtering') && setEditFormData({...editFormData, filters})}
-                      />
-                    </FeatureRestriction>
 
                     <div className="edit-actions">
                       <button
@@ -1989,142 +1997,150 @@ const Dashboard: React.FC = React.memo(() => {
             </div>
             
             <div className="modal-body" id="modal-description">
-              <div className="form-group">
-                <label htmlFor="rule-name">Rule Name *</label>
-                <input
-                  id="rule-name"
-                  type="text"
-                  value={createFormData.name}
-                  onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
-                  placeholder="e.g., Deal Won Notifications"
-                  className="form-input"
-                  aria-required="true"
-                  aria-describedby="rule-name-help"
-                />
-                <div id="rule-name-help" className="sr-only">Enter a descriptive name for your notification rule</div>
-                {validationErrors.name && (
-                  <div className="validation-error" role="alert">
-                    {validationErrors.name}
+              <div className="rule-form-grid">
+                {/* Left Column: Basic Information */}
+                <div className="rule-form-column rule-form-basic">
+                  <div className="form-group">
+                    <label htmlFor="rule-name">Rule Name *</label>
+                    <input
+                      id="rule-name"
+                      type="text"
+                      value={createFormData.name}
+                      onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
+                      placeholder="e.g., Deal Won Notifications"
+                      className="form-input"
+                      aria-required="true"
+                      aria-describedby="rule-name-help"
+                    />
+                    <div id="rule-name-help" className="sr-only">Enter a descriptive name for your notification rule</div>
+                    {validationErrors.name && (
+                      <div className="validation-error" role="alert">
+                        {validationErrors.name}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="event-type">Event Type *</label>
-                <select
-                  id="event-type"
-                  value={createFormData.event_type}
-                  onChange={(e) => setCreateFormData({...createFormData, event_type: e.target.value})}
-                  className="form-select"
-                  aria-required="true"
-                  aria-describedby="event-type-help"
-                >
-                  {planTier === 'free' ? (
-                    // Free tier: Only Deal Won, Deal Lost, New Deal
-                    <>
-                      <option value="deal.won">Deal Won</option>
-                      <option value="deal.lost">Deal Lost</option>
-                      <option value="deal.create">New Deal</option>
-                      <option value="deal.updated" disabled>Deal Updated (Starter+ only)</option>
-                    </>
-                  ) : (
-                    // Paid tiers: All events available
-                    <>
-                      <option value="deal.updated">Deal Updated</option>
-                      <option value="deal.won">Deal Won</option>
-                      <option value="deal.lost">Deal Lost</option>
-                      <option value="deal.create">New Deal</option>
-                      <option value="deal.added">Deal Added (Legacy)</option>
-                      <option value="person.added">Person Added</option>
-                      <option value="person.updated">Person Updated</option>
-                      <option value="activity.added">Activity Added</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="target-webhook">Target Google Chat *</label>
-                <select
-                  id="target-webhook"
-                  value={createFormData.target_webhook_id}
-                  onChange={(e) => setCreateFormData({...createFormData, target_webhook_id: e.target.value})}
-                  className="form-select"
-                  aria-required="true"
-                  aria-describedby="target-webhook-help"
-                >
-                  <option value="">Select a webhook</option>
-                  {availableWebhooks.length === 0 ? (
-                    <option value="" disabled>No webhooks available - go through onboarding first</option>
-                  ) : (
-                    availableWebhooks.map(webhook => (
-                      <option key={webhook.id} value={webhook.id}>
-                        {webhook.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                <div id="target-webhook-help" className="sr-only">Select the Google Chat webhook where notifications will be sent</div>
-                {validationErrors.target_webhook_id && (
-                  <div className="validation-error" role="alert">
-                    {validationErrors.target_webhook_id}
-                  </div>
-                )}
-                {availableWebhooks.length === 0 && (
-                  <div className="form-help">
-                    <p style={{fontSize: '12px', color: '#6b7280', marginTop: '4px'}}>
-                      No Google Chat webhooks found. Complete onboarding first to set up your Google Chat integration.
-                    </p>
-                    <button 
-                      type="button"
-                      onClick={() => window.location.href = '/onboarding'} 
-                      className="button-secondary"
-                      style={{marginTop: '8px', fontSize: '12px', padding: '6px 12px'}}
+                  <div className="form-group">
+                    <label htmlFor="event-type">Event Type *</label>
+                    <select
+                      id="event-type"
+                      value={createFormData.event_type}
+                      onChange={(e) => setCreateFormData({...createFormData, event_type: e.target.value})}
+                      className="form-select"
+                      aria-required="true"
+                      aria-describedby="event-type-help"
                     >
-                      Go to Onboarding
-                    </button>
+                      {planTier === 'free' ? (
+                        // Free tier: Only Deal Won, Deal Lost, New Deal
+                        <>
+                          <option value="deal.won">Deal Won</option>
+                          <option value="deal.lost">Deal Lost</option>
+                          <option value="deal.create">New Deal</option>
+                          <option value="deal.updated" disabled>Deal Updated (Starter+ only)</option>
+                        </>
+                      ) : (
+                        // Paid tiers: All events available
+                        <>
+                          <option value="deal.updated">Deal Updated</option>
+                          <option value="deal.won">Deal Won</option>
+                          <option value="deal.lost">Deal Lost</option>
+                          <option value="deal.create">New Deal</option>
+                          <option value="deal.added">Deal Added (Legacy)</option>
+                          <option value="person.added">Person Added</option>
+                          <option value="person.updated">Person Updated</option>
+                          <option value="activity.added">Activity Added</option>
+                        </>
+                      )}
+                    </select>
                   </div>
-                )}
-              </div>
 
-              {/* Message Template Editor */}
-              <TemplateEditor
-                value={{
-                  template_mode: createFormData.template_mode,
-                  custom_template: createFormData.custom_template
-                }}
-                onChange={(templateData) => setCreateFormData({
-                  ...createFormData,
-                  template_mode: templateData.template_mode,
-                  custom_template: templateData.custom_template || null
-                })}
-                eventType={createFormData.event_type}
-              />
+                  <div className="form-group">
+                    <label htmlFor="target-webhook">Target Google Chat *</label>
+                    <select
+                      id="target-webhook"
+                      value={createFormData.target_webhook_id}
+                      onChange={(e) => setCreateFormData({...createFormData, target_webhook_id: e.target.value})}
+                      className="form-select"
+                      aria-required="true"
+                      aria-describedby="target-webhook-help"
+                    >
+                      <option value="">Select a webhook</option>
+                      {availableWebhooks.length === 0 ? (
+                        <option value="" disabled>No webhooks available - go through onboarding first</option>
+                      ) : (
+                        availableWebhooks.map(webhook => (
+                          <option key={webhook.id} value={webhook.id}>
+                            {webhook.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <div id="target-webhook-help" className="sr-only">Select the Google Chat webhook where notifications will be sent</div>
+                    {validationErrors.target_webhook_id && (
+                      <div className="validation-error" role="alert">
+                        {validationErrors.target_webhook_id}
+                      </div>
+                    )}
+                    {availableWebhooks.length === 0 && (
+                      <div className="form-help">
+                        <p style={{fontSize: '12px', color: '#6b7280', marginTop: '4px'}}>
+                          No Google Chat webhooks found. Complete onboarding first to set up your Google Chat integration.
+                        </p>
+                        <button 
+                          type="button"
+                          onClick={() => window.location.href = '/onboarding'} 
+                          className="button-secondary"
+                          style={{marginTop: '8px', fontSize: '12px', padding: '6px 12px'}}
+                        >
+                          Go to Onboarding
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={createFormData.enabled}
-                    onChange={(e) => setCreateFormData({...createFormData, enabled: e.target.checked})}
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={createFormData.enabled}
+                        onChange={(e) => setCreateFormData({...createFormData, enabled: e.target.checked})}
+                      />
+                      <span>Enable rule immediately</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Right Column: Message Template & Advanced Filters */}
+                <div className="rule-form-column rule-form-advanced">
+                  {/* Message Template Editor */}
+                  <TemplateEditor
+                    value={{
+                      template_mode: createFormData.template_mode,
+                      custom_template: createFormData.custom_template
+                    }}
+                    onChange={(templateData) => setCreateFormData({
+                      ...createFormData,
+                      template_mode: templateData.template_mode,
+                      custom_template: templateData.custom_template || null
+                    })}
+                    eventType={createFormData.event_type}
                   />
-                  <span>Enable rule immediately</span>
-                </label>
+                  
+                  {/* Advanced Filters */}
+                  <FeatureRestriction
+                    isAvailable={hasFeature('advanced_filtering')}
+                    requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
+                    currentPlan={planTier}
+                    featureName="Smart Filtering"
+                    upgradeHint="Filter by deal value, stage, owner, pipeline. Upgrade to Starter for $9/month."
+                  >
+                    <RuleFilters
+                      filters={createFormData.filters}
+                      onChange={(filters) => hasFeature('advanced_filtering') && setCreateFormData({...createFormData, filters})}
+                    />
+                  </FeatureRestriction>
+                </div>
               </div>
-              
-              {/* Advanced Filters */}
-              <FeatureRestriction
-                isAvailable={hasFeature('advanced_filtering')}
-                requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
-                currentPlan={planTier}
-                featureName="Smart Filtering"
-                upgradeHint="Filter by deal value, stage, owner, pipeline. Upgrade to Starter for $9/month."
-              >
-                <RuleFilters
-                  filters={createFormData.filters}
-                  onChange={(filters) => hasFeature('advanced_filtering') && setCreateFormData({...createFormData, filters})}
-                />
-              </FeatureRestriction>
             </div>
 
             <div className="modal-footer">

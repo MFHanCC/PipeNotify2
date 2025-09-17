@@ -70,9 +70,9 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
           title: 'Sample Deal - ACME Corp Integration',
           value: 25000,
           currency: 'USD',
-          stage_name: 'Proposal Made',
-          status: 'open',
-          probability: 75,
+          stage_name: eventType === 'deal.won' ? 'Won' : 'Proposal Made',
+          status: eventType === 'deal.won' ? 'won' : 'open',
+          probability: eventType === 'deal.won' ? 100 : 75,
           expected_close_date: '2024-12-31',
           owner_name: 'John Smith',
           add_time: '2024-01-15T10:30:00Z',
@@ -105,7 +105,9 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
           
       case 'compact':
         return baseEvent === 'deal' 
-          ? `📋 {deal.title}\n💰 {deal.value} | 🎯 {deal.stage}\n👤 {deal.owner_name}`
+          ? eventType === 'deal.won' 
+            ? `🎉 Deal Won!\n📋 {deal.title}\n💰 {deal.value} 🏆\n👤 {deal.owner_name}`
+            : `📋 {deal.title}\n💰 {deal.value} | 🎯 {deal.stage}\n👤 {deal.owner_name}`
           : `📅 {activity.subject}\n📝 {activity.type} | ⏰ {activity.due_date}\n👤 {activity.owner_name}`;
           
       case 'detailed':
