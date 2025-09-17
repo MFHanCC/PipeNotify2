@@ -101,16 +101,28 @@ router.post('/callback', async (req, res) => {
     let ruleProvisioningResult = null;
     try {
       const { provisionDefaultRules } = require('../services/ruleProvisioning');
+      const { getSubscription } = require('../services/stripe');
       
       // Check if this is a new tenant or first-time connection
       const isNewConnection = tenantResult.rows.length === 0;
       
       if (isNewConnection) {
         console.log(`🚀 Provisioning default rules for new tenant ${tenantId}`);
-        ruleProvisioningResult = await provisionDefaultRules(tenantId, 'free', 'initial');
+        
+        // Get the tenant's actual subscription tier
+        let subscriptionTier = 'free'; // Default fallback
+        try {
+          const subscription = await getSubscription(tenantId);
+          subscriptionTier = subscription.plan_tier || 'free';
+          console.log(`📋 Detected subscription tier: ${subscriptionTier}`);
+        } catch (subscriptionError) {
+          console.warn('⚠️ Could not get subscription tier, defaulting to free:', subscriptionError.message);
+        }
+        
+        ruleProvisioningResult = await provisionDefaultRules(tenantId, subscriptionTier, 'initial');
         
         if (ruleProvisioningResult.success) {
-          console.log(`✅ Provisioned ${ruleProvisioningResult.rules_created} default rules`);
+          console.log(`✅ Provisioned ${ruleProvisioningResult.rules_created} default rules for ${subscriptionTier} tier`);
         } else {
           console.warn('⚠️ Rule provisioning failed:', ruleProvisioningResult.error);
         }
