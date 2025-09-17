@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support - PipeNotify</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        h2 {
+            color: #374151;
+            margin-top: 40px;
+        }
+        .hero {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .contact-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .contact-card h3 {
+            color: #2563eb;
+            margin-top: 0;
+        }
+        .faq-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .faq-question {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        .faq-answer {
+            color: #4b5563;
+        }
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .quick-link {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            text-decoration: none;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .quick-link:hover {
+            border-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        .quick-link h4 {
+            color: #2563eb;
+            margin: 10px 0;
+        }
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #dcfce7;
+            color: #15803d;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+        }
+        .response-time {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>PipeNotify Support</h1>
+        <p>We're here to help you get the most out of your Pipedrive and Google Chat integration</p>
+        <div class="status-indicator">
+            <span class="status-dot"></span>
+            All systems operational
+        </div>
+    </div>
+
+    <div class="response-time">
+        <strong>📞 Response Time Commitment:</strong> We aim to respond to all support requests within 24 hours during business days (Monday-Friday, 9 AM - 6 PM EST).
+    </div>
+
+    <h2>Get Support</h2>
+    
+    <div class="contact-card">
+        <h3>📧 Email Support</h3>
+        <p><strong>support@primedevlabs.com</strong></p>
+        <p>For technical issues, questions, or feature requests</p>
+        <p><em>Please include your company name and a detailed description of the issue</em></p>
+    </div>
+
+    <h2>Quick Help</h2>
+    
+    <div class="quick-links">
+        <a href="docs.html" class="quick-link">
+            <div style="font-size: 2em;">📚</div>
+            <h4>Documentation</h4>
+            <p>Complete setup guide and feature documentation</p>
+        </a>
+        
+        <div class="quick-link" style="cursor: pointer;" onclick="location.href='#'">
+            <div style="font-size: 2em;">🧪</div>
+            <h4>Test Your Setup</h4>
+            <p>Use built-in testing tools in your dashboard</p>
+        </div>
+        
+        <div class="quick-link" style="cursor: pointer;" onclick="location.href='#faq'">
+            <div style="font-size: 2em;">❓</div>
+            <h4>FAQ</h4>
+            <p>Common questions and solutions</p>
+        </div>
+        
+        <div class="quick-link" style="cursor: pointer;" onclick="location.href='#troubleshooting'">
+            <div style="font-size: 2em;">🔧</div>
+            <h4>Troubleshooting</h4>
+            <p>Step-by-step problem solving</p>
+        </div>
+    </div>
+
+    <h2 id="faq">Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: Why aren't my notifications appearing in Google Chat?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> Check these common issues:
+            <ul>
+                <li>Verify your Google Chat webhook URL is correct and active</li>
+                <li>Ensure your notification rules are enabled</li>
+                <li>Run a live test from the Testing section in your dashboard</li>
+                <li>Check if the deal meets your rule criteria (value, stage, etc.)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: How do I get a Google Chat webhook URL?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> Follow these steps:
+            <ol>
+                <li>Open Google Chat in your browser</li>
+                <li>Go to the Chat space where you want notifications</li>
+                <li>Click the space name at the top</li>
+                <li>Select "Manage webhooks"</li>
+                <li>Click "Add webhook"</li>
+                <li>Name it "Pipedrive Notifications" and copy the generated URL</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: Can I send notifications to multiple Google Chat spaces?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> Yes! You can add multiple webhook URLs and create different notification rules for each space. For example, send all deals to your sales team space and only high-value deals to your management space.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: How do I stop notifications during non-business hours?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> Use the Quiet Hours feature in your settings. You can set your timezone, business hours, and choose whether to receive notifications on weekends.
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: What Pipedrive events can trigger notifications?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> PipeNotify supports all major Pipedrive events including:
+            <ul>
+                <li>Deal won/lost</li>
+                <li>Deal stage changes</li>
+                <li>New deals created</li>
+                <li>Deal updates (value, owner, etc.)</li>
+                <li>Contact and activity events</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">Q: Is my data secure?</div>
+        <div class="faq-answer">
+            <strong>A:</strong> Yes. We use industry-standard security measures:
+            <ul>
+                <li>All data is encrypted in transit and at rest</li>
+                <li>OAuth 2.0 authentication with Pipedrive</li>
+                <li>Webhook URLs are stored securely</li>
+                <li>We only process data necessary for notifications</li>
+                <li>Regular security audits and monitoring</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2 id="troubleshooting">Common Troubleshooting Steps</h2>
+
+    <div class="faq-item">
+        <div class="faq-question">🔍 Notifications Not Working</div>
+        <div class="faq-answer">
+            <ol>
+                <li><strong>Test Your Connection:</strong> Use the "Send Test Message" button in your dashboard</li>
+                <li><strong>Check Rule Status:</strong> Ensure your notification rules are enabled</li>
+                <li><strong>Verify Webhook URL:</strong> Make sure it includes "chat.googleapis.com"</li>
+                <li><strong>Review Filters:</strong> Check if your deal meets the rule criteria</li>
+                <li><strong>Check Logs:</strong> Look at the Activity Logs for error messages</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">🔑 Authentication Issues</div>
+        <div class="faq-answer">
+            <ol>
+                <li><strong>Re-authorize:</strong> Log out and log back in to refresh your connection</li>
+                <li><strong>Check Permissions:</strong> Ensure you have admin access in Pipedrive</li>
+                <li><strong>Clear Browser Cache:</strong> Sometimes cached data causes issues</li>
+                <li><strong>Try Incognito Mode:</strong> This helps isolate browser-related problems</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="faq-item">
+        <div class="faq-question">⚠️ Error Messages</div>
+        <div class="faq-answer">
+            <ul>
+                <li><strong>"Route not found":</strong> Check that your webhook URL is valid</li>
+                <li><strong>"Session expired":</strong> Re-authorize your Pipedrive connection</li>
+                <li><strong>"Webhook validation failed":</strong> Verify your Google Chat webhook URL</li>
+                <li><strong>"Rule not triggered":</strong> Check your rule filters and criteria</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Still Need Help?</h2>
+
+    <div class="contact-card">
+        <h3>📞 Contact Our Support Team</h3>
+        <p>If you can't find the answer you're looking for, we're here to help!</p>
+        
+        <p><strong>Email:</strong> support@primedevlabs.com</p>
+        
+        <p><strong>When contacting us, please include:</strong></p>
+        <ul style="text-align: left; display: inline-block;">
+            <li>Your company name in Pipedrive</li>
+            <li>Detailed description of the issue</li>
+            <li>Screenshots if applicable</li>
+            <li>What you were trying to do when the issue occurred</li>
+            <li>Any error messages you received</li>
+        </ul>
+        
+        <p><strong>Response Time:</strong> Within 24 hours during business days</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid #e5e7eb;">
+        <p><em>Thank you for using PipeNotify! We appreciate your business and are committed to your success.</em></p>
+    </div>
+</body>
+</html>

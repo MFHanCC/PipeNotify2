@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - PipeNotify</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #374151;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #4b5563;
+            margin-top: 30px;
+        }
+        .hero {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .step-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step-number {
+            background: #2563eb;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .code-block {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .tip {
+            background: #dcfce7;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .nav-menu {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .nav-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .nav-menu li {
+            margin: 10px 0;
+        }
+        .nav-menu a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .nav-menu a:hover {
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>PipeNotify Documentation</h1>
+        <p>Complete guide to connecting Pipedrive with Google Chat for real-time notifications</p>
+    </div>
+
+    <div class="nav-menu">
+        <h3>Quick Navigation</h3>
+        <ul>
+            <li><a href="#getting-started">Getting Started</a></li>
+            <li><a href="#installation">Installation Guide</a></li>
+            <li><a href="#google-chat-setup">Google Chat Setup</a></li>
+            <li><a href="#notification-rules">Creating Rules</a></li>
+            <li><a href="#testing">Testing Your Setup</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+            <li><a href="#advanced">Advanced Features</a></li>
+        </ul>
+    </div>
+
+    <h2 id="getting-started">Getting Started</h2>
+    <p>PipeNotify seamlessly connects your Pipedrive CRM with Google Chat, delivering real-time notifications when important events happen in your sales pipeline.</p>
+
+    <h3>What You'll Need</h3>
+    <ul>
+        <li>A Pipedrive account with admin permissions</li>
+        <li>Access to Google Chat (Google Workspace)</li>
+        <li>Ability to create incoming webhooks in Google Chat</li>
+        <li>5 minutes for setup</li>
+    </ul>
+
+    <h2 id="installation">Installation Guide</h2>
+    
+    <div class="step-card">
+        <h3><span class="step-number">1</span>Install from Pipedrive Marketplace</h3>
+        <p>Find PipeNotify in the Pipedrive Marketplace and click "Install". You'll be redirected to authorize the connection.</p>
+        <div class="tip">
+            <strong>Tip:</strong> Make sure you're logged into Pipedrive as an admin to complete the OAuth authorization.
+        </div>
+    </div>
+
+    <div class="step-card">
+        <h3><span class="step-number">2</span>Connect Your Google Chat</h3>
+        <p>After authorization, you'll be guided through connecting your Google Chat workspace by adding webhook URLs.</p>
+        <p><strong>How to get a Google Chat webhook URL:</strong></p>
+        <ol>
+            <li>Open Google Chat in your browser</li>
+            <li>Go to the space where you want notifications</li>
+            <li>Click the space name at the top</li>
+            <li>Select "Manage webhooks"</li>
+            <li>Click "Add webhook"</li>
+            <li>Name it "Pipedrive Notifications" and copy the URL</li>
+        </ol>
+    </div>
+
+    <div class="step-card">
+        <h3><span class="step-number">3</span>Choose Your Events</h3>
+        <p>Select which Pipedrive activities should trigger notifications. Popular choices include:</p>
+        <ul>
+            <li>Deal won</li>
+            <li>Deal lost</li>
+            <li>Deal stage changed</li>
+            <li>New deal created</li>
+            <li>High-value deals</li>
+        </ul>
+    </div>
+
+    <div class="step-card">
+        <h3><span class="step-number">4</span>Start Receiving Notifications</h3>
+        <p>That's it! You'll immediately start receiving beautiful, formatted notifications in your Google Chat space.</p>
+    </div>
+
+    <h2 id="google-chat-setup">Google Chat Setup Details</h2>
+    
+    <h3>Creating Incoming Webhooks</h3>
+    <div class="code-block">
+Google Chat → Space Settings → Manage Webhooks → Add Webhook
+Name: "Pipedrive Notifications"
+Avatar URL: (optional) 
+Copy the generated webhook URL
+    </div>
+
+    <div class="warning">
+        <strong>Important:</strong> Keep your webhook URLs secure. Anyone with the URL can send messages to your Chat space.
+    </div>
+
+    <h3>Multiple Chat Rooms</h3>
+    <p>You can configure different notification rules for different Chat spaces:</p>
+    <ul>
+        <li><strong>Sales Team Space:</strong> All deal notifications</li>
+        <li><strong>Management Space:</strong> Only high-value deals</li>
+        <li><strong>Support Space:</strong> Lost deals for follow-up</li>
+    </ul>
+
+    <h2 id="notification-rules">Creating Notification Rules</h2>
+
+    <h3>Rule Components</h3>
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Example</th>
+        </tr>
+        <tr>
+            <td>Event Type</td>
+            <td>Which Pipedrive event triggers the notification</td>
+            <td>deal.won, deal.updated</td>
+        </tr>
+        <tr>
+            <td>Filters</td>
+            <td>Conditions that must be met</td>
+            <td>Deal value > $5,000</td>
+        </tr>
+        <tr>
+            <td>Target Webhook</td>
+            <td>Which Google Chat space receives the notification</td>
+            <td>Sales Team Chat</td>
+        </tr>
+        <tr>
+            <td>Template</td>
+            <td>How the message is formatted</td>
+            <td>Simple, Detailed, Custom</td>
+        </tr>
+    </table>
+
+    <h3>Advanced Filtering</h3>
+    <p>Create sophisticated rules with multiple conditions:</p>
+    <div class="code-block">
+Event: deal.updated
+Filters:
+  - Deal value >= $10,000
+  - Stage changed to "Proposal"
+  - Owner = "John Smith"
+Notification: "🎯 High-value proposal ready for review!"
+    </div>
+
+    <h2 id="testing">Testing Your Setup</h2>
+
+    <h3>Built-in Testing Tools</h3>
+    <p>PipeNotify includes comprehensive testing features:</p>
+    
+    <h4>Live Test</h4>
+    <p>Send a real test notification to verify your entire setup works end-to-end.</p>
+
+    <h4>Health Checks</h4>
+    <p>Monitor system health with automatic checks of:</p>
+    <ul>
+        <li>Database connectivity</li>
+        <li>Webhook validity</li>
+        <li>Pipedrive API access</li>
+        <li>Notification delivery</li>
+    </ul>
+
+    <h4>Auto-Monitoring</h4>
+    <p>Enable automatic health monitoring that adapts based on system performance:</p>
+    <ul>
+        <li>Every 1 minute when issues are detected</li>
+        <li>Every 2 minutes when system is stable</li>
+        <li>Every 5 minutes when consistently healthy</li>
+    </ul>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+
+    <h3>Common Issues</h3>
+
+    <h4>Notifications Not Arriving</h4>
+    <ol>
+        <li>Check if your webhook URL is valid in Google Chat</li>
+        <li>Verify your notification rules are enabled</li>
+        <li>Run a live test from the Testing section</li>
+        <li>Check the Activity Logs for error messages</li>
+    </ol>
+
+    <h4>Webhook URL Errors</h4>
+    <div class="warning">
+        <strong>Common Issue:</strong> Google Chat webhook URLs must include "chat.googleapis.com"
+    </div>
+    <p>Valid URL format:</p>
+    <div class="code-block">
+https://chat.googleapis.com/v1/spaces/SPACE_ID/messages?key=API_KEY&token=TOKEN
+    </div>
+
+    <h4>Authentication Problems</h4>
+    <p>If you see "Session expired" errors:</p>
+    <ol>
+        <li>Log out and log back into PipeNotify</li>
+        <li>Re-authorize the Pipedrive connection</li>
+        <li>Check that you have admin permissions in Pipedrive</li>
+    </ol>
+
+    <h3>Getting Help</h3>
+    <div class="tip">
+        <strong>Need Support?</strong> Email us at support@primedevlabs.com with:
+        <ul>
+            <li>Description of the issue</li>
+            <li>Screenshots if applicable</li>
+            <li>Your company name in Pipedrive</li>
+            <li>What you were trying to do when the issue occurred</li>
+        </ul>
+        We typically respond within 24 hours.
+    </div>
+
+    <h2 id="advanced">Advanced Features</h2>
+
+    <h3>Custom Templates</h3>
+    <p>Create custom notification templates with variables:</p>
+    <div class="code-block">
+🎉 Deal Won: {{deal.title}}
+💰 Value: {{deal.value}} {{deal.currency}}
+👤 Owner: {{deal.owner_name}}
+📅 Won Date: {{deal.won_time}}
+    </div>
+
+    <h3>Quiet Hours</h3>
+    <p>Configure quiet hours to avoid notifications during non-business hours:</p>
+    <ul>
+        <li>Set timezone</li>
+        <li>Define business hours</li>
+        <li>Choose weekend behavior</li>
+    </ul>
+
+    <h3>Bulk Rule Management</h3>
+    <p>Manage multiple notification rules efficiently:</p>
+    <ul>
+        <li>Enable/disable multiple rules at once</li>
+        <li>Copy rules between webhooks</li>
+        <li>Export and import rule configurations</li>
+    </ul>
+
+    <h3>Analytics</h3>
+    <p>Track notification performance:</p>
+    <ul>
+        <li>Delivery success rates</li>
+        <li>Most active event types</li>
+        <li>Rule effectiveness</li>
+        <li>Usage patterns</li>
+    </ul>
+
+    <div class="hero" style="margin-top: 50px;">
+        <h3>Ready to Get Started?</h3>
+        <p>Install PipeNotify from the Pipedrive Marketplace and start receiving notifications in under 5 minutes!</p>
+    </div>
+</body>
+</html>

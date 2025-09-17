@@ -802,6 +802,215 @@ app.post('/api/v1/test/webhook', async (req, res) => {
   }
 });
 
+// Complete notification flow diagnostic endpoint
+app.post('/api/v1/test/notification-flow', async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'webhookUrl is required'
+      });
+    }
+
+    const results = {
+      timestamp: new Date().toISOString(),
+      tests: []
+    };
+
+    // Test 1: Database connectivity
+    console.log('🔍 Testing database connectivity...');
+    try {
+      const { healthCheck, getRulesForEvent, getWebhooks } = require('./services/database');
+      const dbHealth = await healthCheck();
+      
+      results.tests.push({
+        name: 'Database Connectivity',
+        status: dbHealth.healthy ? 'PASS' : 'FAIL',
+        details: dbHealth
+      });
+
+      if (dbHealth.healthy) {
+        // Check rules and webhooks for tenant 1
+        const rules = await getRulesForEvent(1, 'deal.*');
+        const webhooks = await getWebhooks(1);
+        
+        results.tests.push({
+          name: 'Rules and Webhooks',
+          status: (rules.length > 0 && webhooks.length > 0) ? 'PASS' : 'FAIL',
+          details: {
+            rulesCount: rules.length,
+            webhooksCount: webhooks.length,
+            rules: rules.map(r => ({ id: r.id, name: r.name, event_type: r.event_type })),
+            webhooks: webhooks.map(w => ({ id: w.id, name: w.name }))
+          }
+        });
+      }
+    } catch (dbError) {
+      results.tests.push({
+        name: 'Database Connectivity',
+        status: 'FAIL',
+        error: dbError.message
+      });
+    }
+
+    // Test 2: Redis/Queue connectivity
+    console.log('🔍 Testing Redis/Queue connectivity...');
+    try {
+      const { getQueueInfo } = require('./jobs/queue');
+      const queueInfo = await getQueueInfo();
+      
+      results.tests.push({
+        name: 'Redis/Queue Connectivity',
+        status: queueInfo.connected ? 'PASS' : 'FAIL',
+        details: queueInfo
+      });
+    } catch (queueError) {
+      results.tests.push({
+        name: 'Redis/Queue Connectivity',
+        status: 'FAIL',
+        error: queueError.message
+      });
+    }
+
+    // Test 3: Worker status
+    console.log('🔍 Testing worker status...');
+    try {
+      const { notificationWorker } = require('./jobs/processor');
+      
+      if (notificationWorker) {
+        // Test worker connection by getting waiting jobs
+        const waitingJobs = await notificationWorker.getWaiting();
+        const activeJobs = await notificationWorker.getActive();
+        
+        results.tests.push({
+          name: 'Worker Status',
+          status: 'PASS',
+          details: {
+            workerExists: true,
+            waitingJobs: waitingJobs.length,
+            activeJobs: activeJobs.length
+          }
+        });
+      } else {
+        results.tests.push({
+          name: 'Worker Status',
+          status: 'FAIL',
+          details: { workerExists: false, error: 'Worker instance not found' }
+        });
+      }
+    } catch (workerError) {
+      results.tests.push({
+        name: 'Worker Status',
+        status: 'FAIL',
+        error: workerError.message
+      });
+    }
+
+    // Test 4: Direct Google Chat test
+    console.log('🔍 Testing direct Google Chat...');
+    try {
+      const { defaultChatClient } = require('./services/chatClient');
+      const directResult = await defaultChatClient.sendTextMessage(
+        webhookUrl,
+        `🧪 Direct test notification - ${new Date().toISOString()}`
+      );
+      
+      results.tests.push({
+        name: 'Direct Google Chat',
+        status: 'PASS',
+        details: directResult
+      });
+    } catch (chatError) {
+      results.tests.push({
+        name: 'Direct Google Chat',
+        status: 'FAIL',
+        error: chatError.message
+      });
+    }
+
+    // Test 5: End-to-end job processing
+    console.log('🔍 Testing end-to-end job processing...');
+    try {
+      const { addNotificationJob } = require('./jobs/queue');
+      
+      const testWebhookData = {
+        event: 'deal.updated',
+        object: {
+          id: 999,
+          type: 'deal',
+          title: 'E2E Test Deal',
+          value: 2000,
+          currency: 'USD'
+        },
+        user_id: 1,
+        company_id: 1,
+        timestamp: new Date().toISOString()
+      };
+
+      const job = await addNotificationJob(testWebhookData, {
+        priority: 1,
+        delay: 0
+      });
+
+      // Wait 5 seconds for processing
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const jobState = await job.getState();
+      let jobResult = null;
+      
+      if (jobState === 'completed') {
+        jobResult = await job.returnvalue;
+      }
+      
+      results.tests.push({
+        name: 'End-to-End Job Processing',
+        status: jobState === 'completed' ? 'PASS' : 'PARTIAL',
+        details: {
+          jobId: job.id,
+          jobState,
+          jobResult,
+          processingTime: '5 seconds waited'
+        }
+      });
+    } catch (e2eError) {
+      results.tests.push({
+        name: 'End-to-End Job Processing',
+        status: 'FAIL',
+        error: e2eError.message
+      });
+    }
+
+    // Summary
+    const passCount = results.tests.filter(t => t.status === 'PASS').length;
+    const totalTests = results.tests.length;
+    
+    results.summary = {
+      totalTests,
+      passed: passCount,
+      failed: totalTests - passCount,
+      overallStatus: passCount === totalTests ? 'ALL_PASS' : 'ISSUES_FOUND'
+    };
+
+    console.log(`🎯 Notification flow test complete: ${passCount}/${totalTests} tests passed`);
+
+    res.json({
+      success: true,
+      message: 'Notification flow diagnostic complete',
+      results
+    });
+    
+  } catch (error) {
+    console.error('Notification flow test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to run notification flow test',
+      error: error.message
+    });
+  }
+});
+
 // Sentry error handler (configured when valid DSN is provided)
 
 // Error handling middleware

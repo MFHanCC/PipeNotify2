@@ -14,24 +14,21 @@ const notificationWorker = new Worker('notification', async (job) => {
   const { data } = job;
   
   try {
-    console.log(`🚀 PROCESSING JOB ${job.id}:`, {
-      event: data.event,
-      object: data.object,
-      userId: data.user_id,
-      companyId: data.company_id
-    });
+    console.log(`🚀 PROCESSING JOB ${job.id}: ${data.event} for company ${data.company_id}`);
     
-    // Log full data safely
-    try {
-      const cleanData = JSON.stringify(data, (key, value) => {
-        if (typeof value === 'string') {
-          return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-        }
-        return value;
-      }, 2);
-      console.log(`📊 JOB ${job.id} DATA:`, cleanData);
-    } catch (logError) {
-      console.log(`📊 JOB ${job.id} DATA: [Unable to stringify safely]`, Object.keys(data));
+    // Only log full data in development
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const cleanData = JSON.stringify(data, (key, value) => {
+          if (typeof value === 'string') {
+            return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+          }
+          return value;
+        }, 2);
+        console.log(`📊 JOB ${job.id} DATA:`, cleanData);
+      } catch (logError) {
+        console.log(`📊 JOB ${job.id} DATA: [Unable to stringify]`);
+      }
     }
 
     // Process the webhook notification
@@ -162,9 +159,11 @@ async function processNotification(webhookData) {
         targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
         
         if (!targetWebhook) {
-          console.log(`No suitable webhook found for rule ${rule.name}, skipping`);
+          console.error(`❌ No webhook found for rule ${rule.name} (webhook_id: ${rule.target_webhook_id})`);
           continue;
         }
+        
+        console.log(`🎯 Using webhook ${targetWebhook.id}: ${targetWebhook.webhook_url?.substring(0, 50)}...`);
 
         // Check quiet hours before sending
         const quietCheck = await isQuietTime(tenantId);
@@ -226,7 +225,7 @@ async function processNotification(webhookData) {
             await alertSystemReliability(tenantId, rule, notificationResult.tier, webhookData);
           }
           
-          console.log(`✅ Sent notification for rule: ${rule.name} (Tier ${notificationResult.tier})`);
+          console.log(`✅ SUCCESS: Notification sent for rule "${rule.name}" via Tier ${notificationResult.tier}`);
         } else {
           // Log failed notification
           await createLog(tenantId, {
@@ -241,7 +240,7 @@ async function processNotification(webhookData) {
             response_time_ms: Date.now() - startTime
           });
           
-          console.error(`❌ Failed to send notification for rule: ${rule.name}`, notificationResult.error);
+          console.error(`❌ FAILED: All tiers failed for rule "${rule.name}":`, notificationResult.errors || notificationResult.error);
         }
       } catch (error) {
         console.error(`Error processing rule ${rule.name}:`, error);
@@ -405,7 +404,7 @@ async function sendNotificationWithBackup(rule, webhookData, targetWebhook = nul
   
   // Tier 1: Primary delivery with immediate retry
   try {
-    console.log(`🎯 TIER 1: Primary delivery attempt`);
+    console.log(`🎯 TIER 1: Primary delivery to ${webhookUrl}`);
     const result = await defaultChatClient.sendNotification(
       webhookUrl,
       webhookData,
