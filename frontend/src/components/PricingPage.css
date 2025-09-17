@@ -203,13 +203,13 @@
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   position: relative;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 400px;
+  min-height: 280px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -218,24 +218,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.plan-card.current {
-  border-color: #3b82f6;
-  background: #f8fafc;
-  position: relative;
-}
-
-.plan-card.current::before {
-  content: 'Current Plan';
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  background: #3b82f6;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-  border-radius: 0 12px 0 12px;
-}
 
 .plan-card.popular {
   border-color: #10b981;
@@ -260,7 +242,7 @@
 /* Plan Header */
 .plan-header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .plan-name {
@@ -313,7 +295,7 @@
   font-size: 0.875rem;
   line-height: 1.5;
   margin: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 /* Plan Features */
@@ -324,20 +306,20 @@
 
 /* Key Limits Section */
 .key-limits {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .limit-item {
-  margin-bottom: 0.75rem;
-  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .limit-item strong {
   color: #667eea;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .feature-list {
@@ -349,10 +331,10 @@
 .feature-item {
   display: flex;
   align-items: flex-start;
-  padding: 0.4rem 0;
-  font-size: 1rem;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .feature-item.unavailable {

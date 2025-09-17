@@ -31,39 +31,26 @@ const PricingToggle: React.FC<PricingToggleProps> = ({ billingCycle, onToggle })
 
 const getFeatureList = (tier: string) => {
   const features = [
-    // Basic notification features
-    { name: 'Deal Won notifications', available: true },
-    { name: 'Deal Lost notifications', available: true },
-    { name: 'New Deal notifications', available: true },
-    { name: 'Deal Updated notifications', available: tier !== 'free' },
-    
-    // Filtering capabilities
-    { name: 'Basic message templates', available: true },
-    { name: 'Deal value filtering', available: tier !== 'free' },
-    { name: 'Pipeline & stage filtering', available: tier !== 'free' },
-    { name: 'Owner-based filtering', available: tier !== 'free' },
-    
-    // Advanced features
-    { name: 'Custom message templates', available: tier === 'pro' || tier === 'team' },
-    { name: 'Smart channel routing', available: tier === 'pro' || tier === 'team' },
-    { name: 'Quiet hours scheduling', available: tier === 'pro' || tier === 'team' },
-    { name: 'Advanced probability filtering', available: tier === 'pro' || tier === 'team' },
-    
-    // Enterprise features
-    { name: 'Team analytics dashboard', available: tier === 'team' },
-    { name: 'API access', available: tier === 'team' },
+    // Core features for all tiers
+    { name: 'Real-time notifications', available: true },
+    { name: 'Google Chat integration', available: true },
+    { name: 'Basic templates', available: true },
+    { name: 'Deal filtering', available: tier !== 'free' },
+    { name: 'Custom templates', available: tier === 'pro' || tier === 'team' },
+    { name: 'Advanced routing', available: tier === 'pro' || tier === 'team' },
+    { name: 'Team analytics', available: tier === 'team' },
     { name: 'Priority support', available: tier === 'team' },
   ];
 
-  // Show different subsets for each tier
+  // Show compact feature list for each tier
   if (tier === 'free') {
-    return features.slice(0, 8); // Show basic + filtering (unavailable) to highlight upgrade
+    return features.slice(0, 4);
   } else if (tier === 'starter') {
-    return features.slice(0, 8); // Show up to filtering features
+    return features.slice(0, 4);
   } else if (tier === 'pro') {
-    return features.slice(4, 12); // Show filtering + advanced features
+    return features.slice(0, 6);
   } else if (tier === 'team') {
-    return features.slice(8); // Show advanced + enterprise features
+    return features.slice(0, 8);
   }
   
   return features;
@@ -179,36 +166,15 @@ const PricingPage: React.FC<PricingPageProps> = ({
     return value.toString();
   };
 
-  const isPlanCurrent = (planTier: string) => {
-    return getCurrentPlanTier() === planTier;
-  };
-
-  const isUpgrade = (planTier: string) => {
-    const currentTier = getCurrentPlanTier();
-    const tierOrder = ['free', 'starter', 'pro', 'team'];
-    const currentIndex = tierOrder.indexOf(currentTier);
-    const targetIndex = tierOrder.indexOf(planTier);
-    return targetIndex > currentIndex;
-  };
-
   const getButtonText = (plan: PlanDetails) => {
-    if (isPlanCurrent(plan.tier)) {
-      return 'Current Plan';
+    if (plan.tier === 'free') {
+      return 'Get Started';
     }
-    if (isUpgrade(plan.tier)) {
-      return 'Upgrade';
-    }
-    return 'Downgrade';
+    return 'Choose Plan';
   };
 
   const getButtonClass = (plan: PlanDetails) => {
-    if (isPlanCurrent(plan.tier)) {
-      return 'current';
-    }
-    if (isUpgrade(plan.tier)) {
-      return 'upgrade';
-    }
-    return 'downgrade';
+    return 'upgrade';
   };
 
   if (loading) {
@@ -302,7 +268,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
         {plans.map((plan) => (
           <div 
             key={plan.tier} 
-            className={`plan-card ${plan.tier} ${isPlanCurrent(plan.tier) ? 'current' : ''} ${plan.tier === 'pro' ? 'popular' : ''}`}
+            className={`plan-card ${plan.tier} ${plan.tier === 'pro' ? 'popular' : ''}`}
           >
             
             <div className="plan-header">
@@ -362,7 +328,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
               <button
                 className={`plan-button ${getButtonClass(plan)}`}
                 onClick={() => handlePlanSelection(plan.tier)}
-                disabled={processingPlan === plan.tier || isPlanCurrent(plan.tier)}
+                disabled={processingPlan === plan.tier}
               >
                 {processingPlan === plan.tier ? (
                   <span className="processing">
