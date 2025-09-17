@@ -484,15 +484,27 @@ class ChatClient {
     const { event, object, user, company } = webhookData;
     const timestamp = new Date().toISOString();
 
-    // Determine color based on event type
+    // Determine color and title based on event type
     let color = '#4285f4'; // Default blue
-    if (event.includes('won')) color = '#34a853'; // Green
-    if (event.includes('lost')) color = '#ea4335'; // Red
-    if (event.includes('deleted')) color = '#fbbc04'; // Yellow
+    let title = `Pipedrive ${event.replace(/\./g, ' ').toUpperCase()}`;
+    
+    if (event === 'deal.won') {
+      color = '#34a853'; // Green
+      title = '🎉 Deal Won! 🏆';
+    } else if (event === 'deal.lost') {
+      color = '#ea4335'; // Red
+      title = '📉 Deal Lost';
+    } else if (event.includes('won')) {
+      color = '#34a853'; // Green
+    } else if (event.includes('lost')) {
+      color = '#ea4335'; // Red
+    } else if (event.includes('deleted')) {
+      color = '#fbbc04'; // Yellow
+    }
 
     const card = {
       header: {
-        title: `Pipedrive ${event.replace(/\./g, ' ').toUpperCase()}`,
+        title: title,
         subtitle: company?.name || 'Pipedrive Notification',
         imageUrl: 'https://cdn.pipedrive.com/assets/icons/pipedrivelogo_108.png'
       },
@@ -509,8 +521,8 @@ class ChatClient {
             },
             {
               keyValue: {
-                topLabel: 'Object',
-                content: `${object?.type || 'Unknown'}: ${object?.name || object?.title || object?.id}`,
+                topLabel: event === 'deal.won' ? 'Won Deal' : event === 'deal.lost' ? 'Lost Deal' : 'Object',
+                content: object?.name || object?.title || `${object?.type || 'Deal'} #${object?.id}`,
                 contentMultiline: true
               }
             }
@@ -572,7 +584,13 @@ class ChatClient {
     let headerIcon = '🔔';
     let actionButtons = [];
     
-    if (event.includes('won')) {
+    if (event === 'deal.won') {
+      headerColor = '#34a853'; // Green
+      headerIcon = '🎉';
+    } else if (event === 'deal.lost') {
+      headerColor = '#ea4335'; // Red  
+      headerIcon = '📉';
+    } else if (event.includes('won')) {
       headerColor = '#34a853'; // Green
       headerIcon = '🎉';
     } else if (event.includes('lost')) {
