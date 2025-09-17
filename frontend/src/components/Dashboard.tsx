@@ -1027,8 +1027,9 @@ const Dashboard: React.FC = React.memo(() => {
                 {editingRule === rule.id ? (
                   <div className="edit-form">
                     <div className="rule-form-grid">
-                      {/* Left Column: Basic Information */}
-                      <div className="rule-form-column rule-form-basic">
+                      {/* Left Column: Basic Information + Message Template */}
+                      <div className="rule-form-left">
+                        <div className="rule-form-basic">
                         <div className="form-group">
                           <label htmlFor="edit-rule-name">Rule Name *</label>
                           <input
@@ -1109,10 +1110,10 @@ const Dashboard: React.FC = React.memo(() => {
                             <span>Enable rule</span>
                           </label>
                         </div>
-                      </div>
+                        </div>
 
-                      {/* Center Column: Message Template */}
-                      <div className="rule-form-column rule-form-template">
+                        {/* Message Template */}
+                        <div className="rule-form-template">
                         <TemplateEditor
                           value={{
                             template_mode: editFormData.template_mode,
@@ -1124,10 +1125,11 @@ const Dashboard: React.FC = React.memo(() => {
                           })}
                           eventType={editFormData.event_type}
                         />
+                        </div>
                       </div>
 
                       {/* Right Column: Advanced Filters */}
-                      <div className="rule-form-column rule-form-advanced">
+                      <div className="rule-form-advanced">
                         <FeatureRestriction
                           isAvailable={hasFeature('advanced_filtering')}
                           requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
@@ -1999,8 +2001,9 @@ const Dashboard: React.FC = React.memo(() => {
             
             <div className="modal-body" id="modal-description">
               <div className="rule-form-grid">
-                {/* Left Column: Basic Information */}
-                <div className="rule-form-column rule-form-basic">
+                {/* Left Column: Basic Information + Message Template */}
+                <div className="rule-form-left">
+                  <div className="rule-form-basic">
                   <div className="form-group">
                     <label htmlFor="rule-name">Rule Name *</label>
                     <input
@@ -2109,10 +2112,10 @@ const Dashboard: React.FC = React.memo(() => {
                       <span>Enable rule immediately</span>
                     </label>
                   </div>
-                </div>
+                  </div>
 
-                {/* Center Column: Message Template */}
-                <div className="rule-form-column rule-form-template">
+                  {/* Message Template */}
+                  <div className="rule-form-template">
                   <TemplateEditor
                     value={{
                       template_mode: createFormData.template_mode,
@@ -2125,10 +2128,11 @@ const Dashboard: React.FC = React.memo(() => {
                     })}
                     eventType={createFormData.event_type}
                   />
+                  </div>
                 </div>
 
                 {/* Right Column: Advanced Filters */}
-                <div className="rule-form-column rule-form-advanced">
+                <div className="rule-form-advanced">
                   <FeatureRestriction
                     isAvailable={hasFeature('advanced_filtering')}
                     requiredPlan={getFeatureRequiredPlan('advanced_filtering')}

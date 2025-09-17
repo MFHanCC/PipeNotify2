@@ -92,12 +92,16 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.4;
   transition: all 0.2s ease;
   cursor: pointer;
   border: none;
   min-height: 44px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .test-button.primary {
@@ -111,9 +115,10 @@
 }
 
 .test-button.secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+  border: 2px solid #d1d5db;
+  font-weight: 600;
 }
 
 .test-button.secondary:hover:not(:disabled) {
