@@ -38,7 +38,7 @@ const plans: Plan[] = [
     limits: {
       notifications: '100/month',
       webhooks: '1',
-      rules: '3'
+      rules: '3 rules total'
     }
   },
   {
@@ -60,7 +60,7 @@ const plans: Plan[] = [
     limits: {
       notifications: 'Unlimited',
       webhooks: '3',
-      rules: '10'
+      rules: '7 rules total'
     }
   },
   {
@@ -83,7 +83,7 @@ const plans: Plan[] = [
     limits: {
       notifications: 'Unlimited',
       webhooks: 'Unlimited',
-      rules: 'Unlimited'
+      rules: '10 rules total'
     }
   },
   {
@@ -387,28 +387,24 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
         <h2>Frequently asked questions</h2>
         <div className="faq-grid">
           <div className="faq-item">
-            <h3>How does billing work?</h3>
-            <p>Monthly plans bill every month, annual plans bill yearly with 20% savings. All prices exclude taxes where applicable.</p>
+            <h4>Can I upgrade or downgrade anytime?</h4>
+            <p>Yes, change plans instantly from your account settings.</p>
           </div>
           <div className="faq-item">
-            <h3>Can I get a refund?</h3>
-            <p>Yes! We offer a 30-day money-back guarantee on all paid plans. Contact support@pipenotify.com for refunds.</p>
+            <h4>What are default rules?</h4>
+            <p>Ready-to-use rules we provide for ease of use. You can customize, delete, or replace them with your own rules within your plan's limit.</p>
           </div>
           <div className="faq-item">
-            <h3>Can I upgrade or downgrade?</h3>
-            <p>Absolutely. Change plans anytime from your account settings. Upgrades are immediate, downgrades take effect next billing cycle.</p>
+            <h4>Can I customize notification messages?</h4>
+            <p>Professional and Team plans include custom message templates with deal data variables.</p>
           </div>
           <div className="faq-item">
-            <h3>What happens if I exceed limits?</h3>
-            <p>Free plan notifications pause at 100/month. Paid plans have unlimited notifications. We'll notify you before any usage-based charges.</p>
+            <h4>Is my Pipedrive data secure?</h4>
+            <p>Yes, enterprise-grade encryption and SOC 2 compliance protect your data.</p>
           </div>
           <div className="faq-item">
-            <h3>What support do I get?</h3>
-            <p>Free & Starter: Email support. Professional: Live chat. Team: Dedicated account manager with phone support and SLA.</p>
-          </div>
-          <div className="faq-item">
-            <h3>Is my data secure with PipeNotify?</h3>
-            <p>Absolutely. We use enterprise-grade encryption, are SOC 2 compliant, and only access the minimum data needed for notifications. Your Pipedrive data never leaves secure channels.</p>
+            <h4>30-day money-back guarantee?</h4>
+            <p>Full refund on all paid plans, no questions asked.</p>
           </div>
         </div>
         
