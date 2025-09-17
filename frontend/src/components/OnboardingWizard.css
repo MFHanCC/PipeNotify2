@@ -3,14 +3,15 @@
 
 .onboarding-wizard {
   max-width: 1000px;
-  min-height: 100vh;
+  height: 100vh;
   margin: 0 auto;
-  padding: 20px;
+  padding: 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #ffffff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .error-banner {
@@ -47,8 +48,8 @@
 
 .wizard-header {
   border-bottom: 1px solid #e0e4e7;
-  padding-bottom: 20px;
-  margin-bottom: 20px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -106,22 +107,22 @@
 
 .step-header {
   flex-shrink: 0;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .step-header h1 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   line-height: 1.2;
 }
 
 .step-header p {
-  font-size: 16px;
+  font-size: 14px;
   color: #6b7280;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .step-content {
@@ -152,9 +153,9 @@
 
 .wizard-footer {
   flex-shrink: 0;
-  padding-top: 30px;
+  padding-top: 16px;
   border-top: 1px solid #e0e4e7;
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
 .step-navigation {
@@ -233,7 +234,7 @@
 
 .welcome-hero {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   flex-shrink: 0;
 }
 
@@ -243,34 +244,34 @@
 }
 
 .welcome-hero h2 {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
 }
 
 .welcome-hero p {
-  font-size: 18px;
+  font-size: 16px;
   color: #6b7280;
   margin: 0;
-  max-width: 600px;
+  max-width: 500px;
   margin: 0 auto;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
   flex: 1;
 }
 
 .feature-card {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 16px;
   text-align: center;
   transition: all 0.2s ease;
 }
@@ -830,27 +831,34 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .onboarding-wizard {
-    padding: 16px;
-    min-height: 100vh;
+    padding: 12px;
+    height: 100vh;
   }
   
   .wizard-header {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
     align-items: stretch;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
   }
   
   .step-header h1 {
-    font-size: 24px;
+    font-size: 20px;
   }
   
   .step-header p {
-    font-size: 14px;
+    font-size: 13px;
   }
   
   .feature-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .feature-card {
+    padding: 12px;
   }
   
   .next-actions {
@@ -859,36 +867,77 @@
   
   .step-navigation {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
   
   .nav-button {
     width: 100%;
+    padding: 10px 20px;
   }
   
   .template-options {
     flex-direction: column;
     gap: 12px;
   }
+  
+  .wizard-footer {
+    padding-top: 12px;
+    margin-top: 8px;
+  }
 }
 
 @media (max-height: 700px) {
   .onboarding-wizard {
-    min-height: 100vh;
-    padding: 10px;
+    height: 100vh;
+    padding: 8px;
   }
   
   .wizard-header {
-    padding-bottom: 15px;
-    margin-bottom: 15px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
   }
   
   .step-header {
-    margin-bottom: 15px;
+    margin-bottom: 8px;
+  }
+  
+  .step-header h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  
+  .step-header p {
+    font-size: 13px;
   }
   
   .wizard-footer {
-    padding-top: 15px;
-    margin-top: 15px;
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+  
+  .nav-button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  
+  .feature-grid {
+    margin-bottom: 12px;
+  }
+  
+  .feature-card {
+    padding: 12px;
+  }
+  
+  .welcome-hero {
+    margin-bottom: 12px;
+  }
+  
+  .welcome-hero h2 {
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+  
+  .welcome-hero p {
+    font-size: 14px;
   }
 }

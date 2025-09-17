@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
 import './Settings.css';
-import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError } from '../utils/auth';
+import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError, logout } from '../utils/auth';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import FeatureRestriction from './FeatureRestriction';
 import { API_BASE_URL } from '../config/api';
@@ -1581,6 +1581,21 @@ const Dashboard: React.FC = React.memo(() => {
             type="button"
           >
             <span aria-hidden="true">⚙️</span> Settings
+          </button>
+          
+          <button 
+            className="nav-tab logout-button"
+            onClick={logout}
+            aria-label="Logout from application"
+            type="button"
+            style={{
+              marginTop: 'auto',
+              paddingTop: '20px',
+              borderTop: '1px solid #e5e7eb',
+              color: '#dc2626'
+            }}
+          >
+            <span aria-hidden="true">🚪</span> Logout
           </button>
         </nav>
       </aside>

@@ -74,6 +74,75 @@ router.get('/subscription', async (req, res) => {
 });
 
 /**
+ * GET /api/v1/billing/subscription/current
+ * Get current subscription details for authenticated user
+ */
+router.get('/subscription/current', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const tenantId = decoded.tenant_id;
+
+    if (!tenantId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    }
+
+    const { getTenantFeatures } = require('../middleware/featureGating');
+    const features = await getTenantFeatures(tenantId);
+    
+    // Get actual subscription from database
+    const { pool } = require('../services/database');
+    const subscriptionResult = await pool.query(
+      'SELECT * FROM subscriptions WHERE tenant_id = $1',
+      [tenantId]
+    );
+
+    let subscription = null;
+    if (subscriptionResult.rows.length > 0) {
+      subscription = subscriptionResult.rows[0];
+    }
+
+    // Get current usage
+    const usage = {
+      plan_tier: features.plan_tier,
+      notifications_used: 0, // Could be calculated from logs if needed
+      notifications_limit: features.limits.notifications === -1 ? 999999 : features.limits.notifications,
+      webhooks_used: 0, // Could be calculated from chat_webhooks if needed
+      webhooks_limit: features.limits.webhooks === -1 ? 999 : features.limits.webhooks,
+      rules_used: 0, // Could be calculated from rules if needed  
+      rules_limit: features.limits.rules === -1 ? 999 : features.limits.rules,
+      usage_percentage: 0
+    };
+
+    res.json({
+      success: true,
+      subscription,
+      usage
+    });
+    
+  } catch (error) {
+    console.error('Error getting current subscription:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load subscription information'
+    });
+  }
+});
+
+/**
  * GET /api/v1/billing/subscription/:tenantId
  * Get current subscription details for a tenant
  */

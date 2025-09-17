@@ -16,6 +16,21 @@ interface WebhookManagerProps {
 
 const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => {
   const { planTier, limits, loading: featuresLoading } = usePlanFeatures();
+  
+  // Helper to check if webhook limit is unlimited or within bounds
+  const isWithinWebhookLimit = (currentCount: number) => {
+    const webhookLimit = limits?.webhooks || 1;
+    // -1 means unlimited, 999+ means unlimited (treat as unlimited)
+    return webhookLimit === -1 || webhookLimit >= 999 || currentCount < webhookLimit;
+  };
+  
+  const getWebhookLimitMessage = () => {
+    const webhookLimit = limits?.webhooks || 1;
+    if (webhookLimit === -1 || webhookLimit >= 999) {
+      return 'unlimited';
+    }
+    return webhookLimit.toString();
+  };
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,9 +100,9 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
     e.preventDefault();
     
     // Check webhook limit based on plan
-    const webhookLimit = limits?.webhooks || 1;
-    if (webhooks.length >= webhookLimit) {
+    if (!isWithinWebhookLimit(webhooks.length)) {
       const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
+      const webhookLimit = limits?.webhooks || 1;
       setError(`${planName} plan allows maximum ${webhookLimit} webhook${webhookLimit > 1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
       return;
     }
@@ -193,21 +208,20 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         <button 
           className="btn-primary"
           onClick={() => {
-            const webhookLimit = limits?.webhooks || 1;
-            if (!showAddForm && webhooks.length >= webhookLimit) {
+            if (!showAddForm && !isWithinWebhookLimit(webhooks.length)) {
               return; // Don't show form if at limit
             }
             setShowAddForm(!showAddForm);
           }}
-          disabled={featuresLoading || (!showAddForm && webhooks.length >= (limits?.webhooks || 1))}
-          title={webhooks.length >= (limits?.webhooks || 1) 
-            ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${limits?.webhooks || 1} webhook${(limits?.webhooks || 1) > 1 ? 's' : ''} max). Upgrade to add more webhooks.`
+          disabled={featuresLoading || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
+          title={!isWithinWebhookLimit(webhooks.length)
+            ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getWebhookLimitMessage()} webhook${getWebhookLimitMessage() === '1' ? '' : 's'} max). Upgrade to add more webhooks.`
             : 'Add a new Google Chat webhook'
           }
         >
           {showAddForm ? 'Cancel' : '+ Add Webhook'}
-          {!showAddForm && webhooks.length >= (limits?.webhooks || 1) && (
-            <span style={{marginLeft: '4px', opacity: 0.7}}>({webhooks.length}/{limits?.webhooks || 1})</span>
+          {!showAddForm && !isWithinWebhookLimit(webhooks.length) && (
+            <span style={{marginLeft: '4px', opacity: 0.7}}>({webhooks.length}/{getWebhookLimitMessage()})</span>
           )}
         </button>
       </div>
@@ -218,14 +232,16 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         </div>
       )}
 
-      {webhooks.length > (limits?.webhooks || 1) && (
+      {!isWithinWebhookLimit(webhooks.length) && (
         <div className="error-message">
-          ⚠️ You have {webhooks.length} webhooks but your {planTier} plan only allows {limits?.webhooks || 1}. 
-          Please delete {webhooks.length - (limits?.webhooks || 1)} webhook{webhooks.length - (limits?.webhooks || 1) > 1 ? 's' : ''} or upgrade your plan.
+          ⚠️ You have {webhooks.length} webhooks but your {planTier} plan only allows {getWebhookLimitMessage()}. 
+          {getWebhookLimitMessage() !== 'unlimited' && (
+            <>Please delete {webhooks.length - (limits?.webhooks || 1)} webhook{webhooks.length - (limits?.webhooks || 1) > 1 ? 's' : ''} or upgrade your plan.</>
+          )}
         </div>
       )}
 
-      {showAddForm && webhooks.length < (limits?.webhooks || 1) && (
+      {showAddForm && isWithinWebhookLimit(webhooks.length) && (
         <div className="webhook-form">
           <h4>Add New Google Chat Webhook</h4>
           <form onSubmit={handleAddWebhook}>
@@ -316,32 +332,39 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
               
               <div className="webhook-actions">
                 <button
-                  className="btn-test"
+                  className="action-button test-button"
                   onClick={() => handleTestWebhook(webhook.id)}
                   disabled={testingId === webhook.id || deletingId === webhook.id}
+                  title={`Test webhook "${webhook.name}"`}
                 >
                   {testingId === webhook.id ? (
                     <>
-                      <span className="spinner"></span>
-                      Testing...
+                      <span className="loading-spinner-inline"></span>
+                      Testing
                     </>
                   ) : (
-                    '🧪 Test'
+                    <>
+                      <span className="button-icon">🧪</span>
+                      Test
+                    </>
                   )}
                 </button>
                 <button
-                  className="btn-delete"
+                  className="action-button delete-button"
                   onClick={() => handleDeleteWebhook(webhook.id, webhook.name)}
                   disabled={testingId === webhook.id || deletingId === webhook.id}
                   title={`Delete webhook "${webhook.name}"`}
                 >
                   {deletingId === webhook.id ? (
                     <>
-                      <span className="spinner"></span>
-                      Deleting...
+                      <span className="loading-spinner-inline"></span>
+                      Deleting
                     </>
                   ) : (
-                    '🗑️ Delete'
+                    <>
+                      <span className="button-icon">🗑️</span>
+                      Delete
+                    </>
                   )}
                 </button>
               </div>

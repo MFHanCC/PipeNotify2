@@ -201,3 +201,13 @@ export const authenticatedFetch = async (url, options = {}) => {
   
   return response;
 };
+
+/**
+ * Logout user by clearing all auth data and redirecting
+ */
+export const logout = () => {
+  clearAuthTokens();
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.href = '/';
+};

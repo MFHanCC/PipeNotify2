@@ -440,7 +440,8 @@ class ApiService {
   }
 
   async getCurrentSubscription(): Promise<{ subscription: Subscription | null; usage: UsageStats }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/billing/subscription`, {
+    // Use the tenant-specific endpoint that respects authentication
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/subscription/current`, {
       headers: this.getAuthHeaders(),
     });
     return this.handleResponse(response);
