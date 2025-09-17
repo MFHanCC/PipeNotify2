@@ -385,27 +385,27 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
       {/* FAQ Section */}
       <section className="faq-section" aria-label="Frequently asked questions">
         <h2>Frequently asked questions</h2>
-        <div className="faq-grid">
-          <div className="faq-item">
-            <h4>Can I upgrade or downgrade anytime?</h4>
+        <div className="faq-list">
+          <details className="faq-item">
+            <summary>Can I upgrade or downgrade anytime?</summary>
             <p>Yes, change plans instantly from your account settings.</p>
-          </div>
-          <div className="faq-item">
-            <h4>What are default rules?</h4>
+          </details>
+          <details className="faq-item">
+            <summary>What are default rules?</summary>
             <p>Ready-to-use rules we provide for ease of use. You can customize, delete, or replace them with your own rules within your plan's limit.</p>
-          </div>
-          <div className="faq-item">
-            <h4>Can I customize notification messages?</h4>
+          </details>
+          <details className="faq-item">
+            <summary>Can I customize notification messages?</summary>
             <p>Professional and Team plans include custom message templates with deal data variables.</p>
-          </div>
-          <div className="faq-item">
-            <h4>Is my Pipedrive data secure?</h4>
+          </details>
+          <details className="faq-item">
+            <summary>Is my Pipedrive data secure?</summary>
             <p>Yes, enterprise-grade encryption and SOC 2 compliance protect your data.</p>
-          </div>
-          <div className="faq-item">
-            <h4>30-day money-back guarantee?</h4>
+          </details>
+          <details className="faq-item">
+            <summary>30-day money-back guarantee?</summary>
             <p>Full refund on all paid plans, no questions asked.</p>
-          </div>
+          </details>
         </div>
         
         <div className="enterprise-note">
