@@ -1367,6 +1367,25 @@ select:focus,
   border-width: 3px;
 }
 
+.pricing-card.current {
+  border-color: #3b82f6;
+  background: #f8fafc;
+  border-width: 3px;
+}
+
+.current-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: #3b82f6;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  z-index: 1;
+}
+
 .plan-badge {
   position: absolute;
   top: -12px;
@@ -1440,6 +1459,68 @@ select:focus,
 .plan-button.upgrade:hover {
   background: #2563eb;
   transform: translateY(-1px);
+}
+
+/* Pricing FAQ Section */
+.pricing-faq {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.pricing-faq h4 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.faq-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.faq-item {
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.faq-item summary {
+  background: white;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.faq-item summary:hover {
+  background: #f3f4f6;
+}
+
+.faq-item[open] summary {
+  background: #f3f4f6;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.faq-item p {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: white;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 /* Compact Billing Dashboard */

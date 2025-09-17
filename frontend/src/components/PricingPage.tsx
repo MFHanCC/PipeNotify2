@@ -96,7 +96,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
       setLoading(true);
       const [plansData, subscriptionData] = await Promise.all([
         apiService.getPlans(),
-        apiService.getCurrentSubscription().catch(() => ({ subscription: null, usage: null }))
+        apiService.getCurrentSubscription().catch(() => ({ subscription: null, usage: { plan_tier: 'free', notifications_used: 0, notifications_limit: 100, webhooks_used: 0, webhooks_limit: 1, rules_used: 0, rules_limit: 3, usage_percentage: 0 } }))
       ]);
       
       setPlans(plansData);
@@ -304,7 +304,6 @@ const PricingPage: React.FC<PricingPageProps> = ({
             key={plan.tier} 
             className={`plan-card ${plan.tier} ${isPlanCurrent(plan.tier) ? 'current' : ''} ${plan.tier === 'pro' ? 'popular' : ''}`}
           >
-            {plan.tier === 'pro' && <div className="popular-badge">Most Popular</div>}
             
             <div className="plan-header">
               <h3 className="plan-name">{plan.name}</h3>
@@ -385,11 +384,11 @@ const PricingPage: React.FC<PricingPageProps> = ({
           <div className="faq-grid">
             <div className="faq-item">
               <h4>Can I change plans anytime?</h4>
-              <p>Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+              <p>Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately and billing is prorated.</p>
             </div>
             <div className="faq-item">
               <h4>What happens if I exceed my limits?</h4>
-              <p>Notifications will be paused until the next billing cycle or you can upgrade to a higher plan.</p>
+              <p>Notifications will be paused until the next billing cycle or you can upgrade to a higher plan instantly.</p>
             </div>
             <div className="faq-item">
               <h4>Do you offer refunds?</h4>
@@ -398,6 +397,22 @@ const PricingPage: React.FC<PricingPageProps> = ({
             <div className="faq-item">
               <h4>Is there a setup fee?</h4>
               <p>No setup fees. All plans include free onboarding and setup assistance.</p>
+            </div>
+            <div className="faq-item">
+              <h4>How secure is my Pipedrive data?</h4>
+              <p>We use industry-standard encryption and only access the data necessary for notifications. Your data never leaves secure channels.</p>
+            </div>
+            <div className="faq-item">
+              <h4>Can I use multiple Google Chat channels?</h4>
+              <p>Yes! Higher plans support multiple webhooks to route different notifications to different channels.</p>
+            </div>
+            <div className="faq-item">
+              <h4>What if I need custom features?</h4>
+              <p>Team plan includes priority support and custom integration assistance. Contact us for enterprise needs.</p>
+            </div>
+            <div className="faq-item">
+              <h4>Is there a free trial?</h4>
+              <p>Yes! Start with our Free plan to test the integration, then upgrade when you need more features.</p>
             </div>
           </div>
         </div>

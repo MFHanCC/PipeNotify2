@@ -1685,7 +1685,7 @@ const Dashboard: React.FC = React.memo(() => {
               <div className="pricing-dashboard-compact">
                 {/* Simplified pricing display */}
                 <div className="pricing-cards">
-                  <div className="pricing-card free">
+                  <div className={`pricing-card free ${planTier === 'free' ? 'current' : ''}`}>
                     <div className="plan-header">
                       <h4>Free</h4>
                       <div className="price">$0<span>/month</span></div>
@@ -1698,10 +1698,12 @@ const Dashboard: React.FC = React.memo(() => {
                       <li>❌ No advanced filtering</li>
                       <li>✅ 7-day log retention</li>
                     </ul>
-                    <button className="plan-button current">Current Plan</button>
+                    <button className={`plan-button ${planTier === 'free' ? 'current' : 'downgrade'}`}>
+                      {planTier === 'free' ? 'Current Plan' : 'Downgrade'}
+                    </button>
                   </div>
                   
-                  <div className="pricing-card starter">
+                  <div className={`pricing-card starter ${planTier === 'starter' ? 'current' : ''}`}>
                     <div className="plan-header">
                       <h4>Starter</h4>
                       <div className="price">$9<span>/month</span></div>
@@ -1714,10 +1716,12 @@ const Dashboard: React.FC = React.memo(() => {
                       <li>✅ Enhanced message templates</li>
                       <li>✅ 30-day log retention</li>
                     </ul>
-                    <button className="plan-button upgrade">Upgrade</button>
+                    <button className={`plan-button ${planTier === 'starter' ? 'current' : planTier === 'free' ? 'upgrade' : 'downgrade'}`}>
+                      {planTier === 'starter' ? 'Current Plan' : planTier === 'free' ? 'Upgrade' : 'Downgrade'}
+                    </button>
                   </div>
                   
-                  <div className="pricing-card pro popular">
+                  <div className={`pricing-card pro popular ${planTier === 'pro' ? 'current' : ''}`}>
                     <div className="plan-badge">Most Popular</div>
                     <div className="plan-header">
                       <h4>Pro</h4>
@@ -1732,10 +1736,13 @@ const Dashboard: React.FC = React.memo(() => {
                       <li>✅ Advanced probability filtering</li>
                       <li>✅ 90-day logs</li>
                     </ul>
-                    <button className="plan-button upgrade">Upgrade</button>
+                    <button className={`plan-button ${planTier === 'pro' ? 'current' : ['free', 'starter'].includes(planTier) ? 'upgrade' : 'downgrade'}`}>
+                      {planTier === 'pro' ? 'Current Plan' : ['free', 'starter'].includes(planTier) ? 'Upgrade' : 'Downgrade'}
+                    </button>
                   </div>
                   
-                  <div className="pricing-card team">
+                  <div className={`pricing-card team ${planTier === 'team' ? 'current' : ''}`}>
+                    {planTier === 'team' && <div className="current-badge">Current Plan</div>}
                     <div className="plan-header">
                       <h4>Team</h4>
                       <div className="price">$79<span>/month</span></div>
@@ -1748,7 +1755,32 @@ const Dashboard: React.FC = React.memo(() => {
                       <li>✅ Advanced team features</li>
                       <li>✅ 1-year log retention</li>
                     </ul>
-                    <button className="plan-button upgrade">Upgrade</button>
+                    <button className={`plan-button ${planTier === 'team' ? 'current' : 'upgrade'}`}>
+                      {planTier === 'team' ? 'Current Plan' : 'Upgrade'}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* FAQ Section */}
+                <div className="pricing-faq">
+                  <h4>💡 Frequently Asked Questions</h4>
+                  <div className="faq-compact">
+                    <details className="faq-item">
+                      <summary>Can I change plans anytime?</summary>
+                      <p>Yes, you can upgrade or downgrade instantly. Changes take effect immediately and billing is prorated.</p>
+                    </details>
+                    <details className="faq-item">
+                      <summary>What happens if I exceed limits?</summary>
+                      <p>Notifications pause until next billing cycle or you can upgrade instantly to restore service.</p>
+                    </details>
+                    <details className="faq-item">
+                      <summary>How secure is my data?</summary>
+                      <p>We use enterprise-grade encryption and only access data necessary for notifications.</p>
+                    </details>
+                    <details className="faq-item">
+                      <summary>Do you offer refunds?</summary>
+                      <p>30-day money-back guarantee on all paid plans. Contact support for assistance.</p>
+                    </details>
                   </div>
                 </div>
               </div>
