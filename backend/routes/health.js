@@ -470,4 +470,117 @@ async function checkConfigurationHealth() {
   }
 }
 
+// TEMPORARY: Team plan upgrade endpoint for fixing rule provisioning
+router.post('/upgrade-team/:tenantId', async (req, res) => {
+  try {
+    const tenantId = parseInt(req.params.tenantId);
+    const { confirm } = req.body;
+    
+    if (!confirm) {
+      return res.status(400).json({ 
+        error: 'Missing confirmation. Send {"confirm": true} in request body' 
+      });
+    }
+    
+    console.log(`🔄 Upgrading tenant ${tenantId} to Team plan...`);
+    
+    const { pool } = require('../services/database');
+    const { provisionDefaultRules } = require('../services/ruleProvisioning');
+    
+    // Get tenant info
+    const tenantResult = await pool.query(`
+      SELECT id, company_name, pipedrive_company_id 
+      FROM tenants 
+      WHERE id = $1
+    `, [tenantId]);
+    
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const tenant = tenantResult.rows[0];
+    
+    // Check current rules
+    const currentRulesResult = await pool.query(`
+      SELECT COUNT(*) as total_rules,
+             COUNT(CASE WHEN is_default = true THEN 1 END) as default_rules
+      FROM rules 
+      WHERE tenant_id = $1
+    `, [tenantId]);
+    
+    const currentRules = currentRulesResult.rows[0];
+    const currentDefaultRules = parseInt(currentRules.default_rules);
+    
+    console.log(`📝 Current rules: ${currentDefaultRules} default, ${currentRules.total_rules} total`);
+    
+    let ruleProvisioningResult = null;
+    
+    if (currentDefaultRules < 10) {
+      console.log('🔄 Provisioning Team plan rules (10 total)...');
+      
+      // Remove existing default rules
+      const deleteResult = await pool.query(
+        'DELETE FROM rules WHERE tenant_id = $1 AND is_default = true RETURNING id, name',
+        [tenantId]
+      );
+      
+      console.log(`🗑️  Removed ${deleteResult.rowCount} existing default rules`);
+      
+      // Provision Team plan rules
+      ruleProvisioningResult = await provisionDefaultRules(tenantId, 'team', 'manual');
+      
+      if (ruleProvisioningResult.success) {
+        console.log(`🎉 Successfully provisioned ${ruleProvisioningResult.rules_created} Team plan rules!`);
+      } else {
+        console.log('❌ Rule provisioning failed:', ruleProvisioningResult.error);
+      }
+    } else {
+      console.log('✅ Already has sufficient default rules for Team plan');
+      ruleProvisioningResult = {
+        success: true,
+        rules_created: 0,
+        message: 'Already had sufficient rules'
+      };
+    }
+    
+    // Final verification
+    const finalRulesResult = await pool.query(`
+      SELECT COUNT(*) as total_rules,
+             COUNT(CASE WHEN is_default = true THEN 1 END) as default_rules,
+             array_agg(name) FILTER (WHERE is_default = true) as rule_names
+      FROM rules 
+      WHERE tenant_id = $1
+    `, [tenantId]);
+    
+    const finalRules = finalRulesResult.rows[0];
+    
+    res.json({
+      success: true,
+      tenant: {
+        id: tenant.id,
+        company_name: tenant.company_name,
+        pipedrive_company_id: tenant.pipedrive_company_id
+      },
+      before: {
+        default_rules: currentDefaultRules,
+        total_rules: parseInt(currentRules.total_rules)
+      },
+      after: {
+        default_rules: parseInt(finalRules.default_rules),
+        total_rules: parseInt(finalRules.total_rules),
+        rule_names: finalRules.rule_names || []
+      },
+      rule_provisioning: ruleProvisioningResult,
+      message: `Successfully upgraded tenant to Team plan with ${finalRules.default_rules} default rules`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error upgrading to Team plan:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
