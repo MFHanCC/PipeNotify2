@@ -73,6 +73,7 @@ app.use(express.urlencoded({ extended: true }));
 // Import routes
 const webhookRoutes = require('./routes/webhook');
 const adminRoutes = require('./routes/admin');
+const adminTeamUpgradeRoutes = require('./routes/admin-team-upgrade');
 const oauthRoutes = require('./routes/oauth');
 const monitoringRoutes = require('./routes/monitoring');
 const billingRoutes = require('./routes/billing');
@@ -152,6 +153,7 @@ try {
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/admin-team', adminTeamUpgradeRoutes);
 app.use('/api/v1/oauth', oauthRoutes);
 app.use('/api/v1/monitoring', monitoringRoutes);
 app.use('/api/v1/billing', billingRoutes);
