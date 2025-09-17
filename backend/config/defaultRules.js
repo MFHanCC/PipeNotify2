@@ -41,7 +41,7 @@ const FREE_TIER_RULES = [
 ];
 
 /**
- * Starter Tier: 6 rules adding deal progression and value filtering
+ * Starter Tier: 7 rules adding deal progression and value filtering
  * Focus: Pipeline management and high-value opportunity tracking
  */
 const STARTER_TIER_RULES = [
@@ -79,11 +79,23 @@ const STARTER_TIER_RULES = [
     description: "Special attention for deals worth $10,000 or more",
     category: "value",
     priority: 6
+  },
+  {
+    name: "📧 Deal Owner Changed",
+    event_type: "deal.update",
+    template_mode: "simple",
+    filters: {
+      owner_change_required: true
+    },
+    enabled: true,
+    description: "Get notified when deal ownership changes",
+    category: "pipeline",
+    priority: 7
   }
 ];
 
 /**
- * Pro Tier: 7 rules adding advanced pipeline health monitoring
+ * Pro Tier: 10 rules adding advanced pipeline health monitoring
  * Focus: Proactive pipeline management and deal health
  */
 const PRO_TIER_RULES = [
@@ -98,7 +110,7 @@ const PRO_TIER_RULES = [
     enabled: true,
     description: "Get alerted when deals haven't been updated in 7+ days",
     category: "health",
-    priority: 7
+    priority: 8
   },
   {
     name: "📅 Deal Close Date Approaching", 
@@ -111,7 +123,43 @@ const PRO_TIER_RULES = [
     enabled: true,
     description: "Remind you when deal close dates are approaching",
     category: "timing",
-    priority: 8
+    priority: 9
+  },
+  {
+    name: "🔔 Deal Note Added",
+    event_type: "note.added",
+    template_mode: "detailed",
+    filters: {
+      entity_type: "deal"
+    },
+    enabled: true,
+    description: "Get notified when notes are added to deals",
+    category: "pipeline",
+    priority: 10
+  },
+  {
+    name: "💰 Deal Value Changed",
+    event_type: "deal.update",
+    template_mode: "detailed",
+    filters: {
+      value_change_required: true
+    },
+    enabled: true,
+    description: "Track when deal values are modified",
+    category: "value",
+    priority: 11
+  },
+  {
+    name: "🏆 Deal Probability Updated",
+    event_type: "deal.update",
+    template_mode: "detailed",
+    filters: {
+      probability_change_required: true
+    },
+    enabled: true,
+    description: "Monitor changes in deal win probability",
+    category: "progression",
+    priority: 12
   }
 ];
 
@@ -120,47 +168,7 @@ const PRO_TIER_RULES = [
  * Focus: Team coordination and comprehensive pipeline insights
  */
 const TEAM_TIER_RULES = [
-  ...PRO_TIER_RULES,
-  {
-    name: "👥 Team Daily Summary",
-    event_type: "summary.daily",
-    template_mode: "detailed", 
-    filters: {
-      schedule: "daily",
-      time: "09:00"
-    },
-    enabled: true,
-    description: "Daily team performance and pipeline summary",
-    category: "analytics",
-    priority: 9
-  },
-  {
-    name: "📈 Pipeline Health Check",
-    event_type: "summary.weekly",
-    template_mode: "detailed",
-    filters: {
-      schedule: "weekly", 
-      day: "monday",
-      time: "09:00"
-    },
-    enabled: true,
-    description: "Weekly pipeline health and forecast report",
-    category: "analytics",
-    priority: 10
-  },
-  {
-    name: "🔥 Hot Deal Alert",
-    event_type: "deal.*",
-    template_mode: "detailed",
-    filters: {
-      probability_min: 80,
-      value_min: 5000
-    },
-    enabled: true,
-    description: "Alert for high-probability, valuable deals needing attention",
-    category: "opportunity",
-    priority: 11
-  }
+  ...PRO_TIER_RULES
 ];
 
 /**
