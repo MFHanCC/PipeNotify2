@@ -559,49 +559,132 @@
 }
 
 .rules-list {
-  space-y: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .rule-card {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 2px solid #e5e7eb;
+  border-left: 4px solid #3b82f6;
   border-radius: 12px;
-  padding: 20px;
+  padding: 24px;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.rule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 4px 0 0 4px;
 }
 
 .rule-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #3b82f6;
+}
+
+/* Event type specific styling */
+.rule-card[data-event-type="deal.won"] {
+  border-left-color: #10b981;
+}
+
+.rule-card[data-event-type="deal.won"]::before {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+}
+
+.rule-card[data-event-type="deal.lost"] {
+  border-left-color: #ef4444;
+}
+
+.rule-card[data-event-type="deal.lost"]::before {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.rule-card[data-event-type="deal.create"] {
+  border-left-color: #8b5cf6;
+}
+
+.rule-card[data-event-type="deal.create"]::before {
+  background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.rule-card[data-event-type="deal.updated"] {
+  border-left-color: #f59e0b;
+}
+
+.rule-card[data-event-type="deal.updated"]::before {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
 }
 
 .rule-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .rule-info h4 {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: #1f2937;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .rule-meta {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .event-type {
   background: #dbeafe;
   color: #1e40af;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
   font-weight: 500;
+  border: 1px solid #bfdbfe;
+}
+
+/* Event type specific badge colors */
+.rule-card[data-event-type="deal.won"] .event-type {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.rule-card[data-event-type="deal.lost"] .event-type {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.rule-card[data-event-type="deal.create"] .event-type {
+  background: #ede9fe;
+  color: #5b21b6;
+  border-color: #ddd6fe;
+}
+
+.rule-card[data-event-type="deal.updated"] .event-type {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
 }
 
 .template-mode {
@@ -656,13 +739,13 @@
   flex-wrap: nowrap;
 }
 
-/* Toggle Switch - Fixed appearance */
+/* Toggle Switch - Enhanced appearance */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 28px;
-  margin-right: 8px;
+  width: 54px;
+  height: 30px;
+  margin-right: 10px;
   flex-shrink: 0;
 }
 
@@ -679,79 +762,82 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 28px;
-  background-color: #d1d5db;
-  transition: .4s;
-  border-radius: 24px;
+  height: 30px;
+  background-color: #e5e7eb;
+  transition: all 0.3s ease;
+  border-radius: 30px;
+  border: 2px solid #d1d5db;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  bottom: 2px;
   background-color: white;
-  transition: .4s;
+  transition: all 0.3s ease;
   border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .toggle-slider {
   background-color: #10b981;
+  border-color: #059669;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 input:checked + .toggle-slider:before {
-  transform: translateX(26px);
+  transform: translateX(24px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-/* Rule action buttons - specific to dashboard rules */
+/* Rule action buttons - Enhanced styling */
+.rule-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 16px;
+}
+
 .rule-actions .test-button,
 .rule-actions .edit-button,
 .rule-actions .delete-button {
-  background: #f3f4f6 !important;
-  border: 1px solid #d1d5db !important;
-  font-size: 12px !important;
-  cursor: pointer;
+  background: #ffffff !important;
+  border: 1.5px solid #d1d5db !important;
+  font-size: 0.8rem !important;
   padding: 6px 12px !important;
-  border-radius: 4px !important;
-  transition: all 0.2s ease;
-  width: 70px !important;
-  height: 32px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-  color: #374151 !important;
-  font-weight: 500;
-  box-shadow: none !important;
-  transform: none !important;
-  margin-left: 4px;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 .rule-actions .test-button:hover {
-  background: #e5e7eb !important;
-  border-color: #9ca3af !important;
-  transform: none !important;
+  background: #f8fafc !important;
+  border-color: #3b82f6 !important;
+  color: #3b82f6 !important;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1) !important;
 }
 
 .rule-actions .edit-button:hover {
-  background: #fef3c7 !important;
-  border-color: #f59e0b !important;
+  background: #f8fafc !important;
+  border-color: #8b5cf6 !important;
+  color: #8b5cf6 !important;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.1) !important;
 }
 
 .rule-actions .delete-button:hover {
-  background: #fee2e2 !important;
+  background: #fef2f2 !important;
   border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1) !important;
 }
 
-.edit-button:hover {
-  background: #fef3c7;
-}
-
-.delete-button:hover {
-  background: #fee2e2;
-}
 
 .rule-filters {
   font-size: 14px;
@@ -1025,46 +1111,102 @@ input:checked + .toggle-slider:before {
   width: 100%;
 }
 
-/* Two-column layout for rule forms */
+/* Three-column layout for rule forms */
 .rule-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 16px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  margin-top: 12px;
 }
 
 .rule-form-column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* Basic info column */
+/* Basic info column (left) */
 .rule-form-basic {
   grid-column: 1;
 }
 
-/* Template and filters column */
-.rule-form-advanced {
+/* Template column (center) */
+.rule-form-template {
   grid-column: 2;
 }
 
-/* Full width sections that span both columns */
+/* Advanced options column (right) */
+.rule-form-advanced {
+  grid-column: 3;
+}
+
+/* Full width sections that span all columns */
 .rule-form-full-width {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
-/* Responsive: Stack on smaller screens */
-@media (max-width: 1024px) {
+/* Compact form styling */
+.rule-form-grid .form-group {
+  margin-bottom: 10px;
+}
+
+.rule-form-grid .form-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #374151;
+  display: block;
+}
+
+.rule-form-grid .form-input,
+.rule-form-grid .form-select {
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  min-height: 36px;
+  width: 100%;
+}
+
+.rule-form-grid .checkbox-label {
+  font-size: 0.875rem;
+  gap: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Responsive: Two columns on medium screens */
+@media (max-width: 1280px) {
+  .rule-form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  
+  .rule-form-basic {
+    grid-column: 1;
+  }
+  
+  .rule-form-template {
+    grid-column: 2;
+  }
+  
+  .rule-form-advanced {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Responsive: Single column on smaller screens */
+@media (max-width: 768px) {
   .rule-form-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
   
   .rule-form-basic,
+  .rule-form-template,
   .rule-form-advanced {
     grid-column: 1;
   }

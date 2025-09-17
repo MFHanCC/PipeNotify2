@@ -93,9 +93,11 @@ const DEFAULT_TEMPLATES = {
 
 [View Deal]({deal.url})`,
 
-  'deal.won': `🎉 Deal Won! 
-📋 **{deal.title}**
-💰 **{deal.value}** 🏆
+  'deal.won': `🎉 *Deal Won!* 🏆
+
+📋 *{deal.title}*
+💰 *{deal.value}*
+🎯 Stage: {deal.stage}
 👤 Owner: {deal.owner_name}
 📅 Closed: {event.timestamp}
 

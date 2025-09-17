@@ -2,8 +2,16 @@
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 20px;
-  margin-top: 20px;
+  padding: 16px;
+  margin-top: 8px;
+}
+
+/* Compact mode for forms */
+.rule-form-grid .template-editor {
+  padding: 12px;
+  margin-top: 0;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
 }
 
 .template-editor-loading {
@@ -31,6 +39,22 @@
   font-size: 0.9rem;
 }
 
+/* Compact header for forms */
+.rule-form-grid .template-editor-header {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rule-form-grid .template-editor-header h4 {
+  font-size: 1rem;
+  margin-bottom: 3px;
+}
+
+.rule-form-grid .template-editor-header p {
+  font-size: 0.8rem;
+}
+
 .template-mode-selector {
   margin-bottom: 20px;
 }
@@ -49,6 +73,20 @@
   flex-wrap: wrap;
 }
 
+/* Compact mode selector for forms */
+.rule-form-grid .template-mode-selector {
+  margin-bottom: 12px;
+}
+
+.rule-form-grid .template-mode-selector label {
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.rule-form-grid .template-mode-options {
+  gap: 10px;
+}
+
 .template-option {
   display: flex !important;
   align-items: center;
@@ -60,6 +98,12 @@
   border-radius: 6px;
   transition: all 0.2s;
   margin-bottom: 0 !important;
+}
+
+/* Compact template options for forms */
+.rule-form-grid .template-option {
+  padding: 6px 10px;
+  font-size: 0.8rem;
 }
 
 .template-option:hover {
@@ -251,6 +295,17 @@
   margin: 0 0 12px 0;
   color: #1f2937;
   font-size: 1rem;
+}
+
+/* Compact preview for forms */
+.rule-form-grid .template-preview {
+  padding: 10px;
+  margin-top: 12px;
+}
+
+.rule-form-grid .template-preview h5 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
 }
 
 .preview-content {

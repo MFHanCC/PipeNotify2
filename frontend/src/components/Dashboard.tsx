@@ -1021,7 +1021,7 @@ const Dashboard: React.FC = React.memo(() => {
       
       <div className="rules-list">
         {rules.map((rule) => (
-          <div key={rule.id} className="rule-card">
+          <div key={rule.id} className="rule-card" data-event-type={rule.eventType}>
             <div className="rule-header">
               <div className="rule-info">
                 {editingRule === rule.id ? (
@@ -1111,9 +1111,8 @@ const Dashboard: React.FC = React.memo(() => {
                         </div>
                       </div>
 
-                      {/* Right Column: Message Template & Advanced Filters */}
-                      <div className="rule-form-column rule-form-advanced">
-                        {/* Message Template Editor */}
+                      {/* Center Column: Message Template */}
+                      <div className="rule-form-column rule-form-template">
                         <TemplateEditor
                           value={{
                             template_mode: editFormData.template_mode,
@@ -1125,8 +1124,10 @@ const Dashboard: React.FC = React.memo(() => {
                           })}
                           eventType={editFormData.event_type}
                         />
-                        
-                        {/* Advanced Filters */}
+                      </div>
+
+                      {/* Right Column: Advanced Filters */}
+                      <div className="rule-form-column rule-form-advanced">
                         <FeatureRestriction
                           isAvailable={hasFeature('advanced_filtering')}
                           requiredPlan={getFeatureRequiredPlan('advanced_filtering')}
@@ -2110,9 +2111,8 @@ const Dashboard: React.FC = React.memo(() => {
                   </div>
                 </div>
 
-                {/* Right Column: Message Template & Advanced Filters */}
-                <div className="rule-form-column rule-form-advanced">
-                  {/* Message Template Editor */}
+                {/* Center Column: Message Template */}
+                <div className="rule-form-column rule-form-template">
                   <TemplateEditor
                     value={{
                       template_mode: createFormData.template_mode,
@@ -2125,8 +2125,10 @@ const Dashboard: React.FC = React.memo(() => {
                     })}
                     eventType={createFormData.event_type}
                   />
-                  
-                  {/* Advanced Filters */}
+                </div>
+
+                {/* Right Column: Advanced Filters */}
+                <div className="rule-form-column rule-form-advanced">
                   <FeatureRestriction
                     isAvailable={hasFeature('advanced_filtering')}
                     requiredPlan={getFeatureRequiredPlan('advanced_filtering')}

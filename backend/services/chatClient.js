@@ -169,9 +169,13 @@ class ChatClient {
         
         if (object?.status === 'won') {
           emoji = '🎉';
-          message = `${emoji} *Deal Won!*\n🏆 *${objectName}*`;
-          if (value) message += `\n💰 Value: *${value}*`;
-          message += `\n👤 Won by: *${userName}*`;
+          message = `${emoji} *Deal Won!* 🏆\n\n`;
+          message += `📋 *${objectName}*\n`;
+          if (value) message += `💰 *${value}*\n`;
+          if (object?.stage_id) {
+            message += `🎯 Stage: ${object.stage_id}\n`;
+          }
+          message += `👤 Won by: *${userName}*`;
         } else if (object?.status === 'lost') {
           emoji = '❌';
           message = `${emoji} *Deal Lost*\n📋 *${objectName}*`;
@@ -406,14 +410,52 @@ class ChatClient {
         message += `\n👤 Updated by: *${userName}*`;
         break;
 
+      case 'deal.won':
+        emoji = '🎉';
+        message = `${emoji} *Deal Won!* 🏆\n\n`;
+        message += `📋 *${objectName}*\n`;
+        if (value) message += `💰 *${value}*\n`;
+        if (object?.stage_id) {
+          message += `🎯 Stage: ${object.stage_id}\n`;
+        }
+        if (object?.probability) {
+          message += `📊 Probability: ${object.probability}%\n`;
+        }
+        message += `👤 Won by: *${userName}*`;
+        break;
+
+      case 'deal.lost':
+        emoji = '📉';
+        message = `${emoji} *Deal Lost*\n\n`;
+        message += `📋 *${objectName}*\n`;
+        if (value) message += `💸 Lost value: *${value}*\n`;
+        if (object?.lost_reason) message += `📝 Reason: ${object.lost_reason}\n`;
+        message += `👤 Updated by: *${userName}*`;
+        break;
+
       default:
         // Fallback for unknown events
         let action = 'updated';
         if (event.includes('create')) action = 'created';
         if (event.includes('add')) action = 'added';
         if (event.includes('delete')) action = 'deleted';
-        if (event.includes('won')) action = 'won';
-        if (event.includes('lost')) action = 'lost';
+        if (event.includes('won')) {
+          // Use the proper Deal Won format
+          emoji = '🎉';
+          message = `${emoji} *Deal Won!* 🏆\n\n`;
+          message += `📋 *${objectName}*\n`;
+          if (value) message += `💰 *${value}*\n`;
+          message += `👤 Won by: *${userName}*`;
+          break;
+        }
+        if (event.includes('lost')) {
+          emoji = '📉';
+          message = `${emoji} *Deal Lost*\n\n`;
+          message += `📋 *${objectName}*\n`;
+          if (value) message += `💸 Lost value: *${value}*\n`;
+          message += `👤 Updated by: *${userName}*`;
+          break;
+        }
 
         message = `🔔 *${userName}* ${action} ${objectType}: *${objectName}*`;
         if (value) message += `\n💰 Value: *${value}*`;
