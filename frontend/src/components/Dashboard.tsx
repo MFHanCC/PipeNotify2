@@ -487,8 +487,8 @@ const Dashboard: React.FC = React.memo(() => {
         return;
       }
 
-      if (rules.length + missingRules.length > (limits?.rules || 3) && planTier === 'free') {
-        alert(`⚠️ Rule Limit Reached\n\nFree plan allows ${limits?.rules || 3} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
+      if (limits?.rules && limits.rules > 0 && rules.length + missingRules.length > limits.rules) {
+        alert(`⚠️ Rule Limit Reached\n\nYour ${planTier || 'current'} plan allows ${limits.rules} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
         return;
       }
       
@@ -833,8 +833,8 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     // Check plan limits
-    if (rules.length >= (limits?.rules || 3) && planTier === 'free') {
-      errors.limit = `Free plan is limited to ${limits?.rules || 3} rules. Upgrade to create more rules.`;
+    if (limits?.rules && limits.rules > 0 && rules.length >= limits.rules) {
+      errors.limit = `Your ${planTier || 'current'} plan is limited to ${limits.rules} rules. Upgrade to create more rules.`;
     }
 
     // Check if Deal Updated is restricted for free tier
@@ -997,14 +997,14 @@ const Dashboard: React.FC = React.memo(() => {
             onClick={openCreateModal}
             aria-label="Create new notification rule"
             type="button"
-            disabled={rules.length >= (limits?.rules || 3) && planTier === 'free'}
-            title={rules.length >= (limits?.rules || 3) && planTier === 'free' 
-              ? `Free plan limit reached (${limits?.rules || 3} rules). Upgrade to create more rules.` 
+            disabled={limits?.rules && limits.rules > 0 && rules.length >= limits.rules}
+            title={limits?.rules && limits.rules > 0 && rules.length >= limits.rules 
+              ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
               : 'Create new notification rule'}
           >
             + Create Rule
-            {rules.length >= (limits?.rules || 3) && planTier === 'free' && (
-              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits?.rules || 3})</span>
+            {limits?.rules && limits.rules > 0 && rules.length >= limits.rules && (
+              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits.rules})</span>
             )}
           </button>
         </div>
