@@ -121,9 +121,21 @@ CREATE TRIGGER update_rules_updated_at BEFORE UPDATE ON rules
 CREATE TRIGGER update_pipedrive_connections_updated_at BEFORE UPDATE ON pipedrive_connections 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Sample data removed for production
--- Production databases should start clean
--- Development sample data available in development branch
+-- Sample data for development
+INSERT INTO tenants (company_name, pipedrive_company_id) VALUES 
+('Acme Corp', 12345),
+('Tech Startup', 67890);
+
+INSERT INTO chat_webhooks (tenant_id, name, webhook_url, description) VALUES 
+(1, 'Sales Team', 'https://chat.googleapis.com/v1/spaces/SAMPLE/messages?key=SAMPLE', 'Main sales team notifications'),
+(1, 'Management', 'https://chat.googleapis.com/v1/spaces/SAMPLE2/messages?key=SAMPLE2', 'Executive notifications'),
+(2, 'All Hands', 'https://chat.googleapis.com/v1/spaces/SAMPLE3/messages?key=SAMPLE3', 'Company-wide updates');
+
+INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, enabled) VALUES 
+(1, 'Deal Won Notification', 'deal.updated', '{"status": ["won"]}', 1, 'detailed', true),
+(1, 'Large Deal Alert', 'deal.updated', '{"value": {"min": 10000}}', 2, 'detailed', true),
+(1, 'New Person Added', 'person.added', '{}', 1, 'simple', true),
+(2, 'All Deal Updates', 'deal.updated', '{}', 3, 'simple', true);
 
 -- Comments for documentation
 COMMENT ON TABLE tenants IS 'Companies using the Pipenotify service';

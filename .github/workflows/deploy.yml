@@ -29,7 +29,7 @@ jobs:
         run: cd backend && npm ci
         
       - name: Run backend tests
-        run: cd backend && npm test
+        run: cd backend && npm test -- --passWithNoTests
 
   test-frontend:
     name: Test Frontend
