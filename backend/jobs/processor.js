@@ -526,9 +526,14 @@ notificationWorker.on('error', (err) => {
       err.message.includes('ECONNREFUSED')) {
     console.log('🔄 Redis connection issue detected, attempting graceful degradation');
     
-    // Log to file for Claude autonomous monitoring
-    require('fs').appendFileSync('./logs/claude-alerts/redis-connection-error.txt', 
-      `${new Date().toISOString()}: Redis connection error: ${err.message}\n`);
+    // Log to file for Claude autonomous monitoring (create directory if needed)
+    try {
+      require('fs').mkdirSync('./logs/claude-alerts', { recursive: true });
+      require('fs').appendFileSync('./logs/claude-alerts/redis-connection-error.txt', 
+        `${new Date().toISOString()}: Redis connection error: ${err.message}\n`);
+    } catch (logError) {
+      console.warn('Could not write to log file:', logError.message);
+    }
   }
 });
 
