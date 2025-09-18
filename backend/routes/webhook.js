@@ -216,4 +216,102 @@ router.post('/disable-quiet-hours', async (req, res) => {
   }
 });
 
+// Check tenant rules and webhooks
+router.get('/check-tenant-rules', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    // Get all tenants
+    const tenants = await pool.query(`SELECT * FROM tenants ORDER BY id`);
+    
+    // Get rules for each tenant
+    const tenantsWithRules = [];
+    for (const tenant of tenants.rows) {
+      const rules = await pool.query(`
+        SELECT r.*, w.name as webhook_name, w.webhook_url 
+        FROM rules r 
+        LEFT JOIN chat_webhooks w ON r.target_webhook_id = w.id 
+        WHERE r.tenant_id = $1
+      `, [tenant.id]);
+      
+      const webhooks = await pool.query(`SELECT * FROM chat_webhooks WHERE tenant_id = $1`, [tenant.id]);
+      
+      tenantsWithRules.push({
+        tenant_id: tenant.id,
+        company_name: tenant.company_name,
+        pipedrive_company_id: tenant.pipedrive_company_id,
+        rules_count: rules.rows.length,
+        webhooks_count: webhooks.rows.length,
+        rules: rules.rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          event_type: r.event_type,
+          enabled: r.enabled,
+          webhook_name: r.webhook_name,
+          webhook_url: r.webhook_url ? r.webhook_url.substring(0, 50) + '...' : null
+        })),
+        webhooks: webhooks.rows.map(w => ({
+          id: w.id,
+          name: w.name,
+          webhook_url: w.webhook_url ? w.webhook_url.substring(0, 50) + '...' : null
+        }))
+      });
+    }
+    
+    res.json({
+      success: true,
+      current_webhook_company_id: 13887824,
+      mapped_to_tenant_id: 2,
+      tenants: tenantsWithRules,
+      issue: 'Check if rules exist for tenant_id 2 (your current webhook source)'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Copy rules and webhooks from tenant 1 to tenant 2 (temporary fix)
+router.post('/copy-rules-to-tenant2', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    // First, copy webhooks
+    const webhooks = await pool.query(`
+      INSERT INTO chat_webhooks (tenant_id, name, webhook_url, description, enabled, created_at)
+      SELECT 2, name, webhook_url, description, enabled, NOW()
+      FROM chat_webhooks 
+      WHERE tenant_id = 1
+      ON CONFLICT (tenant_id, name) DO NOTHING
+      RETURNING *
+    `);
+    
+    // Then copy rules
+    const rules = await pool.query(`
+      INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled, created_at)
+      SELECT 2, name, event_type, filters, 
+             (SELECT id FROM chat_webhooks WHERE tenant_id = 2 AND name = (SELECT name FROM chat_webhooks WHERE id = r.target_webhook_id) LIMIT 1),
+             template_mode, custom_template, enabled, NOW()
+      FROM rules r
+      WHERE tenant_id = 1
+      ON CONFLICT (tenant_id, name) DO NOTHING
+      RETURNING *
+    `);
+    
+    res.json({
+      success: true,
+      message: 'Rules and webhooks copied to tenant 2',
+      webhooks_copied: webhooks.rows.length,
+      rules_copied: rules.rows.length,
+      note: 'Your Pipedrive webhooks come from tenant 2, so rules needed to be copied there'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      error: error.message,
+      note: 'This copies notification rules from tenant 1 to tenant 2 where your webhooks are coming from'
+    });
+  }
+});
+
 module.exports = router;
