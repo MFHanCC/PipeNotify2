@@ -535,8 +535,8 @@ class DashboardTestRunner {
   // =============================================
   
   async runAPITests() {
-    // Use production API URL or development fallback
-    const apiUrl = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://pipenotify.up.railway.app');
+    // Use configured API URL with proper fallback
+    const apiUrl = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('oauth_token');
     
     if (!token) {

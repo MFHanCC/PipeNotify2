@@ -105,77 +105,46 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
     
     console.log('🚀 QUEUING JOB for', webhookData.event);
     
-    // Enqueue webhook for processing via BullMQ
+    // Use guaranteed delivery system for bulletproof notification processing
     try {
-      const job = await addNotificationJob(webhookData, {
+      const { guaranteeDelivery } = require('../services/guaranteedDelivery');
+      
+      const deliveryResult = await guaranteeDelivery(webhookData, {
         priority: webhookData.event?.includes('won') ? 1 : 5, // Higher priority for won deals
         delay: 0 // Process immediately
       });
 
-      console.log('✅ JOB QUEUED SUCCESSFULLY:', {
-        jobId: job.id,
-        event: webhookData.event,
-        priority: webhookData.event?.includes('won') ? 1 : 5
+      console.log('✅ GUARANTEED DELIVERY RESULT:', {
+        success: deliveryResult.success,
+        tier: deliveryResult.tier,
+        deliveryId: deliveryResult.deliveryId,
+        event: webhookData.event
       });
 
+      // Always return success since guaranteed delivery handles all failures
       res.status(200).json({
-        message: 'Webhook received successfully',
+        message: 'Webhook received and processed via guaranteed delivery',
         event: webhookData.event,
         timestamp: new Date().toISOString(),
-        status: 'success',
-        jobId: job.id
-      });
-    } catch (queueError) {
-      console.error('❌ FAILED TO QUEUE JOB:', queueError);
-      console.error('Queue error details:', {
-        message: queueError.message,
-        code: queueError.code,
-        stack: queueError.stack
+        status: deliveryResult.success ? 'success' : 'queued_for_retry',
+        tier: deliveryResult.tier,
+        deliveryId: deliveryResult.deliveryId,
+        ...(deliveryResult.jobId && { jobId: deliveryResult.jobId }),
+        ...(deliveryResult.notificationsSent && { notificationsSent: deliveryResult.notificationsSent })
       });
       
-      // 🚨 EMERGENCY FALLBACK: Process notification directly if queue fails
-      console.log('🚨 ACTIVATING EMERGENCY NOTIFICATION FALLBACK');
+    } catch (deliveryError) {
+      console.error('❌ GUARANTEED DELIVERY SYSTEM FAILED:', deliveryError);
       
-      try {
-        const { processNotificationDirect } = require('../services/notificationFallback');
-        const fallbackResult = await processNotificationDirect(webhookData);
-        
-        if (fallbackResult.success && fallbackResult.notificationsSent > 0) {
-          console.log(`✅ EMERGENCY FALLBACK SUCCESS: ${fallbackResult.notificationsSent} notifications sent`);
-          
-          return res.status(200).json({
-            message: 'Webhook processed via emergency fallback',
-            event: webhookData.event,
-            timestamp: new Date().toISOString(),
-            status: 'emergency_success',
-            notificationsSent: fallbackResult.notificationsSent,
-            processingTime: fallbackResult.processingTime
-          });
-        } else {
-          console.log(`⚠️ EMERGENCY FALLBACK COMPLETED: ${fallbackResult.notificationsSent} notifications sent`);
-          
-          return res.status(200).json({
-            message: 'Webhook processed via emergency fallback (no notifications)',
-            event: webhookData.event,
-            timestamp: new Date().toISOString(),
-            status: 'emergency_no_notifications',
-            reason: fallbackResult.error || 'No matching rules or webhooks'
-          });
-        }
-        
-      } catch (fallbackError) {
-        console.error('❌ EMERGENCY FALLBACK ALSO FAILED:', fallbackError);
-        
-        // Even fallback failed - this is a critical system issue
-        return res.status(200).json({
-          message: 'Webhook received but both queue and fallback failed',
-          event: webhookData.event,
-          timestamp: new Date().toISOString(),
-          status: 'critical_failure',
-          queueError: queueError.message,
-          fallbackError: fallbackError.message
-        });
-      }
+      // This should never happen with guaranteed delivery, but if it does...
+      return res.status(200).json({
+        message: 'Webhook received but delivery system encountered an error',
+        event: webhookData.event,
+        timestamp: new Date().toISOString(),
+        status: 'system_error',
+        error: deliveryError.message,
+        note: 'Notification stored for manual recovery'
+      });
     }
 
   } catch (error) {

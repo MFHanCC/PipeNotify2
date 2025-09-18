@@ -3,13 +3,14 @@
  * This allows testing different plan features without modifying the database
  */
 
+import { getTenantId } from './auth';
+
 // Set this to test different plans: 'free', 'starter', 'pro', 'team'
 const TEST_PLAN_OVERRIDE = 'team'; // Change this to test different plans
 
 export function getTestPlanFeatures(originalFeatures) {
-  // Temporarily allow override in production for marketplace submission
-  // TODO: Remove this after marketplace approval
-  const allowOverride = true; // process.env.NODE_ENV === 'development';
+  // Only allow plan override in development environment
+  const allowOverride = process.env.NODE_ENV === 'development';
   if (!allowOverride) {
     return originalFeatures;
   }
@@ -148,7 +149,7 @@ export function getTestPlanFeatures(originalFeatures) {
   return {
     ...originalFeatures,
     ...testConfig,
-    tenant_id: originalFeatures?.tenant_id || 1,
+    tenant_id: originalFeatures?.tenant_id || parseInt(getTenantId() || '1'),
     can_upgrade: TEST_PLAN_OVERRIDE !== 'team'
   };
 }

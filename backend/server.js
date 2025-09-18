@@ -108,6 +108,20 @@ try {
   });
 }
 
+// Start batch notification processor (guaranteed delivery)
+console.log('🔄 STARTING BATCH NOTIFICATION PROCESSOR...');
+try {
+  require('./jobs/batchProcessor');
+  console.log('✅ BATCH NOTIFICATION PROCESSOR STARTED');
+} catch (batchError) {
+  console.error('❌ FAILED TO START BATCH PROCESSOR:', batchError);
+  console.error('Batch error details:', {
+    message: batchError.message,
+    code: batchError.code,
+    stack: batchError.stack
+  });
+}
+
 // Start worker monitoring system
 console.log('🔄 STARTING WORKER MONITORING...');
 try {
@@ -147,6 +161,21 @@ try {
     message: stalledError.message,
     code: stalledError.code,
     stack: stalledError.stack
+  });
+}
+
+// Start self-healing monitoring system
+console.log('🔧 STARTING SELF-HEALING SYSTEM...');
+try {
+  const { startSelfHealingMonitor } = require('./services/selfHealing');
+  startSelfHealingMonitor();
+  console.log('✅ SELF-HEALING SYSTEM STARTED - will monitor and fix issues automatically');
+} catch (healingError) {
+  console.error('❌ FAILED TO START SELF-HEALING SYSTEM:', healingError);
+  console.error('Self-healing system error details:', {
+    message: healingError.message,
+    code: healingError.code,
+    stack: healingError.stack
   });
 }
 

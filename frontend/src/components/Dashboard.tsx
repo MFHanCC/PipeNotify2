@@ -192,7 +192,7 @@ const Dashboard: React.FC = React.memo(() => {
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
-  const [tenantId, setTenantId] = useState<string>('1');
+  const [tenantId, setTenantId] = useState<string>(getTenantId() || '1');
   
   // Filters and pagination
   const [ruleFilter, setRuleFilter] = useState<string>('all');

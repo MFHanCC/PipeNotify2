@@ -273,78 +273,33 @@ async function processNotification(webhookData) {
 // Helper function to identify tenant from webhook data
 async function identifyTenant(webhookData) {
   try {
+    const { resolveTenant } = require('../services/smartTenantResolver');
+    
+    // Use smart tenant resolution
+    const resolution = await resolveTenant(webhookData);
+    
+    if (resolution.autoMapped) {
+      console.log(`🔧 Auto-mapped tenant using strategy: ${resolution.strategy}`);
+    }
+    
+    return resolution.tenantId;
+    
+  } catch (error) {
+    console.error('❌ Smart tenant resolution failed, using fallback:', error);
+    
+    // Final fallback for development
     if (!webhookData.company_id) {
       console.log('⚠️ No company_id in webhook, using tenant ID 1 for development');
       return 1;
     }
     
-    // First try to find tenant by company_id
-    console.log(`🔍 Looking up tenant for company_id: ${webhookData.company_id}`);
-    let tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
-    
-    if (!tenant && webhookData.user_id) {
-      // Fallback: try to find by user_id if company lookup failed
-      console.log(`🔄 Company lookup failed, trying user_id: ${webhookData.user_id}`);
-      const { getTenantByPipedriveUserId } = require('../services/database');
-      tenant = await getTenantByPipedriveUserId(webhookData.user_id);
-      
-      if (tenant) {
-        console.log(`✅ Found tenant by user_id: ${tenant.id}, updating with company_id`);
-        // Update the tenant with the company_id for future lookups
-        const database = require('../services/database');
-        await database.pool.query(
-          'UPDATE tenants SET pipedrive_company_id = $1 WHERE id = $2',
-          [webhookData.company_id, tenant.id]
-        );
-      }
-    }
-    
-    // PRODUCTION FIX: If no tenant found, check if there's a default tenant with rules/webhooks
-    // This handles the case where users created rules via frontend before webhook registration
-    if (!tenant) {
-      console.log(`🔍 No tenant found for company_id: ${webhookData.company_id}, checking for default tenant with active rules`);
-      
-      const database = require('../services/database');
-      const defaultTenantWithRules = await database.pool.query(`
-        SELECT DISTINCT t.id, t.company_name, COUNT(r.id) as rule_count, COUNT(cw.id) as webhook_count
-        FROM tenants t
-        LEFT JOIN rules r ON t.id = r.tenant_id AND r.enabled = true
-        LEFT JOIN chat_webhooks cw ON t.id = cw.tenant_id AND cw.is_active = true
-        WHERE t.pipedrive_company_id IS NULL OR t.pipedrive_company_id = ''
-        GROUP BY t.id, t.company_name
-        HAVING COUNT(r.id) > 0 AND COUNT(cw.id) > 0
-        ORDER BY t.id ASC
-        LIMIT 1
-      `);
-      
-      if (defaultTenantWithRules.rows.length > 0) {
-        const defaultTenant = defaultTenantWithRules.rows[0];
-        console.log(`🔧 Found default tenant ${defaultTenant.id} with ${defaultTenant.rule_count} rules and ${defaultTenant.webhook_count} webhooks`);
-        console.log(`🔧 Mapping tenant ${defaultTenant.id} to company_id: ${webhookData.company_id}`);
-        
-        // Update the default tenant to handle this company_id
-        await database.pool.query(`
-          UPDATE tenants 
-          SET pipedrive_company_id = $1,
-              company_name = COALESCE(NULLIF(company_name, ''), 'Pipedrive Account'),
-              updated_at = NOW()
-          WHERE id = $2
-        `, [webhookData.company_id, defaultTenant.id]);
-        
-        console.log(`✅ Successfully mapped tenant ${defaultTenant.id} to handle company_id: ${webhookData.company_id}`);
-        return defaultTenant.id;
-      }
-    }
-    
+    // Try basic lookup as last resort
+    const tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
     if (tenant) {
-      console.log(`✅ Found tenant: ${tenant.id} for company_id: ${webhookData.company_id}`);
       return tenant.id;
-    } else {
-      console.log(`❌ No tenant found for company_id: ${webhookData.company_id}`);
-      return null;
     }
-  } catch (error) {
-    console.error('Error identifying tenant:', error);
+    
+    console.error(`❌ No tenant resolution possible for company_id: ${webhookData.company_id}`);
     return null;
   }
 }
