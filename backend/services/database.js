@@ -1,25 +1,73 @@
 const { Pool } = require('pg');
 
-// Create database connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 
-    `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000
-});
+// Enhanced PostgreSQL configuration for Railway deployment
+function createDatabasePool() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  const poolConfig = {
+    connectionString: process.env.DATABASE_URL || 
+      `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`,
+    ssl: isProduction ? { 
+      rejectUnauthorized: false,
+      require: true 
+    } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000, // Increased for Railway
+    acquireTimeoutMillis: 10000,
+    // Railway networking optimizations
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 0,
+    allowExitOnIdle: false
+  };
 
-// Database connection health check
-async function healthCheck() {
-  try {
-    const client = await pool.connect();
-    await client.query('SELECT 1');
-    client.release();
-    return { healthy: true };
-  } catch (error) {
-    console.error('Database health check failed:', error.message);
-    return { healthy: false, error: error.message };
+  const pool = new Pool(poolConfig);
+  
+  // Enhanced error handling for Railway networking
+  pool.on('error', (err) => {
+    console.error('PostgreSQL pool error:', err.message);
+    if (err.message.includes('authentication failed')) {
+      console.error('❌ Database authentication failed - check DATABASE_URL');
+    } else if (err.message.includes('ENOTFOUND') || err.message.includes('timeout')) {
+      console.error('❌ Database network error - Railway internal networking issue');
+    }
+  });
+
+  pool.on('connect', () => {
+    console.log('✅ PostgreSQL client connected to database');
+  });
+
+  return pool;
+}
+
+// Create database connection pool with enhanced Railway support
+const pool = createDatabasePool();
+
+// Database connection health check with retry logic for Railway
+async function healthCheck(retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🔄 Database health check attempt ${attempt}/${retries}...`);
+      
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      
+      console.log('✅ Database health check successful');
+      return { healthy: true };
+    } catch (error) {
+      console.error(`❌ Database health check attempt ${attempt} failed:`, error.message);
+      
+      if (attempt === retries) {
+        console.error('💥 All database health check attempts failed');
+        return { healthy: false, error: error.message };
+      }
+      
+      // Wait before retry (exponential backoff)
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
   }
 }
 
