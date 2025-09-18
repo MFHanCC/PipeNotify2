@@ -187,7 +187,7 @@ async function processNotification(webhookData) {
               webhook_id: targetWebhook?.id || rule.target_webhook_id,
               event_type: webhookData.event,
               payload: webhookData,
-              status: 'skipped',
+              status: 'pending',
               response_time_ms: Date.now() - startTime,
               error_message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
             });

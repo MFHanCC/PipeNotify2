@@ -802,6 +802,86 @@ app.post('/api/v1/test/webhook', async (req, res) => {
   }
 });
 
+// Disable quiet hours for immediate testing
+app.post('/api/v1/test/disable-quiet-hours', async (req, res) => {
+  try {
+    console.log('🔧 Disabling quiet hours for immediate testing...');
+    
+    const { pool } = require('./services/database');
+    
+    // Check if quiet_hours table exists
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'quiet_hours'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No quiet_hours table found - notifications already send immediately',
+        actions: []
+      });
+    }
+    
+    const actions = [];
+    
+    // Delete all quiet hours configurations to disable quiet hours
+    const result = await pool.query(`
+      DELETE FROM quiet_hours WHERE tenant_id = 1
+    `);
+    
+    actions.push(`Deleted ${result.rowCount} quiet hours configurations for tenant 1`);
+    
+    // Also clean up any pending delayed notifications and send them immediately
+    const delayedCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'delayed_notifications'
+    `);
+    
+    if (delayedCheck.rows.length > 0) {
+      const pendingNotifications = await pool.query(`
+        SELECT COUNT(*) as count FROM delayed_notifications 
+        WHERE sent_at IS NULL
+      `);
+      
+      const pendingCount = parseInt(pendingNotifications.rows[0].count);
+      actions.push(`Found ${pendingCount} delayed notifications pending`);
+      
+      if (pendingCount > 0) {
+        // Update scheduled time to now so they process immediately
+        const updateResult = await pool.query(`
+          UPDATE delayed_notifications 
+          SET scheduled_for = NOW() 
+          WHERE sent_at IS NULL
+        `);
+        
+        actions.push(`Updated ${updateResult.rowCount} delayed notifications to send immediately`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours disabled successfully - notifications will now send immediately',
+      actions,
+      instructions: [
+        'Go to Pipedrive and create/update deals',
+        'Notifications should now appear in Google Chat immediately',
+        'To re-enable quiet hours later, configure them in the frontend'
+      ]
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to disable quiet hours:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to disable quiet hours',
+      error: error.message
+    });
+  }
+});
+
 // Complete notification flow diagnostic endpoint
 app.post('/api/v1/test/notification-flow', async (req, res) => {
   try {
