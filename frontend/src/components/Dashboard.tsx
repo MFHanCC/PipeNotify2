@@ -997,7 +997,7 @@ const Dashboard: React.FC = React.memo(() => {
             onClick={openCreateModal}
             aria-label="Create new notification rule"
             type="button"
-            disabled={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules}
+            disabled={Boolean(limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules)}
             title={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules 
               ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
               : 'Create new notification rule'}

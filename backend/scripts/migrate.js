@@ -260,6 +260,36 @@ async function runMigration() {
       // Don't fail for this non-critical fix
     }
 
+    // Add guaranteed delivery system tables
+    console.log('🔄 Setting up guaranteed delivery system tables...');
+    
+    try {
+      // Check if guaranteed delivery tables exist
+      const deliveryTableCheck = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_name IN ('notification_queue', 'delivery_log', 'monitoring_metrics')
+      `);
+      
+      const existingDeliveryTables = deliveryTableCheck.rows.map(r => r.table_name);
+      
+      if (existingDeliveryTables.length < 3) {
+        console.log('📋 Creating guaranteed delivery system tables...');
+        
+        const deliveryMigrationPath = path.join(__dirname, '../migrations/014_create_guaranteed_delivery_tables.sql');
+        const deliveryMigration = fs.readFileSync(deliveryMigrationPath, 'utf8');
+        
+        await pool.query(deliveryMigration);
+        console.log('✅ Created guaranteed delivery system tables (notification_queue, delivery_log, monitoring_metrics)');
+      } else {
+        console.log('ℹ️  Guaranteed delivery system tables already exist');
+      }
+      
+    } catch (error) {
+      console.error('⚠️  Error setting up guaranteed delivery tables:', error.message);
+      // Don't fail the migration for this - log the error for manual recovery
+    }
+
     console.log('🎉 Migration completed successfully!');
     
   } catch (error) {

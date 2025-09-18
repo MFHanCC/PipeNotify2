@@ -2739,4 +2739,30 @@ router.get('/debug/database-state', async (req, res) => {
   }
 });
 
+// POST /api/v1/admin/run-migration - Run database migration (for production deployment)
+router.post('/run-migration', async (req, res) => {
+  try {
+    console.log('🔧 Manual migration triggered via admin endpoint');
+    
+    const { runMigration } = require('../scripts/migrate');
+    await runMigration();
+    
+    console.log('✅ Manual migration completed successfully');
+    
+    res.json({
+      success: true,
+      message: 'Database migration completed successfully',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Manual migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
