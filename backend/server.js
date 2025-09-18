@@ -3,9 +3,22 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
-// Run database migrations on production startup
-const { runMigration } = require('./scripts/migrate');
-const { fixPipedriveConnectionsTable } = require('./scripts/fix-pipedrive-connections');
+// Database migration functions - only available in development
+let runMigration = null;
+let fixPipedriveConnectionsTable = null;
+
+// Only load migration scripts in development (they're removed from production)
+if (process.env.NODE_ENV === 'development') {
+  try {
+    ({ runMigration } = require('./scripts/migrate'));
+    ({ fixPipedriveConnectionsTable } = require('./scripts/fix-pipedrive-connections'));
+    console.log('📋 Migration scripts loaded for development');
+  } catch (error) {
+    console.log('⚠️ Migration scripts not found - running without migrations');
+  }
+} else {
+  console.log('🚀 Production mode - migrations handled by hosting provider');
+}
 
 // Initialize Sentry error tracking
 const Sentry = require('@sentry/node');
@@ -1254,6 +1267,9 @@ async function startServer() {
   }
 
   if (process.env.NODE_ENV === 'production') {
+    console.log('🚀 Production mode - database migrations should be handled by hosting provider (Railway)');
+    console.log('💡 Railway automatically runs migrations from the migrations/ directory');
+  } else if (runMigration && fixPipedriveConnectionsTable) {
     try {
       console.log('🔄 Running database migrations...');
       await runMigration();
