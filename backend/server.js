@@ -593,6 +593,13 @@ app.post('/api/v1/test/set-chat-webhook', (req, res) => {
   }
 });
 
+// =================================================================
+// DEVELOPMENT & DEBUG ENDPOINTS 
+// These endpoints are only available in development environment
+// =================================================================
+if (process.env.NODE_ENV === 'development' || process.env.ENABLE_DEBUG_ENDPOINTS === 'true') {
+  console.log('🔧 Debug endpoints enabled');
+
 // Development: Create tenant record
 app.post('/api/v1/dev/create-tenant', async (req, res) => {
   try {
@@ -1191,6 +1198,15 @@ app.post('/api/v1/test/notification-flow', async (req, res) => {
     });
   }
 });
+
+} // End of development/debug endpoints
+else {
+  console.log('🚀 Production mode - debug endpoints disabled');
+}
+
+// =================================================================
+// PRODUCTION ERROR HANDLING
+// =================================================================
 
 // Sentry error handler (configured when valid DSN is provided)
 
