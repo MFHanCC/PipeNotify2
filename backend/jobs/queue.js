@@ -3,16 +3,11 @@ const { Queue } = require('bullmq');
 // Redis connection configuration
 let redisConfig;
 
-console.log('🔍 Redis Environment Check:');
-console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
-console.log('REDIS_URL value:', process.env.REDIS_URL || 'Not set');
-console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
-console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
+// Redis connection configuration
 
 if (process.env.REDIS_URL) {
   // Parse Railway Redis URL: redis://username:password@host:port
   const url = new URL(process.env.REDIS_URL);
-  console.log('📊 Parsed Redis URL - Host:', url.hostname, 'Port:', url.port);
   
   redisConfig = {
     connection: {
@@ -48,7 +43,6 @@ if (process.env.REDIS_URL) {
   };
 }
 
-console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
 
 // Create notification queue with error handling
 let notificationQueue;
