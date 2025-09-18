@@ -203,6 +203,7 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/templates', templatesRoutes);
 app.use('/api/v1/analytics', require('./routes/analytics'));
 app.use('/api/v1/health', require('./routes/health'));
+app.use('/api/v1/migrate', require('./routes/migrate'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
