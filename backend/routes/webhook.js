@@ -197,4 +197,23 @@ router.get('/health', (req, res) => {
   });
 });
 
+// Temporary disable quiet hours endpoint (until main endpoint deploys)
+router.post('/disable-quiet-hours', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    const result = await pool.query(`DELETE FROM quiet_hours WHERE tenant_id = 1`);
+    const delayedResult = await pool.query(`UPDATE delayed_notifications SET scheduled_for = NOW() WHERE sent_at IS NULL`);
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours disabled',
+      deleted: result.rowCount,
+      updated_delayed: delayedResult.rowCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
