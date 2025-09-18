@@ -802,6 +802,78 @@ app.post('/api/v1/test/webhook', async (req, res) => {
   }
 });
 
+// Check quiet hours configuration and status
+app.get('/api/v1/test/check-quiet-hours', async (req, res) => {
+  try {
+    const { pool } = require('./services/database');
+    const { getQuietHours, isQuietTime } = require('./services/quietHours');
+    
+    const result = {
+      timestamp: new Date().toISOString(),
+      timezone_info: {
+        utc_time: new Date().toISOString(),
+        utc_hour: new Date().getUTCHours(),
+        utc_minutes: new Date().getUTCMinutes()
+      }
+    };
+    
+    // Check if quiet_hours table exists
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'quiet_hours'
+    `);
+    
+    result.table_exists = tableCheck.rows.length > 0;
+    
+    if (result.table_exists) {
+      // Check for any records
+      const allRecords = await pool.query(`
+        SELECT * FROM quiet_hours ORDER BY tenant_id
+      `);
+      
+      result.total_records = allRecords.rows.length;
+      result.all_records = allRecords.rows;
+      
+      // Specifically check tenant 1
+      const tenant1Records = await pool.query(`
+        SELECT * FROM quiet_hours WHERE tenant_id = 1
+      `);
+      
+      result.tenant1_records = tenant1Records.rows.length;
+      result.tenant1_config = tenant1Records.rows[0] || null;
+    }
+    
+    // Test the actual functions
+    const config = await getQuietHours(1);
+    result.getQuietHours_result = config;
+    
+    const quietCheck = await isQuietTime(1);
+    result.isQuietTime_result = quietCheck;
+    
+    result.summary = {
+      configured: config.configured,
+      is_quiet: quietCheck.is_quiet,
+      reason: quietCheck.reason,
+      should_send_immediately: !quietCheck.is_quiet
+    };
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours status check complete',
+      result
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to check quiet hours:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check quiet hours',
+      error: error.message
+    });
+  }
+});
+
 // Disable quiet hours for immediate testing
 app.post('/api/v1/test/disable-quiet-hours', async (req, res) => {
   try {
