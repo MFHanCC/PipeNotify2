@@ -166,6 +166,32 @@ router.get('/health', (req, res) => {
   });
 });
 
+// POST /api/v1/webhook/emergency-migrate - Emergency migration (temporary, no auth)
+router.post('/emergency-migrate', async (req, res) => {
+  try {
+    console.log('🚨 EMERGENCY MIGRATION triggered - creating guaranteed delivery tables');
+    
+    const { runMigration } = require('../scripts/migrate');
+    await runMigration();
+    
+    console.log('✅ Emergency migration completed - guaranteed delivery tables created');
+    
+    res.json({
+      success: true,
+      message: 'Emergency database migration completed - guaranteed delivery system ready',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Emergency migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Temporary disable quiet hours endpoint (until main endpoint deploys)
 router.post('/disable-quiet-hours', async (req, res) => {
   try {
