@@ -5,6 +5,7 @@ let redisConfig;
 
 console.log('🔍 Redis Environment Check:');
 console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
+console.log('REDIS_URL value:', process.env.REDIS_URL || 'Not set');
 console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
 console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
 
