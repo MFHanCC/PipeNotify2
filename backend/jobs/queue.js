@@ -6,35 +6,46 @@ let redisConfig;
 // Redis connection configuration
 
 if (process.env.REDIS_URL) {
-  // Parse Railway Redis URL: redis://username:password@host:port
+  // Parse Redis URL: redis:// or rediss:// (TLS)
   const url = new URL(process.env.REDIS_URL);
   console.log('🔧 Configuring Redis for Railway deployment');
   console.log('🔗 Redis host:', url.hostname);
   
-  redisConfig = {
-    connection: {
-      host: url.hostname,
-      port: parseInt(url.port),
-      password: url.password,
-      family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
-      connectTimeout: 15000, // Increased timeout for Railway
-      lazyConnect: true,
-      maxRetriesPerRequest: 3, // Enable retries
-      retryDelayOnFailover: 500,
-      enableOfflineQueue: false,
-      keepAlive: 30000,
-      // Enhanced Railway networking support
-      maxRetriesPerRequest: 3,
-      retryDelayOnClusterDown: 300,
-      retryDelayOnFailover: 500,
-      enableReadyCheck: true,
-      maxLoadingTimeout: 10000,
-      reconnectOnError: (err) => {
-        console.log('🔄 Redis reconnection check:', err.message);
-        const targetErrors = ['READONLY', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'];
-        return targetErrors.some(error => err.message.includes(error));
-      }
+  const connectionConfig = {
+    host: url.hostname,
+    port: parseInt(url.port),
+    password: url.password,
+    family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
+    connectTimeout: 15000, // Increased timeout for Railway
+    lazyConnect: true,
+    maxRetriesPerRequest: 3, // Enable retries
+    retryDelayOnFailover: 500,
+    enableOfflineQueue: false,
+    keepAlive: 30000,
+    retryDelayOnClusterDown: 300,
+    enableReadyCheck: true,
+    maxLoadingTimeout: 10000,
+    reconnectOnError: (err) => {
+      console.log('🔄 Redis reconnection check:', err.message);
+      const targetErrors = ['READONLY', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'];
+      return targetErrors.some(error => err.message.includes(error));
     }
+  };
+
+  // Add TLS configuration for rediss:// URLs
+  if (url.protocol === 'rediss:') {
+    connectionConfig.tls = {
+      rejectUnauthorized: false // Allow self-signed certificates for Redis providers
+    };
+  }
+
+  // Add username if present in URL
+  if (url.username) {
+    connectionConfig.username = url.username;
+  }
+
+  redisConfig = {
+    connection: connectionConfig
   };
 } else {
   // Local development fallback
