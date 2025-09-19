@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { healthCheck } = require('../services/database');
+const { healthCheck, pool } = require('../services/database');
 const { healthCheck: fallbackHealthCheck } = require('../services/notificationFallback');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Comprehensive health monitoring for the notification system
@@ -576,6 +578,34 @@ router.post('/upgrade-team/:tenantId', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error upgrading to Team plan:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Temporary migration endpoint - REMOVE AFTER USE
+router.post('/run-guaranteed-delivery-migration', async (req, res) => {
+  try {
+    console.log('🚀 Running guaranteed delivery tables migration...');
+    
+    const migrationPath = path.join(__dirname, '..', 'migrations', '014_create_guaranteed_delivery_tables.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    
+    console.log('📄 Executing migration SQL...');
+    await pool.query(migrationSQL);
+    
+    console.log('✅ Migration completed successfully!');
+    
+    res.json({
+      success: true,
+      message: 'Guaranteed delivery tables created successfully',
+      tables: ['notification_queue', 'delivery_log', 'monitoring_metrics']
+    });
+    
+  } catch (error) {
+    console.error('❌ Migration failed:', error.message);
     res.status(500).json({
       success: false,
       error: error.message
