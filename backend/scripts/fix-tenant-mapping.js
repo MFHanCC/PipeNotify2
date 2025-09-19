@@ -54,7 +54,7 @@ async function fixTenantMapping() {
       ORDER BY tenant_id
     `);
     
-    console.log(`\\n📋 Rules by tenant:`);
+    console.log('\\n📋 Rules by tenant:');
     rulesResult.rows.forEach(row => {
       console.log(`  • Tenant ${row.tenant_id}: ${row.enabled_count}/${row.rule_count} enabled rules`);
     });
@@ -68,7 +68,7 @@ async function fixTenantMapping() {
       ORDER BY tenant_id
     `);
     
-    console.log(`\\n🔗 Webhooks by tenant:`);
+    console.log('\\n🔗 Webhooks by tenant:');
     webhooksResult.rows.forEach(row => {
       console.log(`  • Tenant ${row.tenant_id}: ${row.active_count}/${row.webhook_count} active webhooks`);
     });
@@ -79,7 +79,7 @@ async function fixTenantMapping() {
     const hasRulesTenant2 = rulesResult.rows.find(r => r.tenant_id === 2 && r.enabled_count > 0);
     const hasWebhooksTenant2 = webhooksResult.rows.find(r => r.tenant_id === 2 && r.active_count > 0);
     
-    console.log(`\\n🔍 Analysis:`);
+    console.log('\\n🔍 Analysis:');
     console.log(`  • Tenant 1: ${hasRulesTenant1 ? hasRulesTenant1.enabled_count : 0} rules, ${hasWebhooksTenant1 ? hasWebhooksTenant1.active_count : 0} webhooks`);
     console.log(`  • Tenant 2: ${hasRulesTenant2 ? hasRulesTenant2.enabled_count : 0} rules, ${hasWebhooksTenant2 ? hasWebhooksTenant2.active_count : 0} webhooks`);
     
@@ -115,9 +115,9 @@ async function fixTenantMapping() {
         console.log(`   Company name: ${updateResult.rows[0].company_name}`);
       }
     } else if (hasRulesTenant2 && hasWebhooksTenant2) {
-      console.log(`\\n✅ Configuration looks correct - rules and webhooks are both in tenant 2`);
+      console.log('\\n✅ Configuration looks correct - rules and webhooks are both in tenant 2');
     } else {
-      console.log(`\\n⚠️ Complex tenant mapping detected - manual review required`);
+      console.log('\\n⚠️ Complex tenant mapping detected - manual review required');
     }
     
     // Final verification
@@ -138,7 +138,7 @@ async function fixTenantMapping() {
       console.log(`  • Tenant ${result.tenant_id}: ${result.rules_count} rules, ${result.webhooks_count} webhooks`);
       
       if (result.rules_count > 0 && result.webhooks_count > 0) {
-        console.log(`\\n🎉 SUCCESS: Tenant mapping fixed! Webhooks should now trigger notifications.`);
+        console.log('\\n🎉 SUCCESS: Tenant mapping fixed! Webhooks should now trigger notifications.');
       } else {
         console.log(`\\n⚠️ Issue persists: ${result.rules_count === 0 ? 'No rules' : 'No webhooks'} found for tenant.`);
       }

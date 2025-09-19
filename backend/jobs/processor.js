@@ -1,5 +1,5 @@
 const { Worker } = require('bullmq');
-const { redisConfig } = require('./queue');
+const { redisConfig, initPromise } = require('./queue');
 
 // Import services
 const { defaultChatClient } = require('../services/chatClient');
@@ -12,8 +12,10 @@ const { isQuietTime, queueDelayedNotification } = require('../services/quietHour
 // Create BullMQ worker for processing notification jobs (only if Redis is available)
 let notificationWorker = null;
 
-if (redisConfig) {
-  notificationWorker = new Worker('notification', async (job) => {
+// Wait for Redis initialization then create worker
+initPromise.then(() => {
+  if (redisConfig) {
+    notificationWorker = new Worker('notification', async (job) => {
   const { data } = job;
   
   try {
@@ -97,6 +99,9 @@ if (redisConfig) {
 } else {
   console.log('⚠️ Notification worker disabled - Redis not available');
 }
+}).catch(error => {
+  console.error('❌ Failed to initialize notification worker:', error.message);
+});
 
 // Simple in-memory deduplication cache (for production, use Redis)
 const processedWebhooks = new Map();
@@ -465,13 +470,17 @@ async function sendNotification(rule, webhookData, targetWebhook = null, tenantI
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('Shutting down notification worker...');
-  await notificationWorker.close();
+  if (notificationWorker) {
+    await notificationWorker.close();
+  }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('Shutting down notification worker...');
-  await notificationWorker.close();
+  if (notificationWorker) {
+    await notificationWorker.close();
+  }
   process.exit(0);
 });
 

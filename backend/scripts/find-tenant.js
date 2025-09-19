@@ -63,7 +63,7 @@ async function findTenant(searchTerm) {
         const sub = subResult.rows[0];
         console.log(`💳 Subscription: ${sub.plan_tier} tier (${sub.status})`);
       } else {
-        console.log(`💳 Subscription: No subscription record (should auto-detect)`);
+        console.log('💳 Subscription: No subscription record (should auto-detect)');
       }
     }
     

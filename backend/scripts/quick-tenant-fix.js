@@ -96,10 +96,10 @@ async function quickTenantFix() {
       
       if (updateResult.rows.length > 0) {
         console.log(`✅ SUCCESS: Tenant 1 now handles Pipedrive company ${pipedriveCompanyId}`);
-        console.log(`   This should fix the notification delivery issue!`);
+        console.log('   This should fix the notification delivery issue!');
       }
     } else {
-      console.log(`\\n⚠️ Cannot auto-fix: Missing rules or webhooks in tenant 1`);
+      console.log('\\n⚠️ Cannot auto-fix: Missing rules or webhooks in tenant 1');
     }
     
     await pool.end();

@@ -127,43 +127,43 @@ function formatStalledDealMessage(stalledDeals, tenantName = 'Your Team') {
   let message = `🔔 **Stalled Deal Alert** - ${tenantName}\n\n`;
   
   if (criticalDeals.length > 0) {
-    message += `🚨 **CRITICAL** - No activity for 14+ days:\n`;
+    message += '🚨 **CRITICAL** - No activity for 14+ days:\n';
     criticalDeals.slice(0, 3).forEach(deal => { // Show max 3 critical deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (criticalDeals.length > 3) {
       message += `• *...and ${criticalDeals.length - 3} more critical deals*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   if (staleDeals.length > 0) {
-    message += `🟠 **STALE** - No activity for 7+ days:\n`;
+    message += '🟠 **STALE** - No activity for 7+ days:\n';
     staleDeals.slice(0, 3).forEach(deal => { // Show max 3 stale deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (staleDeals.length > 3) {
       message += `• *...and ${staleDeals.length - 3} more stale deals*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   if (warningDeals.length > 0 && criticalDeals.length === 0) {
     // Only show warnings if there are no critical deals (to avoid spam)
-    message += `⚠️ **WARNING** - No activity for 3+ days:\n`;
+    message += '⚠️ **WARNING** - No activity for 3+ days:\n';
     warningDeals.slice(0, 5).forEach(deal => { // Show max 5 warning deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (warningDeals.length > 5) {
       message += `• *...and ${warningDeals.length - 5} more deals need attention*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   // Add summary and call to action
   const totalValue = stalledDeals.reduce((sum, deal) => sum + deal.value, 0);
   message += `💰 **Total stalled pipeline:** ${stalledDeals[0]?.currency || 'USD'} ${totalValue.toLocaleString()}\n`;
-  message += `📈 **Action needed:** Follow up on these deals to keep your pipeline moving!\n`;
+  message += '📈 **Action needed:** Follow up on these deals to keep your pipeline moving!\n';
   
   return message;
 }

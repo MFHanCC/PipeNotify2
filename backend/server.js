@@ -34,8 +34,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || (process.env.NODE_ENV === 'development' ? "http://localhost:3000" : "'self'")],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : "'self'")],
     },
   },
 }));
@@ -383,7 +383,7 @@ app.post('/api/v1/integration/activate', async (req, res) => {
       const pipedriveToken = req.headers['x-pipedrive-token'] || process.env.PIPEDRIVE_API_TOKEN;
       
       if (pipedriveToken) {
-        const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+        const webhookUrl = 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive';
         
         // Check if webhook already exists
         const existingWebhooks = await axios.get('https://api.pipedrive.com/v1/webhooks', {
@@ -606,7 +606,7 @@ app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
     }
 
     const axios = require('axios');
-    const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+    const webhookUrl = 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive';
     
     // Register webhook for all deal events
     const response = await axios.post('https://api.pipedrive.com/v1/webhooks', {

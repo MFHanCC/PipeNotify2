@@ -53,7 +53,7 @@ async function upgradeToTeam(identifier) {
     const tenant = tenantResult.rows[0];
     const tenantId = tenant.id;
     
-    console.log(`✅ Found tenant:`);
+    console.log('✅ Found tenant:');
     console.log(`   ID: ${tenant.id}`);
     console.log(`   Company: ${tenant.company_name}`);
     console.log(`   Pipedrive Company ID: ${tenant.pipedrive_company_id}`);

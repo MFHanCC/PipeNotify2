@@ -1284,10 +1284,10 @@ router.post('/webhooks/:id/test', async (req, res) => {
     // Send test message
     const axios = require('axios');
     const testMessage = {
-      text: `✅ Test notification from Pipenotify\n` +
+      text: '✅ Test notification from Pipenotify\n' +
             `🔔 Webhook: ${webhook.name}\n` +
             `⏰ Time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone })}\n` +
-            `🚀 Status: Connection successful!`
+            '🚀 Status: Connection successful!'
     };
 
     await axios.post(webhook.webhook_url, testMessage, {
@@ -2095,7 +2095,7 @@ router.post('/debug/pipeline-diagnosis', async (req, res) => {
       const { processNotification } = require('../jobs/processor');
       const result = await processNotification(testWebhookData);
       
-      diagnosis.steps.push(`🧪 Test processing completed`);
+      diagnosis.steps.push('🧪 Test processing completed');
       diagnosis.testResult = result;
       
       if (result.notificationsSent > 0) {
@@ -2717,7 +2717,7 @@ router.get('/debug/database-state', async (req, res) => {
     debugInfo.unmappedTenantsTest = {
       count: unmappedTenantsTest.rows[0].count,
       isHealthy: parseInt(unmappedTenantsTest.rows[0].count) === 0,
-      explanation: "If count > 0, tenant has rules but no Pipedrive company mapping"
+      explanation: 'If count > 0, tenant has rules but no Pipedrive company mapping'
     };
     
     console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));

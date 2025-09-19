@@ -364,7 +364,7 @@ async function testNotificationSystem() {
     if (result.success) {
       console.log(`✅ Test notification sent successfully (${testResult.notificationsSent} notifications)`);
     } else {
-      console.log(`⚠️ Test notification failed or no notifications sent`);
+      console.log('⚠️ Test notification failed or no notifications sent');
     }
     
     return result;
