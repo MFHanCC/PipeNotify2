@@ -139,10 +139,10 @@ router.get('/presets/:tenantId', requireFeature('custom_templates'), async (req,
     
     // Filter by active status
     if (active_only === 'true') {
-      query += ` AND is_active = true`;
+      query += ' AND is_active = true';
     }
     
-    query += ` ORDER BY name ASC`;
+    query += ' ORDER BY name ASC';
     
     const result = await pool.query(query, queryParams);
     
@@ -357,7 +357,7 @@ router.put('/presets/:tenantId/:presetId', requireFeature('custom_templates'), a
       });
     }
     
-    updateFields.push(`updated_at = NOW()`);
+    updateFields.push('updated_at = NOW()');
     values.push(presetId, tenantId);
     
     const query = `

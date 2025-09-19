@@ -214,7 +214,7 @@ class ChatClient {
               if (object?.person_id) {
                 changes.push(`👤 Contact: Added person ID ${object.person_id}`);
               } else {
-                changes.push(`👤 Contact: Removed`);
+                changes.push('👤 Contact: Removed');
               }
             }
             
@@ -225,7 +225,7 @@ class ChatClient {
               if (object?.org_id) {
                 changes.push(`🏢 Organization: Added org ID ${object.org_id}`);
               } else {
-                changes.push(`🏢 Organization: Removed`);
+                changes.push('🏢 Organization: Removed');
               }
             }
             
@@ -371,7 +371,7 @@ class ChatClient {
         }
         
         if (object?.type) message += `\n📋 Type: ${object.type}`;
-        if (object?.done) message += `\n✅ Status: Completed`;
+        if (object?.done) message += '\n✅ Status: Completed';
         message += `\n👤 Updated by: *${userName}*`;
         break;
 
