@@ -8,7 +8,10 @@ console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
 console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
 console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
 
-if (process.env.REDIS_URL) {
+// Check if Redis is actually available before trying to connect
+const REDIS_ENABLED = process.env.NODE_ENV === 'production' || process.env.FORCE_REDIS === 'true';
+
+if (process.env.REDIS_URL && REDIS_ENABLED) {
   // Parse Railway Redis URL: redis://username:password@host:port
   const url = new URL(process.env.REDIS_URL);
   console.log('📊 Parsed Redis URL - Host:', url.hostname, 'Port:', url.port);
@@ -31,12 +34,12 @@ if (process.env.REDIS_URL) {
       }
     }
   };
-} else {
-  // Local development fallback
-  console.log('🔧 Using fallback Redis configuration');
+} else if (process.env.REDIS_HOST && REDIS_ENABLED) {
+  // Local development with explicit Redis host
+  console.log('🔧 Using explicit Redis configuration');
   redisConfig = {
     connection: {
-      host: process.env.REDIS_HOST || 'localhost',
+      host: process.env.REDIS_HOST,
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
       maxRetriesPerRequest: null,
@@ -45,6 +48,10 @@ if (process.env.REDIS_URL) {
       keepAlive: 30000
     }
   };
+} else {
+  // No Redis - use synchronous processing
+  console.log('🔧 Redis disabled for development - using synchronous processing');
+  redisConfig = null;
 }
 
 console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
@@ -52,8 +59,9 @@ console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
 // Create notification queue with error handling
 let notificationQueue;
 
-try {
-  notificationQueue = new Queue('notification', redisConfig);
+if (redisConfig) {
+  try {
+    notificationQueue = new Queue('notification', redisConfig);
 
   // Queue event listeners for monitoring
   notificationQueue.on('waiting', (job) => {
@@ -76,10 +84,14 @@ try {
     console.error('Queue error:', err.message);
   });
 
-  console.log('✅ Notification queue initialized successfully');
-} catch (error) {
-  console.error('❌ Failed to initialize notification queue:', error.message);
-  console.log('⚠️ Running in degraded mode without queue functionality');
+    console.log('✅ Notification queue initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize notification queue:', error.message);
+    console.log('⚠️ Running in degraded mode without queue functionality');
+    notificationQueue = null;
+  }
+} else {
+  console.log('⚠️ Redis disabled - running in synchronous mode');
   notificationQueue = null;
 }
 
