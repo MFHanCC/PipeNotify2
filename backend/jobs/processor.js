@@ -9,8 +9,11 @@ const { routeToChannel } = require('../services/channelRouter');
 const { checkNotificationQuota, trackNotificationUsage } = require('../middleware/quotaEnforcement');
 const { isQuietTime, queueDelayedNotification } = require('../services/quietHours');
 
-// Create BullMQ worker for processing notification jobs
-const notificationWorker = new Worker('notification', async (job) => {
+// Create BullMQ worker for processing notification jobs (only if Redis is available)
+let notificationWorker = null;
+
+if (redisConfig) {
+  notificationWorker = new Worker('notification', async (job) => {
   const { data } = job;
   
   try {
@@ -53,7 +56,47 @@ const notificationWorker = new Worker('notification', async (job) => {
     
     throw error; // Re-throw to mark job as failed
   }
-}, redisConfig);
+  }, redisConfig);
+
+  // Worker event listeners
+  notificationWorker.on('completed', (job, result) => {
+    console.log(`✅ Job ${job.id} completed:`, result);
+  });
+
+  notificationWorker.on('failed', (job, err) => {
+    console.error(`❌ Job ${job.id} failed:`, err.message);
+  });
+
+  notificationWorker.on('error', (err) => {
+    console.error('Worker error:', err);
+    
+    // Handle Redis connection issues specifically
+    if (err.message.includes('Stream isn\'t writeable') || 
+        err.message.includes('Connection is closed') ||
+        err.message.includes('ENOTFOUND') ||
+        err.message.includes('ECONNREFUSED')) {
+      console.log('🔄 Redis connection issue detected, attempting graceful degradation');
+      console.log(`🔄 Redis error details: ${err.message}`);
+    }
+  });
+
+  // Additional connection monitoring
+  notificationWorker.on('ioredis:connect', () => {
+    console.log('✅ Redis connection established for worker');
+  });
+
+  notificationWorker.on('ioredis:close', () => {
+    console.log('⚠️ Redis connection closed for worker');
+  });
+
+  notificationWorker.on('ioredis:reconnecting', () => {
+    console.log('🔄 Redis reconnecting for worker');
+  });
+
+  console.log('✅ Notification worker initialized successfully');
+} else {
+  console.log('⚠️ Notification worker disabled - Redis not available');
+}
 
 // Simple in-memory deduplication cache (for production, use Redis)
 const processedWebhooks = new Map();
@@ -417,40 +460,7 @@ async function sendNotification(rule, webhookData, targetWebhook = null, tenantI
   }
 }
 
-// Worker event listeners
-notificationWorker.on('completed', (job, result) => {
-  console.log(`✅ Job ${job.id} completed:`, result);
-});
-
-notificationWorker.on('failed', (job, err) => {
-  console.error(`❌ Job ${job.id} failed:`, err.message);
-});
-
-notificationWorker.on('error', (err) => {
-  console.error('Worker error:', err);
-  
-  // Handle Redis connection issues specifically
-  if (err.message.includes('Stream isn\'t writeable') || 
-      err.message.includes('Connection is closed') ||
-      err.message.includes('ENOTFOUND') ||
-      err.message.includes('ECONNREFUSED')) {
-    console.log('🔄 Redis connection issue detected, attempting graceful degradation');
-    console.log(`🔄 Redis error details: ${err.message}`);
-  }
-});
-
-// Additional connection monitoring
-notificationWorker.on('ioredis:connect', () => {
-  console.log('✅ Redis connection established for worker');
-});
-
-notificationWorker.on('ioredis:close', () => {
-  console.log('⚠️ Redis connection closed for worker');
-});
-
-notificationWorker.on('ioredis:reconnecting', () => {
-  console.log('🔄 Redis reconnecting for worker');
-});
+// Duplicate event listeners removed - they're now inside the conditional block above
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

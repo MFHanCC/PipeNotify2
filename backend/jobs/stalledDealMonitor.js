@@ -343,39 +343,50 @@ if (process.env.NODE_ENV !== 'test') {
   console.log('⏸️ Skipping cron job scheduling in test environment');
 }
 
-// Also create a BullMQ worker for manual triggering
-const stalledDealWorker = new Worker('stalled-deals', async (job) => {
-  const { tenantId } = job.data;
-  
-  if (tenantId) {
-    // Process single tenant
-    return await processStalledDealMonitoring(tenantId);
-  } else {
-    // Process all tenants
+// Also create a BullMQ worker for manual triggering (only if Redis is available)
+let stalledDealWorker = null;
+
+if (redisConfig) {
+  stalledDealWorker = new Worker('stalled-deals', async (job) => {
+    const { tenantId } = job.data;
+    
+    if (tenantId) {
+      // Process single tenant
+      return await processStalledDealMonitoring(tenantId);
+    } else {
+      // Process all tenants
     return await runStalledDealMonitoring();
   }
 }, redisConfig);
 
-stalledDealWorker.on('completed', (job, result) => {
-  console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
-});
+  stalledDealWorker.on('completed', (job, result) => {
+    console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
+  });
 
-stalledDealWorker.on('failed', (job, err) => {
-  console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
-});
+  stalledDealWorker.on('failed', (job, err) => {
+    console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
+  });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close();
-  process.exit(0);
-});
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('Shutting down stalled deal monitor...');
+    await stalledDealWorker.close();
+    process.exit(0);
+  });
+} else {
+  console.log('⚠️ Stalled deal worker disabled - Redis not available');
+  
+  // Add non-Redis shutdown handlers
+  process.on('SIGTERM', async () => {
+    console.log('Shutting down stalled deal monitor...');
+    process.exit(0);
+  });
 
-process.on('SIGINT', async () => {
-  console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close(); 
-  process.exit(0);
-});
+  process.on('SIGINT', async () => {
+    console.log('Shutting down stalled deal monitor...');
+    process.exit(0);
+  });
+}
 
 console.log('📋 Stalled deal monitoring system started');
 
