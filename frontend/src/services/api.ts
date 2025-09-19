@@ -493,7 +493,12 @@ class ApiService {
   }
 
   async getFeatureAccess(): Promise<{ [featureName: string]: { has_access: boolean; plan_required: string } }> {
-    const tenantId = getTenantId() || '1';
+    // SECURITY: Prevent cross-tenant reads - require valid tenant context
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      throw new Error('Missing tenant context - authentication required');
+    }
+    
     const response = await fetch(`${API_BASE_URL}/api/v1/billing/features/${tenantId}`, {
       headers: this.getAuthHeaders(),
     });

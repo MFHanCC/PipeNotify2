@@ -151,6 +151,17 @@ async function createRule(tenantId, ruleData) {
 
 async function updateRule(tenantId, ruleId, updates) {
   try {
+    // SECURITY: Whitelist allowed columns to prevent SQL injection
+    const allowedColumns = new Set([
+      'name',
+      'event_type',
+      'filters',
+      'target_webhook_id',
+      'template_mode',
+      'custom_template',
+      'enabled'
+    ]);
+
     // CRITICAL FIX: Prevent null or empty target_webhook_id updates
     if (updates.hasOwnProperty('target_webhook_id') && (updates.target_webhook_id === null || updates.target_webhook_id === '')) {
       console.log('🔧 DB: Preventing null target_webhook_id update - finding active webhook');
@@ -172,9 +183,9 @@ async function updateRule(tenantId, ruleId, updates) {
       }
     }
     
-    // Remove any keys with undefined values
+    // Remove any keys with undefined values and filter by allowed columns
     const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([key, value]) => value !== undefined)
+      Object.entries(updates).filter(([key, value]) => value !== undefined && allowedColumns.has(key))
     );
     
     if (Object.keys(cleanUpdates).length === 0) {
@@ -183,6 +194,7 @@ async function updateRule(tenantId, ruleId, updates) {
       return currentRule.rows[0];
     }
     
+    // Safe to use keys now since they're whitelisted
     const setClause = Object.keys(cleanUpdates)
       .map((key, index) => `${key} = $${index + 3}`)
       .join(', ');

@@ -34,6 +34,7 @@ interface NotificationRule {
   eventType: string;
   templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
   targetSpace: string;
+  targetWebhookId: number; // SECURITY FIX: Actual webhook ID to prevent NaN errors
   filters: {
     // Value filters
     value_min?: number;
@@ -344,6 +345,7 @@ const Dashboard: React.FC = React.memo(() => {
           eventType: rule.event_type,
           templateMode: rule.template_mode || 'compact',
           targetSpace: rule.webhook_name || 'Unknown',
+          targetWebhookId: rule.target_webhook_id, // SECURITY FIX: Store actual webhook ID separately from display name
           filters: rule.filters || {},
           enabled: rule.enabled,
           lastTriggered: rule.last_triggered,
@@ -423,7 +425,7 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          target_webhook_id: parseInt(rule.targetSpace),
+          target_webhook_id: rule.targetWebhookId, // SECURITY FIX: Use actual webhook ID instead of parsing name
           template_mode: rule.templateMode,
           enabled: !rule.enabled,
           filters: rule.filters || {}
@@ -529,7 +531,7 @@ const Dashboard: React.FC = React.memo(() => {
       enabled: rule.enabled,
       event_type: rule.eventType,
       template_mode: rule.templateMode,
-      target_webhook_id: rule.targetSpace,
+      target_webhook_id: rule.targetWebhookId.toString(), // SECURITY FIX: Use actual webhook ID instead of name
       filters: rule.filters || {}
     });
   };
@@ -608,7 +610,8 @@ const Dashboard: React.FC = React.memo(() => {
                 enabled: editFormData.enabled,
                 eventType: editFormData.event_type,
                 templateMode: editFormData.template_mode,
-                targetSpace: editFormData.target_webhook_id,
+                targetSpace: availableWebhooks.find(w => w.id === editFormData.target_webhook_id)?.name || 'Unknown', // SECURITY FIX: Update display name from webhook list
+                targetWebhookId: parseInt(editFormData.target_webhook_id), // SECURITY FIX: Store actual webhook ID
                 filters: editFormData.filters
               }
             : r
