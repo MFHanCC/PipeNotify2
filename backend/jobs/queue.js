@@ -105,8 +105,8 @@ async function initializeQueue() {
   }
 }
 
-// Initialize queue asynchronously
-initializeQueue();
+// Initialize queue asynchronously and export the promise
+const initPromise = initializeQueue();
 
 // Helper function to add notification job
 async function addNotificationJob(webhookData, options = {}) {
@@ -237,5 +237,6 @@ module.exports = {
   addNotificationJob,
   getQueueStats,
   getQueueInfo,
-  redisConfig
+  redisConfig,
+  initPromise
 };
