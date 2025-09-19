@@ -222,8 +222,15 @@ function getUpgradeRules(fromPlan, toPlan) {
 }
 
 /**
- * Get rule categories for UI organization
- * @returns {Object} Categories with descriptions and icons
+ * Return a mapping of rule category keys to metadata used by the UI.
+ *
+ * Each category object includes:
+ * - name: display label shown in the UI
+ * - description: brief explanation of the category
+ * - icon: emoji or glyph representing the category
+ * - color: theme color key for UI styling
+ *
+ * @returns {{[key: string]: {name: string, description: string, icon: string, color: string}}} Category metadata objects
  */
 function getRuleCategories() {
   return {

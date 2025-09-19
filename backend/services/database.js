@@ -1,6 +1,14 @@
 const { Pool } = require('pg');
 
-// Enhanced PostgreSQL configuration for Railway deployment
+/**
+ * Create and configure a PostgreSQL connection pool optimized for Railway deployments.
+ *
+ * Builds the connection string from DATABASE_URL (falling back to DB_USER/DB_PASSWORD/DB_HOST/DB_PORT/DB_NAME),
+ * enables SSL in production (with `rejectUnauthorized: false`), sets pool sizing, timeouts, and keep-alive options,
+ * and attaches `error` and `connect` event handlers that emit concise, actionable logs for authentication and network issues.
+ *
+ * @return {import('pg').Pool} A configured pg Pool instance ready for use.
+ */
 function createDatabasePool() {
   const isProduction = process.env.NODE_ENV === 'production';
   
@@ -43,7 +51,16 @@ function createDatabasePool() {
 // Create database connection pool with enhanced Railway support
 const pool = createDatabasePool();
 
-// Database connection health check with retry logic for Railway
+/**
+ * Perform a PostgreSQL connection health check with retries and exponential backoff.
+ *
+ * Attempts to connect to the shared pool and run a simple `SELECT 1`. On success returns `{ healthy: true }`.
+ * On repeated failures returns `{ healthy: false, error }` with the final error message. Retries use exponential
+ * backoff (wait = 2^attempt seconds) between attempts.
+ *
+ * @param {number} [retries=3] - Number of attempts before giving up.
+ * @returns {{ healthy: boolean, error?: string }} Health result; `error` is present only when `healthy` is `false`.
+ */
 async function healthCheck(retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {

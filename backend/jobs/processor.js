@@ -114,7 +114,24 @@ setInterval(() => {
   }
 }, 30000); // Clean every 30 seconds
 
-// Real notification processing function
+/**
+ * Process an incoming webhook into tenant-targeted notifications.
+ *
+ * Identifies the tenant, enforces deduplication and quota, matches rules, routes to the appropriate webhook,
+ * respects quiet hours (queuing delayed deliveries), and delivers notifications using a multi-tier backup
+ * delivery strategy. Records usage and creates log entries for queued, successful, and failed deliveries.
+ *
+ * @param {Object} webhookData - Raw webhook payload received from the external source. Expected to include fields such as `event`, `company_id`, and an optional `raw_meta` object containing `correlation_id` and `entity_id` used for deduplication. Rule- and template-related fields are read elsewhere (rules, webhooks, templates).
+ * @return {Promise<Object>} Resolves with a summary object describing processing outcome:
+ *   - {number} rulesMatched — number of rules that were evaluated (matching rule count).
+ *   - {number} notificationsSent — number of notifications successfully sent during this run.
+ *   - {number|null} tenantId — resolved tenant id, or null if no tenant could be identified.
+ *   - {boolean} [skipped] — true when the webhook was detected as a duplicate and skipped.
+ *   - {boolean} [quotaExceeded] — true when processing was stopped because the tenant exceeded its quota.
+ *   - {number} [planTier] — tenant plan tier returned by the quota check when quotaExceeded is true.
+ *
+ * @throws {Error} Rethrows unexpected internal errors (processing failures will be logged and result in thrown errors so callers can mark jobs as failed).
+ */
 async function processNotification(webhookData) {
   const startTime = Date.now();
   
@@ -318,7 +335,16 @@ async function processNotification(webhookData) {
   }
 }
 
-// Helper function to identify tenant from webhook data
+/**
+ * Resolve the tenant ID for an incoming webhook payload.
+ *
+ * Attempts smart resolution via the smart tenant resolver. If smart resolution fails,
+ * uses a development fallback (returns 1 when `webhookData.company_id` is absent) or
+ * a last-resort lookup via `getTenantByPipedriveCompanyId(company_id)`.
+ *
+ * @param {Object} webhookData - Incoming webhook payload; may include `company_id` used for fallback lookup.
+ * @returns {number|null} The resolved tenant ID, or `null` if no tenant could be determined.
+ */
 async function identifyTenant(webhookData) {
   try {
     const { resolveTenant } = require('../services/smartTenantResolver');
@@ -352,7 +378,25 @@ async function identifyTenant(webhookData) {
   }
 }
 
-// Helper function to check if webhook data matches rule filters
+/**
+ * Determines whether incoming webhook data satisfies a set of rule filters.
+ *
+ * The function accepts a filters object or a JSON string and checks supported filter keys
+ * against fields commonly present on webhook payloads (usually under `current` or `object`).
+ * If no filters are provided or the filter object is empty, the function returns `true`.
+ * On JSON parse errors or any runtime error the function defaults to returning `true`.
+ *
+ * Supported filter keys:
+ * - `status`: array of allowed status values; matches `webhookData.current.status` or `webhookData.object.status`.
+ * - `stage_id`: array of allowed stage IDs; matches `webhookData.current.stage_id` or `webhookData.object.stage_id`.
+ * - `value`: object with optional `min` and/or `max` numeric bounds compared against `webhookData.current.value` or `webhookData.object.value`.
+ *
+ * Unknown filter keys are logged to the console and ignored.
+ *
+ * @param {Object} webhookData - The webhook payload to evaluate (expected properties under `current` or `object`).
+ * @param {Object|string} filters - Filter specification as an object or a JSON string.
+ * @returns {boolean} True if the webhook matches the filters (or if filters are absent/invalid); false if any filter explicitly fails.
+ */
 function matchesFilters(webhookData, filters) {
   try {
     if (!filters || Object.keys(filters).length === 0) {
@@ -401,7 +445,29 @@ function matchesFilters(webhookData, filters) {
 }
 
 // Helper function to send notification via Google Chat
-// Multi-tier backup notification system - ensures notifications ALWAYS get delivered
+/**
+ * Deliver a notification using a multi-tier fallback strategy to maximize delivery success.
+ *
+ * Attempts delivery in four increasing-fallback tiers:
+ * 1) Primary delivery to the resolved webhook using the rule's template settings.
+ * 2) Immediate retry to the same webhook using a simplified template.
+ * 3) Attempt to an alternative webhook for the tenant.
+ * 4) Emergency direct processing fallback that bypasses normal webhook infrastructure.
+ *
+ * @param {Object} rule - Notification rule/config that may contain template_mode and webhook_url used for primary delivery.
+ * @param {Object} webhookData - The payload to send to the webhook (event data / notification content).
+ * @param {Object|null} [targetWebhook=null] - Optional explicitly resolved webhook object to prefer over rule.webhook_url.
+ * @param {number|null} [tenantId=null] - Optional tenant identifier used for tenant-scoped lookups and client calls.
+ * @returns {Promise<Object>} Result object describing outcome:
+ *   - On success: { success: true, tier: number, messageId?: string, message?: any, ... } (tier indicates which delivery tier succeeded).
+ *   - If all tiers fail: {
+ *       success: false,
+ *       error: 'All notification tiers failed',
+ *       tier: 'ALL_FAILED',
+ *       errors: { primary, retry, alternative, emergency },
+ *       statusCode: 500
+ *     }
+ */
 async function sendNotificationWithBackup(rule, webhookData, targetWebhook = null, tenantId = null) {
   const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
   
@@ -520,12 +586,36 @@ async function sendNotificationWithBackup(rule, webhookData, targetWebhook = nul
   }
 }
 
-// Legacy function for backwards compatibility
+/**
+ * Backwards-compatible wrapper that sends a notification using the multi-tier backup sender.
+ *
+ * Kept for legacy callers; delegates to `sendNotificationWithBackup` and returns its result.
+ *
+ * @param {Object} rule - Notification rule object used to build the message.
+ * @param {Object} webhookData - Incoming webhook payload driving the notification.
+ * @param {Object|null} [targetWebhook=null] - Optional explicit webhook target to use instead of routing.
+ * @param {number|null} [tenantId=null] - Optional tenant identifier for tenant-scoped delivery and billing.
+ * @returns {Promise<Object>} The result object from `sendNotificationWithBackup`, including `success`, `tier`, and error details on failure.
+ */
 async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
   return await sendNotificationWithBackup(rule, webhookData, targetWebhook, tenantId);
 }
 
-// System reliability monitoring and alerting
+/**
+ * Record and emit a system reliability alert when a backup notification tier is used.
+ *
+ * Creates an alert payload describing which backup tier was used for a tenant/rule combination,
+ * logs it to the console (stderr for alerts) and returns the alert object. This function is
+ * best-effort: errors are caught and not rethrown, and no external alerting integrations are
+ * invoked by default.
+ *
+ * @param {number|string} tenantId - The tenant identifier for which the alert applies.
+ * @param {Object} rule - The rule object that triggered the alert; only `rule.name` is read.
+ * @param {number} tier - The notification delivery tier that was used (1 = primary, higher = backups).
+ * @param {Object} webhookData - The original webhook payload; `webhookData.event` is included in the alert.
+ * @returns {Promise<Object|undefined>} A promise resolving to the generated alert payload (timestamp, tenant_id, rule_name, tier_used, event_type, alert_level),
+ * or undefined if an internal error occurred.
+ */
 async function alertSystemReliability(tenantId, rule, tier, webhookData) {
   try {
     console.log(`🚨 SYSTEM RELIABILITY ALERT: Tier ${tier} used for tenant ${tenantId}`);

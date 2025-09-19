@@ -9,8 +9,23 @@ const { defaultChatClient } = require('./chatClient');
 const { processNotificationDirect } = require('./notificationFallback');
 
 /**
- * Main entry point for guaranteed delivery
- * Routes to appropriate tier based on system health
+ * Orchestrates multi-tier guaranteed delivery for a webhook: attempts queueing, falls back to direct delivery,
+ * then to batch scheduling, and finally records for manual recovery if all tiers fail.
+ *
+ * The function:
+ * - Generates a unique deliveryId and records an initial 'started' attempt.
+ * - Tier 1: tries to enqueue the delivery (queue). On success records and returns queue result.
+ * - Tier 2: if queueing fails, attempts direct processing (direct). On success records and returns direct result.
+ * - Tier 3: if direct processing fails, schedules the delivery for batch processing and records a 'queued_batch' attempt.
+ * - On any unexpected error, records a 'failed' attempt, schedules the entry for manual recovery, and returns a failure object.
+ *
+ * @param {object} webhookData - Webhook payload. Expected to include at least `event` and `company_id`; the rest of the shape is passed through to downstream tiers.
+ * @param {object} [options] - Optional delivery hints used by the queue tier (e.g., priority, delay, attempts, backoff). These are advisory and only applied when Tier 1 (queue) is used.
+ * @returns {Promise<object>} A result object describing the outcome:
+ *   - On Tier 1 success: { success: true, tier: 'queue', jobId, deliveryId, ... }
+ *   - On Tier 2 success: { success: true, tier: 'direct', notificationsSent, processingTime, deliveryId, ... }
+ *   - If queued for batch (Tier 3): { success: false, tier: 'batch', deliveryId, message: 'Queued for batch processing', batchResult }
+ *   - On final failure: { success: false, tier: 'failed', deliveryId, error, message: 'All tiers failed, stored for manual recovery' }
  */
 async function guaranteeDelivery(webhookData, options = {}) {
   const deliveryId = generateDeliveryId();
@@ -73,7 +88,19 @@ async function guaranteeDelivery(webhookData, options = {}) {
 }
 
 /**
- * Tier 1: Queue-based delivery via BullMQ
+ * Enqueues a notification job in the Tier 1 delivery queue (BullMQ).
+ *
+ * Attempts to verify queue connectivity, then adds a job for the provided webhook payload.
+ * On success returns an object containing success=true, tier='queue', the created jobId, and deliveryId.
+ * On failure (including queue not connected) it catches the error and returns success=false with an error message;
+ * the function does not throw.
+ *
+ * @param {string} deliveryId - Unique identifier for this delivery attempt (used for logging/tracking).
+ * @param {Object} webhookData - Payload to be delivered; typically contains event and company identifiers.
+ * @param {Object} [options] - Enqueue options.
+ * @param {number} [options.priority=5] - Job priority (lower number = higher priority).
+ * @param {number} [options.delay=0] - Milliseconds to delay job execution.
+ * @return {{success: boolean, tier: string, jobId?: string|number, deliveryId: string, error?: string}}
  */
 async function attemptQueueDelivery(deliveryId, webhookData, options) {
   try {
@@ -117,7 +144,18 @@ async function attemptQueueDelivery(deliveryId, webhookData, options) {
 }
 
 /**
- * Tier 2: Direct processing (bypass queue)
+ * Attempt immediate (direct) delivery of a webhook, bypassing the queue (Tier 2).
+ *
+ * Attempts to deliver the provided webhook payload via processNotificationDirect and returns a
+ * structured result indicating success or failure. This function catches internal errors and
+ * returns an error object instead of throwing.
+ *
+ * @param {string} deliveryId - Unique delivery identifier used for logging and result correlation.
+ * @param {Object} webhookData - Webhook payload to deliver. Expected to include at least
+ *   `event` and `company_id` and any data required by processNotificationDirect.
+ * @returns {Promise<Object>} Result object:
+ *   - On success: { success: true, tier: 'direct', notificationsSent: number, processingTime: number, deliveryId }
+ *   - On failure: { success: false, tier: 'direct', error: string, deliveryId }
  */
 async function attemptDirectDelivery(deliveryId, webhookData) {
   try {
@@ -150,7 +188,16 @@ async function attemptDirectDelivery(deliveryId, webhookData) {
 }
 
 /**
- * Tier 3: Store for batch processing
+ * Persist a delivery for later batch processing (Tier 3).
+ *
+ * Stores the webhook payload in the notification_queue table with status 'pending' and tier 'batch',
+ * scheduling it to be processed 5 minutes from now.
+ *
+ * @param {string} deliveryId - Unique ID for this delivery attempt.
+ * @param {Object} webhookData - The webhook payload to be stored for batch processing.
+ * @return {Promise<{success: boolean, queueId: number, scheduledFor: Date, deliveryId: string}>}
+ *   Resolves with metadata about the queued entry: the DB queueId, the scheduled processing time, and the deliveryId.
+ * @throws {Error} Propagates database errors if the insert fails.
  */
 async function scheduleForBatchProcessing(deliveryId, webhookData) {
   try {
@@ -183,7 +230,16 @@ async function scheduleForBatchProcessing(deliveryId, webhookData) {
 }
 
 /**
- * Tier 4: Store for manual recovery
+ * Store a delivery for manual recovery (Tier 4).
+ *
+ * Inserts a 'manual_recovery' row into the notification_queue table with status 'manual_recovery',
+ * tier 'manual', the original webhook payload, the triggering error message, created_at = NOW(),
+ * and scheduled_for = NOW() + 1 hour.
+ * If persistence fails, delegates to logCriticalFailure to surface the critical condition.
+ *
+ * @param {string} deliveryId - Unique delivery identifier for this attempt.
+ * @param {Object} webhookData - Original webhook payload to be used for manual replay.
+ * @param {Error} error - Error that caused escalation; its message is stored with the record.
  */
 async function scheduleForManualRecovery(deliveryId, webhookData, error) {
   try {
@@ -209,7 +265,25 @@ async function scheduleForManualRecovery(deliveryId, webhookData, error) {
 }
 
 /**
- * Process batch queue (called by cron job)
+ * Process pending batch notifications scheduled for immediate delivery.
+ *
+ * Scans up to 50 entries from `notification_queue` with status `'pending'` and tier `'batch'`
+ * whose `scheduled_for` is <= now, attempts direct delivery for each (via `attemptDirectDelivery`),
+ * and updates each row's status to `'completed'`, `'failed'`, or `'error'` with appropriate
+ * metadata (processed_at, notifications_sent, error_message, retry_count).
+ *
+ * Returns a summary object with counts and a human-readable message:
+ * - On success: { processed, failed, total, message }
+ * - On top-level failure: { processed: 0, failed: 0, error } where `error` is the error message
+ *
+ * Side effects:
+ * - Reads from and updates the `notification_queue` table.
+ * - Calls `attemptDirectDelivery` for each notification.
+ *
+ * This function swallows per-notification errors (marks the row and continues) and only returns
+ * an error object when the overall batch processing step fails.
+ *
+ * @return {Promise<Object>} Summary of the batch run.
  */
 async function processBatchQueue() {
   try {
@@ -296,7 +370,17 @@ async function processBatchQueue() {
 }
 
 /**
- * Get delivery statistics
+ * Retrieve delivery statistics for the past N hours.
+ *
+ * Queries delivery_log for a breakdown by tier and status and a summary of totals.
+ *
+ * @param {number} [hours=24] - Time window (in hours) to aggregate statistics over.
+ * @returns {Promise<{
+ *   timeframe: string,
+ *   summary: { total_attempts: number, successful: number, failed: number, queued_batch: number },
+ *   breakdown: Array<{ tier: string|null, status: string, count: string, avg_processing_time: number|null }>,
+ *   timestamp: string
+ * }|null>} An object containing the timeframe label, a summary row, a breakdown array (each row has `tier`, `status`, `count` and `avg_processing_time` in seconds), and an ISO timestamp; returns null on error.
  */
 async function getDeliveryStats(hours = 24) {
   try {
@@ -336,7 +420,15 @@ async function getDeliveryStats(hours = 24) {
 }
 
 /**
- * Manual recovery interface
+ * Retry failed or manual-recovery notifications by re-invoking the delivery flow.
+ *
+ * Finds up to `limit` entries in `notification_queue` with status 'failed' or 'manual_recovery'
+ * and `retry_count < 5`, attempts delivery for each by calling `guaranteeDelivery`, and updates
+ * the queue row to 'completed' on success or increments `retry_count` and stores the error on failure.
+ *
+ * @param {number} [limit=10] - Maximum number of failed notifications to process in this run.
+ * @returns {Promise<object>} Summary of the retry run with shape:
+ *   { retried: number, successful: number, failed: number, message?: string, error?: string }.
  */
 async function retryFailedDeliveries(limit = 10) {
   try {
@@ -395,12 +487,34 @@ async function retryFailedDeliveries(limit = 10) {
   }
 }
 
-// Helper functions
+/**
+ * Generate a unique delivery identifier string.
+ *
+ * The returned ID is suitable for use as a delivery tracking key across the
+ * guaranteed-delivery workflow (e.g., logging, database records, job metadata).
+ * Format: `del_<timestamp>_<randomToken>`.
+ *
+ * @return {string} A unique delivery ID.
+ */
 
 function generateDeliveryId() {
   return `del_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/**
+ * Persist a delivery attempt record to the delivery_log table.
+ *
+ * Inserts a row with delivery metadata (deliveryId, event type, company id),
+ * status, optional tier, and an optional JSON-serialized result. The record's
+ * created_at timestamp is set to NOW(). Errors while writing are logged and
+ * not propagated.
+ *
+ * @param {string} deliveryId - Unique identifier for this delivery attempt.
+ * @param {Object} webhookData - Webhook payload; must contain `event` and `company_id`.
+ * @param {string} status - Logical status of the attempt (e.g., "started", "success", "failed", "queued_batch").
+ * @param {string|null} [tier=null] - Delivery tier name (e.g., "queue", "direct", "batch", "manual"), or null when not applicable.
+ * @param {Object|null} [result=null] - Optional result/details object; will be stored as a JSON string when provided.
+ */
 async function recordDeliveryAttempt(deliveryId, webhookData, status, tier = null, result = null) {
   try {
     await pool.query(`
@@ -426,6 +540,19 @@ async function recordDeliveryAttempt(deliveryId, webhookData, status, tier = nul
   }
 }
 
+/**
+ * Log a critical delivery failure to console and a fallback file for post-mortem analysis.
+ *
+ * Logs a compact JSON-like entry to stderr containing minimal webhook context (event, company_id, object id),
+ * the original error message and the recovery error message, and a timestamp. As a last-resort persistence
+ * step it appends the same information as a JSON line to ./logs/critical-failures.log (creating the directory
+ * if needed). Any errors thrown while performing the logging are caught and logged to stderr but not rethrown.
+ *
+ * @param {string} deliveryId - Unique identifier for the delivery attempt.
+ * @param {object} webhookData - The original webhook payload; only `event`, `company_id`, and `object.id` are recorded.
+ * @param {Error} error - The primary error that caused the delivery to fail.
+ * @param {Error} recoveryError - Any error encountered while attempting to schedule or store recovery information.
+ */
 async function logCriticalFailure(deliveryId, webhookData, error, recoveryError) {
   try {
     console.error(`🚨 CRITICAL FAILURE ${deliveryId}:`, {

@@ -125,7 +125,14 @@ async function performHeartbeat() {
 }
 
 /**
- * Send heartbeat alert for system issues
+ * Send a critical heartbeat alert when notifications have not been delivered for 24+ hours.
+ *
+ * Builds and sends a `system.alert` notification for the given tenant. The payload's `company_id`
+ * is taken from `tenant.pipedrive_company_id`, falling back to `process.env.DEFAULT_COMPANY_ID`
+ * and then to `'0'` if neither is present.
+ *
+ * @param {Object} tenant - Tenant record; may include `pipedrive_company_id` used as the payload company_id.
+ * @returns {Promise<Object>} The result returned by `processNotificationDirect` on success, or `{ success: false, error: string }` if sending failed.
  */
 async function sendHeartbeatAlert(tenant) {
   try {
@@ -162,7 +169,14 @@ async function sendHeartbeatAlert(tenant) {
 }
 
 /**
- * Send health confirmation message
+ * Send a periodic health confirmation notification about system status.
+ *
+ * Constructs a `system.health` notification that includes the number of successful
+ * notifications in the last hour and sends it via the notification pipeline.
+ *
+ * @param {Object} tenant - Tenant record; `tenant.pipedrive_company_id` is used for the notification's company_id (falls back to `process.env.DEFAULT_COMPANY_ID` or `'0'`).
+ * @param {number} recentNotifications - Count of notifications delivered in the last hour; included in the notification message.
+ * @returns {Promise<Object>} The result returned by `processNotificationDirect`. On failure the function returns an object of the form `{ success: false, error: string }`.
  */
 async function sendHealthConfirmation(tenant, recentNotifications) {
   try {
@@ -197,7 +211,15 @@ async function sendHealthConfirmation(tenant, recentNotifications) {
 }
 
 /**
- * Send critical error alert
+ * Send a critical-system error notification for a tenant.
+ *
+ * Constructs a `system.error` notification payload (including the tenant's
+ * company id and the provided error message) and delivers it via
+ * `processNotificationDirect`.
+ *
+ * @param {Object} tenant - Tenant record; used to obtain `pipedrive_company_id` for the payload.
+ * @param {string} errorMessage - Short description of the error to include in the notification.
+ * @returns {Promise<Object>} The delivery result from `processNotificationDirect`, or `{ success: false, error: string }` if sending failed.
  */
 async function sendCriticalErrorAlert(tenant, errorMessage) {
   try {

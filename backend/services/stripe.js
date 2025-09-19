@@ -432,9 +432,26 @@ async function handleSubscriptionCanceled(subscription) {
 }
 
 /**
- * Get subscription details for tenant
- * @param {number} tenantId - Tenant ID
- * @returns {Object} Subscription details
+ * Retrieve the subscription record for a tenant (creates or migrates a row when needed).
+ *
+ * If the subscriptions table is missing, this returns a default free-plan object or a Team-plan
+ * object for a tenant that matches the enterprise detector. If no subscription row exists, a new
+ * subscription is inserted (defaulting to "free" unless the tenant matches ENTERPRISE_COMPANY_ID,
+ * which auto-assigns "team" with a one-year period). If an existing subscription is on the "free"
+ * tier and the tenant matches ENTERPRISE_COMPANY_ID, the subscription is auto-upgraded to "team".
+ *
+ * @param {number} tenantId - Numeric tenant identifier.
+ * @returns {Promise<Object>} Subscription details including at minimum:
+ *   - tenant_id {number}
+ *   - plan_tier {string} ("free" | "starter" | "pro" | "team")
+ *   - status {string}
+ *   - monthly_notification_count {number}
+ *   - plan_config {Object} configuration from PLAN_CONFIGS for the resolved tier
+ *   - current_period_start? {Date}
+ *   - current_period_end? {Date}
+ *   - ...other subscription DB fields when present
+ *
+ * May throw on database or unexpected errors.
  */
 async function getSubscription(tenantId) {
   try {

@@ -27,9 +27,17 @@ const DEFAULT_QUIET_HOURS = {
 };
 
 /**
- * Get quiet hours configuration for a tenant
- * @param {number} tenantId - Tenant ID
- * @returns {Object} Quiet hours configuration
+ * Retrieve the quiet-hours configuration for a tenant.
+ *
+ * Returns an object containing: tenant_id, timezone, start_time, end_time,
+ * weekends_enabled, holidays, enabled, and configured. If no DB row exists
+ * (or an error occurs), the function returns values derived from
+ * DEFAULT_QUIET_HOURS with `configured: false`. When a DB row exists the
+ * corresponding fields are used with sensible fallbacks to DEFAULT_QUIET_HOURS
+ * and `configured: true`.
+ *
+ * @param {number} tenantId - The tenant identifier to load configuration for.
+ * @returns {Promise<Object>} Quiet hours configuration for the tenant.
  */
 async function getQuietHours(tenantId) {
   try {
@@ -127,10 +135,23 @@ async function setQuietHours(tenantId, config) {
 }
 
 /**
- * Check if current time is within quiet hours for a tenant
- * @param {number} tenantId - Tenant ID
- * @param {Date} checkTime - Time to check (defaults to now)
- * @returns {Object} Quiet hours check result
+ * Determine whether a given time falls inside a tenant's configured quiet hours.
+ *
+ * Uses the tenant's quiet-hours configuration (timezone, start/end times, weekends, holidays, and enabled)
+ * to evaluate the supplied time. If quiet hours are not configured or are explicitly disabled, this returns
+ * not-quiet with a corresponding reason.
+ *
+ * @param {number} tenantId - Tenant identifier.
+ * @param {Date} checkTime - Time to evaluate (defaults to now).
+ * @return {Promise<Object>} Result object with the following shape:
+ *   {
+ *     is_quiet: boolean,           // true when the time is considered quiet
+ *     reason: string|null,         // one of: 'no_config', 'disabled', 'weekend', 'holiday', 'quiet_hours', 'error', or null
+ *     next_allowed: Date|null,     // UTC Date when notifications are next allowed (null if not applicable)
+ *     tenant_time?: string,        // ISO string of checkTime converted to tenant timezone (present on success)
+ *     config: Object|null,         // returned quiet-hours configuration (null on error)
+ *     error?: string               // error message (present when reason === 'error')
+ *   }
  */
 async function isQuietTime(tenantId, checkTime = new Date()) {
   try {

@@ -110,10 +110,27 @@ async function findStalledDeals(tenantId) {
 }
 
 /**
- * Format stalled deal alert message
- * @param {Array} stalledDeals - Array of stalled deals
- * @param {string} tenantName - Tenant/company name
- * @returns {string} Formatted message
+ * Build a human-readable alert message summarizing stalled deals for a tenant.
+ *
+ * Returns null when no stalled deals are provided.
+ *
+ * The message groups deals by severity (critical, stale, warning), includes a limited
+ * number of examples from each group (to avoid overly long notifications), and ends
+ * with a total stalled pipeline value and a brief call to action.
+ *
+ * Behavior details:
+ * - Critical and stale groups show up to 3 deals each; if more exist, a summary line
+ *   indicates how many additional deals are omitted.
+ * - Warning deals are shown only when there are no critical deals, and up to 5 are listed;
+ *   if more exist, a summary line indicates how many additional warnings are omitted.
+ * - The currency displayed for the total uses the first stalled deal's currency if present,
+ *   otherwise defaults to "USD".
+ *
+ * @param {Array<Object>} stalledDeals - Array of stalled deal objects. Each object is expected
+ *   to include at least: title, value (number), currency (string), days_since_activity (number),
+ *   and severity (one of "critical", "stale", "warning").
+ * @param {string} [tenantName='Your Team'] - Friendly name of the tenant/company to show in the header.
+ * @returns {string|null} Formatted multiline message ready for notifications, or null if no deals.
  */
 function formatStalledDealMessage(stalledDeals, tenantName = 'Your Team') {
   if (stalledDeals.length === 0) {

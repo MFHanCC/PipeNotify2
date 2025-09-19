@@ -1250,7 +1250,18 @@ app.use((req, res) => {
 // Server variable for graceful shutdown
 let server;
 
-// Run database migration in production
+/**
+ * Start the HTTP server after performing startup checks and optional development migrations.
+ *
+ * Performs a database health check, runs development-only migrations when helpers are available (skipped in production),
+ * starts the Express HTTP server on the configured PORT, and attaches a basic server error handler.
+ *
+ * Side effects:
+ * - May run database migration routines (only when NODE_ENV !== 'production' and migration helpers are present).
+ * - Starts listening on PORT and logs health/status URLs and environment info.
+ *
+ * @return {Promise<void>} Resolves once the server has been started (or an attempt to start has been made).
+ */
 async function startServer() {
   // Test database connectivity first
   console.log('🔄 TESTING DATABASE CONNECTION...');

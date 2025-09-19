@@ -70,8 +70,14 @@ class HealthCheckResult {
 }
 
 /**
- * Main self-healing orchestrator
- * Runs comprehensive health checks and applies automatic fixes
+ * Orchestrates a full self-healing health check: runs multiple subsystem checks, applies safe automatic fixes, and aggregates findings.
+ *
+ * This function executes the suite of health checks for the notification system (queue health, tenant mapping, delivery performance,
+ * database cleanup, and webhook availability), records detected issues, records any automatic fixes applied, and flags items that
+ * require manual intervention. It never throws for expected check-level failures — those are recorded on the returned result — but
+ * unexpected runtime errors will mark the returned HealthCheckResult as unhealthy and include a critical issue entry.
+ *
+ * @returns {Promise<HealthCheckResult>} A HealthCheckResult containing timestamped issues, applied auto-fixes, manual-action items, and overall health state.
  */
 async function runSelfHealing() {
   const result = new HealthCheckResult();
@@ -118,7 +124,17 @@ async function runSelfHealing() {
 }
 
 /**
- * Check notification queue health and auto-fix issues
+ * Evaluate the notification queue for stalled or failed items and apply safe automatic fixes.
+ *
+ * Runs checks for (1) a high number of recent failed items and (2) old pending items.
+ * For excessive recent failures, it marks eligible failed notifications as retryable (status -> 'pending',
+ * schedules them immediately, and increments retry_count) subject to configured retry limits.
+ * For old pending items, it reschedules them to run immediately.
+ * Findings and any applied automatic actions are recorded on the provided HealthCheckResult.
+ *
+ * Errors during the check are recorded on the result as a critical issue (the function does not throw).
+ *
+ * @param {HealthCheckResult} result - Accumulator object where detected issues, auto-fixes, and manual actions are recorded.
  */
 async function checkQueueHealth(result) {
   try {
@@ -195,7 +211,22 @@ async function checkQueueHealth(result) {
 }
 
 /**
- * Check tenant mapping integrity and auto-fix mapping issues
+ * Verify tenant-to-Pipedrive mappings, record issues, and attempt safe automatic fixes.
+ *
+ * Performs two checks:
+ * 1. Finds tenants that have enabled rules but no `pipedrive_company_id`. For each, it
+ *    attempts an automatic mapping by inferring the most frequent `company_id` from
+ *    recent delivery logs (last 7 days); successful mappings are recorded as auto-fixes.
+ * 2. Detects duplicate `pipedrive_company_id` values shared by multiple tenants and
+ *    records these as warnings requiring manual review.
+ *
+ * All findings are appended to the provided HealthCheckResult via addIssue, addAutoFix,
+ * and addManualAction. Errors during per-tenant auto-mapping are logged and do not
+ * abort the overall check; an unexpected failure of the check records a critical issue
+ * on the HealthCheckResult.
+ *
+ * @param {HealthCheckResult} result - Collector for detected issues, applied auto-fixes,
+ *   and manual-action recommendations.
  */
 async function checkTenantMappingHealth(result) {
   try {
@@ -278,7 +309,19 @@ async function checkTenantMappingHealth(result) {
 }
 
 /**
- * Check delivery system health and performance
+ * Evaluate recent delivery performance and resolve batch-processing backlogs.
+ *
+ * Performs two checks:
+ * 1. Delivery performance (last 1 hour): computes total attempts, successes, failures, and average processing time.
+ *    - Adds a warning if success rate < 95% or average processing time > 5000 ms.
+ *    - Records an informational entry with the computed metrics.
+ * 2. Batch backlog: counts pending 'batch' notifications older than 10 minutes.
+ *    - If backlog > 10, records a warning and attempts to clear the backlog by calling processBatchQueue().
+ *    - If batch processing succeeds and items are processed, records an auto-fix entry; if processing fails, records a critical issue.
+ *
+ * Any unexpected error during the checks is recorded on the provided result as a critical issue.
+ *
+ * @param {HealthCheckResult} result - Mutable health-check result object used to record issues, auto-fixes, and manual actions.
  */
 async function checkDeliverySystemHealth(result) {
   try {
@@ -359,7 +402,13 @@ async function checkDeliverySystemHealth(result) {
 }
 
 /**
- * Check database cleanup needs
+ * Assess database cleanup needs and apply safe automatic cleanups, recording results on the provided HealthCheckResult.
+ *
+ * Checks for delivery_log rows older than 90 days (and deletes up to 1000 rows per run) and for malformed notification_queue entries
+ * (null data, text containing "[object Object]", or missing `webhook_url`). Detected issues are added to `result`; applied automatic
+ * fixes are recorded via `result.addAutoFix`. If an unexpected error occurs, a critical issue is recorded on `result`.
+ *
+ * @param {HealthCheckResult} result - HealthCheckResult instance used to record detected issues, automatic fixes, and manual actions.
  */
 async function checkDatabaseCleanupNeeds(result) {
   try {
@@ -435,7 +484,16 @@ async function checkDatabaseCleanupNeeds(result) {
 }
 
 /**
- * Check webhook connectivity (sample test)
+ * Inspect the database for a small sample of active webhooks and record the finding on the provided HealthCheckResult.
+ *
+ * This function queries for up to three enabled webhooks that are referenced by enabled rules and:
+ * - Adds a warning issue if no active webhooks are found for connectivity monitoring.
+ * - Adds an informational issue listing how many active webhooks were discovered.
+ * - Records a critical issue if the health check query fails.
+ *
+ * Note: This routine does not perform actual network connectivity tests to avoid generating outbound traffic.
+ *
+ * @param {Object} result - HealthCheckResult-like object used to record issues, auto-fixes, and manual actions.
  */
 async function checkWebhookConnectivity(result) {
   try {
@@ -466,7 +524,11 @@ async function checkWebhookConnectivity(result) {
 }
 
 /**
- * Start the self-healing monitoring system
+ * Initialize and start the periodic self-healing monitor.
+ *
+ * Runs an initial health check immediately, then schedules recurring runs using
+ * HEALING_CONFIG.CHECK_INTERVAL_MS. Startup and scheduling failures are logged;
+ * errors from individual runs are caught and logged but do not stop the scheduler.
  */
 function startSelfHealingMonitor() {
   console.log('🚀 Starting self-healing monitoring system...');
@@ -488,8 +550,13 @@ function startSelfHealingMonitor() {
 }
 
 /**
- * Emergency self-healing - runs all critical fixes immediately
- */
+ * Run immediate emergency fixes for critical notification-system failures.
+ *
+ * Performs three corrective actions synchronously: retries failed notifications (incrementing retry counts and rescheduling them for immediate delivery), processes any pending batch queue items, and clears stale "processing" locks by resetting those items to "pending".
+ *
+ * Side effects: updates notification_queue rows (status, scheduled_for, retry_count), invokes batch processing, and may delete or modify database state as part of fixes. On error the function records a critical issue in the returned HealthCheckResult and returns that result.
+ *
+ * @return {Promise<HealthCheckResult>} A HealthCheckResult summarizing detected issues, applied automatic fixes, and any manual actions required.
 async function runEmergencyHealing() {
   console.log('🚨 Running emergency self-healing...');
   

@@ -34,7 +34,22 @@ cron.schedule('*/5 * * * *', async () => {
 
 console.log('📋 Batch notification processor started (runs every 5 minutes)');
 
-// Health check function
+/**
+ * Perform a runtime health check for the batch notification processor.
+ *
+ * Calls the guaranteedDelivery service to fetch delivery statistics for the
+ * last hour and returns a health object indicating whether the processor is
+ * healthy along with the retrieved stats and a timestamp. On error, returns
+ * a not-healthy object containing the error message.
+ *
+ * @returns {{healthy: true, processor: string, stats: any, timestamp: string} | {healthy: false, processor: string, error: string, timestamp: string}}
+ *   Object describing current health:
+ *     - healthy: boolean flag
+ *     - processor: fixed string `"batch"`
+ *     - stats: delivery statistics when healthy (result of getDeliveryStats(1))
+ *     - error: error message when unhealthy
+ *     - timestamp: ISO timestamp of the check
+ */
 async function healthCheck() {
   try {
     const { getDeliveryStats } = require('../services/guaranteedDelivery');

@@ -6,7 +6,20 @@
 import { getTenantId } from './auth';
 
 // Set this to test different plans: 'free', 'starter', 'pro', 'team'
-const TEST_PLAN_OVERRIDE = 'team'; // Change this to test different plans
+const TEST_PLAN_OVERRIDE = 'team'; /**
+ * In development, return a feature set that simulates a configured test plan by merging
+ * plan-specific overrides into the provided feature object.
+ *
+ * If NODE_ENV !== 'development', or if TEST_PLAN_OVERRIDE is unset or 'original', the
+ * function returns originalFeatures unchanged. When an active TEST_PLAN_OVERRIDE matches
+ * a known plan, that plan's limits and feature availability override corresponding fields
+ * on originalFeatures. The returned object also ensures tenant_id is preserved (falls
+ * back to parseInt(getTenantId() || '1')) and sets `can_upgrade` to false only for the
+ * 'team' plan (true otherwise).
+ *
+ * @param {Object} originalFeatures - The current feature/limits object to base overrides on.
+ * @return {Object} A new feature object with the selected test plan applied (or originalFeatures).
+ */
 
 export function getTestPlanFeatures(originalFeatures) {
   // Only allow plan override in development environment

@@ -153,7 +153,17 @@ async function processNotificationDirect(webhookData) {
 }
 
 /**
- * Enhanced tenant identification with multiple fallback strategies
+ * Determine the tenant ID for an incoming webhook using multiple fallback strategies.
+ *
+ * Attempts, in order:
+ * 1. Direct lookup by webhookData.company_id.
+ * 2. Find a tenant with enabled rules and active webhooks and auto-map it to the company_id.
+ * 3. As a last resort, pick the first tenant that has any enabled rules or active webhooks and auto-map it.
+ *
+ * This function may update the tenants table to map a pipedrive/company ID to the chosen tenant (auto-mapping).
+ *
+ * @param {Object} webhookData - The raw webhook payload; the function uses `webhookData.company_id` to identify the tenant.
+ * @returns {Promise<number|null>} The tenant ID if found or mapped; otherwise `null`. Returns `1` when `company_id` is missing (development default).
  */
 async function identifyTenantRobust(webhookData) {
   try {

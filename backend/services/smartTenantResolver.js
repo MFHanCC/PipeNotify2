@@ -7,9 +7,22 @@
 const { pool } = require('./database');
 
 /**
- * Intelligent tenant resolution with auto-mapping and fallbacks
- * @param {Object} webhookData - Pipedrive webhook data
- * @returns {Object} { tenantId, autoMapped, strategy }
+ * Resolve the appropriate tenant for a Pipedrive webhook using multiple strategies and fallbacks.
+ *
+ * Attempts the following in order:
+ * 1) direct mapping by webhookData.company_id,
+ * 2) mapping by webhookData.user_id (and updates the tenant's company id),
+ * 3) locating an active tenant suitable for mapping (and updates its company id),
+ * 4) creating a new tenant for the company.
+ * On errors it will attempt to return a fallback tenant; if none is available the function throws.
+ *
+ * @param {Object} webhookData - Pipedrive webhook payload. Expected to include `company_id` and/or `user_id`.
+ * @returns {Promise<Object>} Resolves to an object with:
+ *   - tenantId {number|string} The resolved tenant's id.
+ *   - autoMapped {boolean} Whether the resolution involved creating or updating mappings.
+ *   - strategy {string} One of 'direct_mapping', 'user_mapping_with_update', 'active_tenant_mapping', 'new_tenant_creation', or 'fallback'.
+ *   - tenant {Object} The tenant row/object returned from the database.
+ * @throws {Error} If resolution fails and no fallback tenant is available.
  */
 async function resolveTenant(webhookData) {
   try {
@@ -95,7 +108,13 @@ async function resolveTenant(webhookData) {
 }
 
 /**
- * Find tenant by exact company_id match
+ * Retrieve the tenant that is explicitly mapped to a given Pipedrive company ID.
+ *
+ * Returns the earliest-created tenant row whose `pipedrive_company_id` exactly matches
+ * the provided companyId, or `null` if no match is found or if `companyId` is falsy.
+ *
+ * @param {string|number} companyId - The Pipedrive company identifier to match.
+ * @returns {Promise<Object|null>} The tenant row object or `null` when not found.
  */
 async function findTenantByCompanyId(companyId) {
   if (!companyId) return null;
@@ -111,7 +130,13 @@ async function findTenantByCompanyId(companyId) {
 }
 
 /**
- * Find tenant by user_id
+ * Retrieve the earliest-created tenant matching a Pipedrive user ID.
+ *
+ * Returns the first tenant row where `pipedrive_user_id` equals the supplied `userId`,
+ * ordered by `created_at` ascending. If `userId` is falsy or no tenant is found, returns `null`.
+ *
+ * @param {string|number} userId - Pipedrive user identifier to match.
+ * @returns {Object|null} The tenant row object or `null` if none found.
  */
 async function findTenantByUserId(userId) {
   if (!userId) return null;
@@ -127,7 +152,13 @@ async function findTenantByUserId(userId) {
 }
 
 /**
- * Find an active tenant (has rules and webhooks) that can be mapped to this company
+ * Find an active tenant (has at least one enabled rule and one active webhook) eligible to be mapped to a company.
+ *
+ * Searches for a tenant that currently has no pipedrive_company_id (null or empty) and has >=1 enabled rule and >=1 active chat webhook.
+ * Results are ordered to prefer older tenants and those with more rules/webhooks; returns the first matching tenant or null.
+ *
+ * @param {string|null|undefined} companyId - Pipedrive company id being mapped (used only conceptually; tenants returned will have no existing pipedrive_company_id).
+ * @returns {Object|null} The tenant row suitable for mapping, or `null` if none found.
  */
 async function findActiveTenantForMapping(companyId) {
   const result = await pool.query(`
@@ -151,7 +182,13 @@ async function findActiveTenantForMapping(companyId) {
 }
 
 /**
- * Update tenant with company_id mapping
+ * Associate a tenant record with a Pipedrive company ID.
+ *
+ * Updates the tenant's `pipedrive_company_id` and `updated_at` in the database.
+ *
+ * @param {string|number} tenantId - ID of the tenant to update.
+ * @param {string|number} companyId - Pipedrive company ID to associate with the tenant.
+ * @returns {Promise<void>} Resolves when the database update completes.
  */
 async function updateTenantCompanyId(tenantId, companyId) {
   await pool.query(`
@@ -165,7 +202,15 @@ async function updateTenantCompanyId(tenantId, companyId) {
 }
 
 /**
- * Create new tenant for unknown company
+ * Create a new tenant record for an unknown Pipedrive company and provision defaults.
+ *
+ * Inserts a tenant using information derived from the provided webhook payload (falls back
+ * to sensible defaults when fields are missing), then triggers automatic provisioning
+ * for the newly created tenant.
+ *
+ * @param {string|number} companyId - Pipedrive company identifier to associate with the new tenant.
+ * @param {Object} webhookData - Raw webhook payload from Pipedrive; used to extract company and user metadata.
+ * @returns {Object} The newly inserted tenant row as returned by the database.
  */
 async function createTenantForCompany(companyId, webhookData) {
   const companyName = webhookData.company?.name || `Company ${companyId}`;
@@ -194,7 +239,15 @@ async function createTenantForCompany(companyId, webhookData) {
 }
 
 /**
- * Auto-provision basic setup for new tenant
+ * Ensure a newly created tenant has a minimal operational state.
+ *
+ * Checks whether the tenant already has rules or chat webhooks; if neither exist,
+ * the function is a no-op for now (placeholder for creating default rules/webhooks).
+ * This is a best-effort, non-throwing operation: errors are caught and logged but
+ * not rethrown.
+ *
+ * @param {number|string} tenantId - ID of the tenant to provision.
+ * @returns {Promise<void>} Resolves when provisioning check (and any side effects) complete.
  */
 async function autoProvisionTenant(tenantId) {
   try {
@@ -224,7 +277,12 @@ async function autoProvisionTenant(tenantId) {
 }
 
 /**
- * Get fallback tenant (first tenant with any setup)
+ * Retrieve a fallback tenant that has any existing setup.
+ *
+ * Looks up and returns the earliest-created tenant that either has at least one enabled rule
+ * or at least one active chat webhook. Returns the tenant row object or `null` if none found.
+ *
+ * @returns {Object|null} The tenant row (database record) to use as a fallback, or `null` if no suitable tenant exists.
  */
 async function getFallbackTenant() {
   const result = await pool.query(`
@@ -243,7 +301,17 @@ async function getFallbackTenant() {
 }
 
 /**
- * Consolidate duplicate tenants (administrative function)
+ * Consolidate tenants that share the same `pipedrive_company_id` by merging duplicates into a single kept tenant.
+ *
+ * Scans the tenants table for groups with the same non-empty `pipedrive_company_id`. For each group it:
+ * - selects the oldest tenant (by created_at) to keep,
+ * - reassigns related rows (rules, chat_webhooks, logs) from each duplicate tenant to the kept tenant,
+ * - deletes the merged duplicate tenant rows.
+ *
+ * This is an administrative, destructive operation: merged tenants are deleted and their related data is reassigned.
+ *
+ * @return {Promise<number>} The number of duplicate tenant groups that were processed.
+ * @throws {Error} If a database error or other failure occurs during consolidation.
  */
 async function consolidateDuplicateTenants() {
   try {
@@ -284,7 +352,18 @@ async function consolidateDuplicateTenants() {
 }
 
 /**
- * Get tenant resolution statistics
+ * Retrieve numeric statistics about tenants and their setup.
+ *
+ * Returns an object with aggregated counts and a timestamp:
+ * - total_tenants {number} — total number of tenant rows.
+ * - mapped_tenants {number} — tenants with a non-empty `pipedrive_company_id`.
+ * - unmapped_tenants {number} — tenants with a null or empty `pipedrive_company_id`.
+ * - active_tenants {number} — tenants that have at least one enabled rule and at least one active chat webhook.
+ * - timestamp {string} — ISO 8601 timestamp for when the stats were generated.
+ *
+ * On failure the function logs the error and returns null.
+ *
+ * @returns {Promise<{ total_tenants: number, mapped_tenants: number, unmapped_tenants: number, active_tenants: number, timestamp: string } | null>}
  */
 async function getTenantStats() {
   try {

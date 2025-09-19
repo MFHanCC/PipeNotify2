@@ -8,7 +8,15 @@ console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
 console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
 console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
 
-// Test Redis connection before enabling Workers
+/**
+ * Check whether a Redis server is reachable based on environment configuration.
+ *
+ * Attempts to connect and ping Redis using either REDIS_URL or REDIS_HOST/REDIS_PORT/REDIS_PASSWORD.
+ * Resolves to true when a successful ping occurs within the timeout window; otherwise resolves to false.
+ * Logs a short status message but does not throw on failure.
+ *
+ * @returns {Promise<boolean>} True if Redis responded to a ping within the timeout; false if no config is present or the connection failed/timed out.
+ */
 async function testRedisConnection() {
   if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
     console.log('⚠️ No Redis configuration found - disabling Redis features');
@@ -59,7 +67,17 @@ async function testRedisConnection() {
   }
 }
 
-// Initialize Redis config based on actual connectivity
+/**
+ * Determine and return a BullMQ-compatible Redis connection configuration based on runtime connectivity and environment.
+ *
+ * Tests actual Redis reachability via testRedisConnection(). If Redis is not reachable or no Redis env vars are set, returns null (the system should run in synchronous/degraded mode).
+ *
+ * Behavior:
+ * - If REDIS_URL is set and reachable, parses the URL and returns an object { connection: { host, port, password, ... } } with options tuned for BullMQ (timeouts, lazyConnect, retry behavior, keepAlive, and a reconnectOnError handler that retries on `READONLY` errors).
+ * - If REDIS_HOST is set and reachable, returns a similar { connection: { host, port, password, ... } } using explicit host/port/password values.
+ *
+ * @returns {{connection: object}|null} BullMQ connection configuration when Redis is available; otherwise null.
+ */
 async function initializeRedisConfig() {
   const redisAvailable = await testRedisConnection();
   
@@ -120,6 +138,23 @@ let initPromise = initializeRedisConfig().then(config => {
 // Create notification queue with error handling
 let notificationQueue;
 
+/**
+ * Initialize the BullMQ notification queue after Redis configuration is ready.
+ *
+ * Waits for global initPromise, inspects the resolved redisConfig, and if present
+ * constructs and assigns the global `notificationQueue` with event listeners for
+ * lifecycle events (waiting, active, completed, failed, error). If Redis is not
+ * available or queue creation fails, sets `notificationQueue` to null to signal
+ * synchronous/degraded mode.
+ *
+ * Side effects:
+ * - Awaits `initPromise`.
+ * - May create and assign the module-scoped `notificationQueue`.
+ * - Attaches logging event handlers to the queue when created.
+ *
+ * @returns {Promise<void>} Resolves after initialization completes (either with
+ *                          a ready queue or with `notificationQueue` set to null).
+ */
 async function createQueue() {
   await initPromise; // Wait for Redis initialization
   
@@ -176,7 +211,20 @@ createQueue().catch(error => {
   console.error('Failed to initialize queue:', error);
 });
 
-// Helper function to add notification job
+/**
+ * Enqueue a notification processing job or, if the queue is unavailable, process synchronously.
+ *
+ * If a BullMQ queue is configured and reachable this adds a `processNotification` job
+ * with configurable delay, attempts, and exponential backoff. If the queue is not
+ * available or adding the job fails, the function falls back to synchronous processing
+ * by calling the local `processor.processNotification`.
+ *
+ * @param {Object} webhookData - Payload passed to the job or to the synchronous processor.
+ * @param {Object} [options] - Optional job settings.
+ * @param {number} [options.delay=0] - Milliseconds to delay the job before it becomes available.
+ * @param {number} [options.attempts=3] - Number of retry attempts for the job.
+ * @return {Promise<import('bullmq').Job|any>} Resolves to the BullMQ Job when queued; otherwise resolves to the synchronous processor's result.
+ */
 async function addNotificationJob(webhookData, options = {}) {
   if (!notificationQueue) {
     console.warn('⚠️ Queue not available - processing notification synchronously');
