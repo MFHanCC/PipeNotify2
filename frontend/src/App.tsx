@@ -4,15 +4,28 @@ import OnboardingWizard from './components/OnboardingWizard';
 import Dashboard from './components/Dashboard';
 import PricingPage from './components/PricingPage';
 import BillingDashboard from './components/BillingDashboard';
+import { getAuthToken } from './utils/auth';
 import './App.css';
 
 function OnboardingRoute() {
   const navigate = useNavigate();
   
+  const handleSkip = () => {
+    const token = getAuthToken();
+    
+    if (!token) {
+      alert('⚠️ Please connect to Pipedrive first before skipping setup. Click "Connect to Pipedrive" to authenticate.');
+      return;
+    }
+    
+    // If authenticated, allow access to dashboard with limited functionality
+    navigate('/dashboard');
+  };
+  
   return (
     <OnboardingWizard 
       onComplete={() => navigate('/dashboard')} 
-      onSkip={() => navigate('/dashboard')} 
+      onSkip={handleSkip} 
     />
   );
 }
