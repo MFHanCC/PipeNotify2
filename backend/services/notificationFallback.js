@@ -174,7 +174,7 @@ async function identifyTenantRobust(webhookData) {
     }
     
     // Strategy 2: Find tenant with rules and webhooks, then map it
-    console.log(`🔄 No direct mapping found, searching for tenant with active rules and webhooks`);
+    console.log('🔄 No direct mapping found, searching for tenant with active rules and webhooks');
     
     const database = require('./database');
     const candidateTenants = await database.pool.query(`

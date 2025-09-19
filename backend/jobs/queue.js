@@ -3,65 +3,131 @@ const { Queue } = require('bullmq');
 // Redis connection configuration
 let redisConfig;
 
-// Redis connection configuration
+console.log('🔍 Redis Environment Check:');
+console.log('REDIS_URL:', process.env.REDIS_URL ? 'Set' : 'Not set');
+console.log('REDIS_HOST:', process.env.REDIS_HOST || 'Not set');
+console.log('REDIS_PORT:', process.env.REDIS_PORT || 'Not set');
 
-if (process.env.REDIS_URL) {
-  // Parse Railway Redis URL: redis://username:password@host:port
-  const url = new URL(process.env.REDIS_URL);
-  console.log('🔧 Configuring Redis for Railway deployment');
-  console.log('🔗 Redis host:', url.hostname);
+// Test Redis connection before enabling Workers
+async function testRedisConnection() {
+  if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
+    console.log('⚠️ No Redis configuration found - disabling Redis features');
+    return false;
+  }
   
-  redisConfig = {
-    connection: {
-      host: url.hostname,
-      port: parseInt(url.port),
-      password: url.password,
-      family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
-      connectTimeout: 15000, // Increased timeout for Railway
-      lazyConnect: true,
-      maxRetriesPerRequest: 3, // Enable retries
-      retryDelayOnFailover: 500,
-      enableOfflineQueue: false,
-      keepAlive: 30000,
-      // Enhanced Railway networking support
-      maxRetriesPerRequest: 3,
-      retryDelayOnClusterDown: 300,
-      retryDelayOnFailover: 500,
-      enableReadyCheck: true,
-      maxLoadingTimeout: 10000,
-      reconnectOnError: (err) => {
-        console.log('🔄 Redis reconnection check:', err.message);
-        const targetErrors = ['READONLY', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'];
-        return targetErrors.some(error => err.message.includes(error));
-      }
+  try {
+    const Redis = require('ioredis');
+    let testRedis;
+    
+    if (process.env.REDIS_URL) {
+      testRedis = new Redis(process.env.REDIS_URL, {
+        connectTimeout: 3000,
+        commandTimeout: 3000,
+        lazyConnect: false,
+        maxRetriesPerRequest: 0,
+        retryDelayOnFailover: 100
+      });
+    } else {
+      testRedis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD,
+        connectTimeout: 3000,
+        commandTimeout: 3000,
+        lazyConnect: false,
+        maxRetriesPerRequest: 0,
+        retryDelayOnFailover: 100
+      });
     }
-  };
-} else {
-  // Local development fallback
-  console.log('🔧 Using fallback Redis configuration');
-  redisConfig = {
-    connection: {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      family: 4, // IPv4 for local development
-      maxRetriesPerRequest: null,
-      connectTimeout: 5000,
-      enableOfflineQueue: false,
-      keepAlive: 30000
-    }
-  };
+    
+    // Test with timeout
+    const testPromise = Promise.race([
+      testRedis.ping(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      )
+    ]);
+    
+    await testPromise;
+    await testRedis.disconnect();
+    console.log('✅ Redis connection test successful');
+    return true;
+  } catch (error) {
+    console.log('❌ Redis connection test failed:', error.message);
+    console.log('⚠️ This is expected in development without Redis - falling back to synchronous processing');
+    return false;
+  }
 }
 
+// Initialize Redis config based on actual connectivity
+async function initializeRedisConfig() {
+  const redisAvailable = await testRedisConnection();
+  
+  if (!redisAvailable) {
+    console.log('🔧 Redis not available - using synchronous processing');
+    return null;
+  }
 
-// Create notification queue with enhanced Railway error handling
+  if (process.env.REDIS_URL) {
+    // Parse Railway Redis URL: redis://username:password@host:port
+    const url = new URL(process.env.REDIS_URL);
+    console.log('📊 Parsed Redis URL - Host:', url.hostname, 'Port:', url.port);
+    
+    return {
+      connection: {
+        host: url.hostname,
+        port: parseInt(url.port),
+        password: url.password,
+        family: 4,
+        connectTimeout: 10000,
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+        retryDelayOnFailover: 100,
+        enableOfflineQueue: false,
+        keepAlive: 30000,
+        reconnectOnError: (err) => {
+          const targetError = 'READONLY';
+          return err.message.includes(targetError);
+        }
+      }
+    };
+  } else if (process.env.REDIS_HOST) {
+    // Local development with explicit Redis host
+    console.log('🔧 Using explicit Redis configuration');
+    return {
+      connection: {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        maxRetriesPerRequest: null,
+        connectTimeout: 5000,
+        enableOfflineQueue: false,
+        keepAlive: 30000
+      }
+    };
+  }
+  
+  return null;
+}
+
+// Initialize configuration asynchronously
+redisConfig = null;
+let initPromise = initializeRedisConfig().then(config => {
+  redisConfig = config;
+  return config;
+});
+
+// Create notification queue with error handling
 let notificationQueue;
 
-console.log('🔄 Initializing Redis notification queue...');
+async function createQueue() {
+  await initPromise; // Wait for Redis initialization
+  
+  console.log('⚙️ Final Redis Config:', JSON.stringify(redisConfig, null, 2));
 
-async function initializeQueue() {
-  try {
-    notificationQueue = new Queue('notification', redisConfig);
+  if (redisConfig) {
+    try {
+      notificationQueue = new Queue('notification', redisConfig);
 
     // Enhanced event listeners for Railway debugging
     notificationQueue.on('waiting', (job) => {
@@ -93,20 +159,22 @@ async function initializeQueue() {
       }
     });
 
-    // Test the connection
-    await notificationQueue.waitUntilReady();
-    console.log('✅ Notification queue initialized successfully');
-    console.log('🔗 Redis connection established');
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize notification queue:', error.message);
-    console.log('⚠️ Running in degraded mode without queue functionality');
+      console.log('✅ Notification queue initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize notification queue:', error.message);
+      console.log('⚠️ Running in degraded mode without queue functionality');
+      notificationQueue = null;
+    }
+  } else {
+    console.log('⚠️ Redis not available - running in synchronous mode');
     notificationQueue = null;
   }
 }
 
-// Initialize queue asynchronously
-initializeQueue();
+// Initialize queue on startup
+createQueue().catch(error => {
+  console.error('Failed to initialize queue:', error);
+});
 
 // Helper function to add notification job
 async function addNotificationJob(webhookData, options = {}) {
@@ -237,5 +305,6 @@ module.exports = {
   addNotificationJob,
   getQueueStats,
   getQueueInfo,
-  redisConfig
+  redisConfig,
+  initPromise // Export so other modules can wait for Redis initialization
 };
