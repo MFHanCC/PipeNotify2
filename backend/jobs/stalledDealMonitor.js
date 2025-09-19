@@ -343,37 +343,71 @@ if (process.env.NODE_ENV !== 'test') {
   console.log('⏸️ Skipping cron job scheduling in test environment');
 }
 
-// Also create a BullMQ worker for manual triggering
-const stalledDealWorker = new Worker('stalled-deals', async (job) => {
-  const { tenantId } = job.data;
-  
-  if (tenantId) {
-    // Process single tenant
-    return await processStalledDealMonitoring(tenantId);
-  } else {
-    // Process all tenants
-    return await runStalledDealMonitoring();
+// SECURITY FIX: Conditional Redis worker initialization
+let stalledDealWorker = null;
+
+async function initializeWorker() {
+  try {
+    // Test Redis connection before creating worker
+    console.log('🔄 Testing Redis connection for stalled deal monitor...');
+    const Redis = require('ioredis');
+    const testConnection = new Redis(redisConfig.connection);
+    
+    await testConnection.ping();
+    await testConnection.disconnect();
+    
+    console.log('✅ Redis connection successful, initializing stalled deal worker...');
+    
+    stalledDealWorker = new Worker('stalled-deals', async (job) => {
+      const { tenantId } = job.data;
+      
+      if (tenantId) {
+        // Process single tenant
+        return await processStalledDealMonitoring(tenantId);
+      } else {
+        // Process all tenants
+        return await runStalledDealMonitoring();
+      }
+    }, redisConfig);
+
+    stalledDealWorker.on('completed', (job, result) => {
+      console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
+    });
+
+    stalledDealWorker.on('failed', (job, err) => {
+      console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
+    });
+    
+    console.log('📋 Stalled deal worker initialized successfully');
+    
+  } catch (error) {
+    console.warn('⚠️ Redis not available, stalled deal worker disabled:', error.message);
+    console.log('📋 Stalled deal monitoring will run via cron only (no queue support)');
+    stalledDealWorker = null;
   }
-}, redisConfig);
+}
 
-stalledDealWorker.on('completed', (job, result) => {
-  console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
-});
+// Initialize worker only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  initializeWorker().catch(err => {
+    console.error('Failed to initialize stalled deal worker:', err);
+  });
+}
 
-stalledDealWorker.on('failed', (job, err) => {
-  console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
-});
-
-// Graceful shutdown
+// Graceful shutdown with conditional worker check
 process.on('SIGTERM', async () => {
   console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close();
+  if (stalledDealWorker) {
+    await stalledDealWorker.close();
+  }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close(); 
+  if (stalledDealWorker) {
+    await stalledDealWorker.close();
+  }
   process.exit(0);
 });
 
@@ -385,5 +419,5 @@ module.exports = {
   sendStalledDealAlerts,
   processStalledDealMonitoring,
   runStalledDealMonitoring,
-  stalledDealWorker
+  getStalledDealWorker: () => stalledDealWorker
 };

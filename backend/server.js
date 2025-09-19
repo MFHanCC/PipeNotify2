@@ -92,6 +92,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const billingRoutes = require('./routes/billing');
 const settingsRoutes = require('./routes/settings');
 const templatesRoutes = require('./routes/templates');
+const { authenticateToken } = require('./middleware/auth'); // SECURITY FIX: Import authentication middleware
 
 // Import job processor to start worker
 console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
@@ -316,28 +317,20 @@ app.get('/api/v1/logs', (req, res) => {
 });
 
 // Integration activation endpoint
-app.post('/api/v1/integration/activate', async (req, res) => {
+app.post('/api/v1/integration/activate', authenticateToken, async (req, res) => {
   try {
     const { webhooks, templates, rules } = req.body;
     
-    // Get tenant ID from JWT token
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+    // SECURITY FIX: Get tenant ID from authenticated request (no fallback to tenant 1)
+    const tenantId = req.tenant.id;
+    if (!tenantId) {
+      return res.status(401).json({ 
+        error: 'Authentication required', 
+        message: 'Valid tenant context required' 
+      });
     }
     
-    let tenantId = 1; // fallback
-    try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.tenantId) {
-        tenantId = decoded.tenantId;
-        console.log(`🔑 Using tenant ID ${tenantId} from JWT token`);
-      }
-    } catch (jwtError) {
-      console.warn('⚠️ Could not decode JWT, using fallback tenant ID 1');
-    }
+    console.log(`🔑 Integration activation for authenticated tenant: ${tenantId}`);
     
     // Validate required data
     if (!webhooks || !templates || !rules || webhooks.length === 0 || templates.length === 0 || rules.length === 0) {
