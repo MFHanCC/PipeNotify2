@@ -131,7 +131,7 @@ async function sendHeartbeatAlert(tenant) {
   try {
     const alertData = {
       event: 'system.alert',
-      company_id: tenant.pipedrive_company_id || '13887824',
+      company_id: tenant.pipedrive_company_id || process.env.DEFAULT_COMPANY_ID || '0',
       user_id: 0,
       object: {
         type: 'system_alert',
@@ -168,7 +168,7 @@ async function sendHealthConfirmation(tenant, recentNotifications) {
   try {
     const healthData = {
       event: 'system.health',
-      company_id: tenant.pipedrive_company_id || '13887824',
+      company_id: tenant.pipedrive_company_id || process.env.DEFAULT_COMPANY_ID || '0',
       user_id: 0,
       object: {
         type: 'system_health',
@@ -203,7 +203,7 @@ async function sendCriticalErrorAlert(tenant, errorMessage) {
   try {
     const errorData = {
       event: 'system.error',
-      company_id: tenant.pipedrive_company_id || '13887824',
+      company_id: tenant.pipedrive_company_id || process.env.DEFAULT_COMPANY_ID || '0',
       user_id: 0,
       object: {
         type: 'system_error',

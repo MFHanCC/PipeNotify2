@@ -874,12 +874,12 @@ router.post('/system/upgrade-to-team', async (req, res) => {
   }
 });
 
-// Apply authentication to all other admin routes
+// SECURITY FIX: Apply authentication to ALL production admin routes (moved from below)
 router.use(authenticateToken);
 
 // Rules management endpoints
 // GET /api/v1/admin/rules - List all rules
-router.get('/rules', async (req, res) => {
+router.get('/rules', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -954,7 +954,7 @@ router.post('/rules', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/v1/admin/rules/:id - Update rule
-router.put('/rules/:id', async (req, res) => {
+router.put('/rules/:id', authenticateToken, async (req, res) => {
   try {
     console.log('🔧 PUT /rules/:id - Request received');
     console.log('🔧 Headers Authorization:', req.headers.authorization ? req.headers.authorization.substring(0, 20) + '...' : 'MISSING');
@@ -1041,7 +1041,7 @@ router.put('/rules/:id', async (req, res) => {
 });
 
 // DELETE /api/v1/admin/rules/:id - Delete rule
-router.delete('/rules/:id', async (req, res) => {
+router.delete('/rules/:id', authenticateToken, async (req, res) => {
   try {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
@@ -1063,7 +1063,7 @@ router.delete('/rules/:id', async (req, res) => {
 
 // Logs management endpoints
 // GET /api/v1/admin/logs - List logs with pagination
-router.get('/logs', async (req, res) => {
+router.get('/logs', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -1093,7 +1093,7 @@ router.get('/logs', async (req, res) => {
 });
 
 // GET /api/v1/admin/logs/:id - Get specific log details
-router.get('/logs/:id', async (req, res) => {
+router.get('/logs/:id', authenticateToken, async (req, res) => {
   try {
     const logId = req.params.id;
 
@@ -1120,7 +1120,7 @@ router.get('/logs/:id', async (req, res) => {
 
 // Dashboard stats endpoint
 // GET /api/v1/admin/stats - Get dashboard statistics
-router.get('/stats', async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id; // Get tenant ID from JWT token
     const dateRange = req.query.range || '7d';
@@ -1137,7 +1137,7 @@ router.get('/stats', async (req, res) => {
 
 // Webhook management endpoints
 // GET /api/v1/admin/webhooks - List chat webhooks
-router.get('/webhooks', async (req, res) => {
+router.get('/webhooks', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const webhooks = await getWebhooks(tenantId);
@@ -1211,7 +1211,7 @@ router.post('/webhooks', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/v1/admin/webhooks/:id - Delete webhook
-router.delete('/webhooks/:id', async (req, res) => {
+router.delete('/webhooks/:id', authenticateToken, async (req, res) => {
   try {
     const webhookId = req.params.id;
     const tenantId = req.tenant.id;
@@ -1262,7 +1262,7 @@ router.delete('/webhooks/:id', async (req, res) => {
 });
 
 // POST /api/v1/admin/webhooks/:id/test - Test webhook
-router.post('/webhooks/:id/test', async (req, res) => {
+router.post('/webhooks/:id/test', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const webhookId = req.params.id;
@@ -1332,7 +1332,7 @@ router.post('/webhooks/:id/test', async (req, res) => {
 
 // Test rule endpoint
 // POST /api/v1/admin/rules/:id/test - Send test notification
-router.post('/rules/:id/test', async (req, res) => {
+router.post('/rules/:id/test', authenticateToken, async (req, res) => {
   try {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
@@ -2281,7 +2281,7 @@ router.post('/debug/test-full-pipeline', async (req, res) => {
 });
 
 // POST /api/v1/admin/provision-default-rules - Manually provision default rules
-router.post('/provision-default-rules', async (req, res) => {
+router.post('/provision-default-rules', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const { planTier, force } = req.body;
@@ -2348,7 +2348,7 @@ router.post('/provision-default-rules', async (req, res) => {
 });
 
 // GET /api/v1/admin/provisioning-status - Get rule provisioning status
-router.get('/provisioning-status', async (req, res) => {
+router.get('/provisioning-status', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const { getProvisioningStatus } = require('../services/ruleProvisioning');
@@ -2373,7 +2373,7 @@ router.get('/provisioning-status', async (req, res) => {
 // Auto-fix webhook assignments for rules with null target_webhook_id
 // CRITICAL FIX: Handle empty string target_webhook_id with CASE statement
 // Railway deployment force update: 2025-09-16-v2
-router.post('/rules/auto-fix-webhooks', async (req, res) => {
+router.post('/rules/auto-fix-webhooks', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     
@@ -2735,6 +2735,32 @@ router.get('/debug/database-state', async (req, res) => {
       success: false,
       error: error.message,
       message: 'Database inspection failed'
+    });
+  }
+});
+
+// POST /api/v1/admin/run-migration - Run database migration (for production deployment)
+router.post('/run-migration', async (req, res) => {
+  try {
+    console.log('🔧 Manual migration triggered via admin endpoint');
+    
+    const { runMigration } = require('../scripts/migrate');
+    await runMigration();
+    
+    console.log('✅ Manual migration completed successfully');
+    
+    res.json({
+      success: true,
+      message: 'Database migration completed successfully',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Manual migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });

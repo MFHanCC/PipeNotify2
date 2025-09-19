@@ -3,9 +3,22 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
-// Run database migrations on production startup
-const { runMigration } = require('./scripts/migrate');
-const { fixPipedriveConnectionsTable } = require('./scripts/fix-pipedrive-connections');
+// Database migration functions - only available in development
+let runMigration = null;
+let fixPipedriveConnectionsTable = null;
+
+// Only load migration scripts in development (they're removed from production)
+if (process.env.NODE_ENV === 'development') {
+  try {
+    ({ runMigration } = require('./scripts/migrate'));
+    ({ fixPipedriveConnectionsTable } = require('./scripts/fix-pipedrive-connections'));
+    console.log('📋 Migration scripts loaded for development');
+  } catch (error) {
+    console.log('⚠️ Migration scripts not found - running without migrations');
+  }
+} else {
+  console.log('🚀 Production mode - migrations handled by hosting provider');
+}
 
 // Initialize Sentry error tracking
 const Sentry = require('@sentry/node');
@@ -79,6 +92,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const billingRoutes = require('./routes/billing');
 const settingsRoutes = require('./routes/settings');
 const templatesRoutes = require('./routes/templates');
+const { authenticateToken } = require('./middleware/auth'); // SECURITY FIX: Import authentication middleware
 
 // Import job processor to start worker
 console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
@@ -105,6 +119,20 @@ try {
     message: cronError.message,
     code: cronError.code,
     stack: cronError.stack
+  });
+}
+
+// Start batch notification processor (guaranteed delivery)
+console.log('🔄 STARTING BATCH NOTIFICATION PROCESSOR...');
+try {
+  require('./jobs/batchProcessor');
+  console.log('✅ BATCH NOTIFICATION PROCESSOR STARTED');
+} catch (batchError) {
+  console.error('❌ FAILED TO START BATCH PROCESSOR:', batchError);
+  console.error('Batch error details:', {
+    message: batchError.message,
+    code: batchError.code,
+    stack: batchError.stack
   });
 }
 
@@ -147,6 +175,21 @@ try {
     message: stalledError.message,
     code: stalledError.code,
     stack: stalledError.stack
+  });
+}
+
+// Start self-healing monitoring system
+console.log('🔧 STARTING SELF-HEALING SYSTEM...');
+try {
+  const { startSelfHealingMonitor } = require('./services/selfHealing');
+  startSelfHealingMonitor();
+  console.log('✅ SELF-HEALING SYSTEM STARTED - will monitor and fix issues automatically');
+} catch (healingError) {
+  console.error('❌ FAILED TO START SELF-HEALING SYSTEM:', healingError);
+  console.error('Self-healing system error details:', {
+    message: healingError.message,
+    code: healingError.code,
+    stack: healingError.stack
   });
 }
 
@@ -274,28 +317,20 @@ app.get('/api/v1/logs', (req, res) => {
 });
 
 // Integration activation endpoint
-app.post('/api/v1/integration/activate', async (req, res) => {
+app.post('/api/v1/integration/activate', authenticateToken, async (req, res) => {
   try {
     const { webhooks, templates, rules } = req.body;
     
-    // Get tenant ID from JWT token
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+    // SECURITY FIX: Get tenant ID from authenticated request (no fallback to tenant 1)
+    const tenantId = req.tenant.id;
+    if (!tenantId) {
+      return res.status(401).json({ 
+        error: 'Authentication required', 
+        message: 'Valid tenant context required' 
+      });
     }
     
-    let tenantId = 1; // fallback
-    try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.tenantId) {
-        tenantId = decoded.tenantId;
-        console.log(`🔑 Using tenant ID ${tenantId} from JWT token`);
-      }
-    } catch (jwtError) {
-      console.warn('⚠️ Could not decode JWT, using fallback tenant ID 1');
-    }
+    console.log(`🔑 Integration activation for authenticated tenant: ${tenantId}`);
     
     // Validate required data
     if (!webhooks || !templates || !rules || webhooks.length === 0 || templates.length === 0 || rules.length === 0) {
@@ -564,6 +599,13 @@ app.post('/api/v1/test/set-chat-webhook', (req, res) => {
   }
 });
 
+// =================================================================
+// DEVELOPMENT & DEBUG ENDPOINTS 
+// These endpoints are only available in development environment
+// =================================================================
+if (process.env.NODE_ENV === 'development' || process.env.ENABLE_DEBUG_ENDPOINTS === 'true') {
+  console.log('🔧 Debug endpoints enabled');
+
 // Development: Create tenant record
 app.post('/api/v1/dev/create-tenant', async (req, res) => {
   try {
@@ -802,6 +844,376 @@ app.post('/api/v1/test/webhook', async (req, res) => {
   }
 });
 
+// Check quiet hours configuration and status
+app.get('/api/v1/test/check-quiet-hours', async (req, res) => {
+  try {
+    const { pool } = require('./services/database');
+    const { getQuietHours, isQuietTime } = require('./services/quietHours');
+    
+    const result = {
+      timestamp: new Date().toISOString(),
+      timezone_info: {
+        utc_time: new Date().toISOString(),
+        utc_hour: new Date().getUTCHours(),
+        utc_minutes: new Date().getUTCMinutes()
+      }
+    };
+    
+    // Check if quiet_hours table exists
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'quiet_hours'
+    `);
+    
+    result.table_exists = tableCheck.rows.length > 0;
+    
+    if (result.table_exists) {
+      // Check for any records
+      const allRecords = await pool.query(`
+        SELECT * FROM quiet_hours ORDER BY tenant_id
+      `);
+      
+      result.total_records = allRecords.rows.length;
+      result.all_records = allRecords.rows;
+      
+      // Specifically check tenant 1
+      const tenant1Records = await pool.query(`
+        SELECT * FROM quiet_hours WHERE tenant_id = 1
+      `);
+      
+      result.tenant1_records = tenant1Records.rows.length;
+      result.tenant1_config = tenant1Records.rows[0] || null;
+    }
+    
+    // Test the actual functions
+    const config = await getQuietHours(1);
+    result.getQuietHours_result = config;
+    
+    const quietCheck = await isQuietTime(1);
+    result.isQuietTime_result = quietCheck;
+    
+    result.summary = {
+      configured: config.configured,
+      is_quiet: quietCheck.is_quiet,
+      reason: quietCheck.reason,
+      should_send_immediately: !quietCheck.is_quiet
+    };
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours status check complete',
+      result
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to check quiet hours:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check quiet hours',
+      error: error.message
+    });
+  }
+});
+
+// Disable quiet hours for immediate testing
+app.post('/api/v1/test/disable-quiet-hours', async (req, res) => {
+  try {
+    console.log('🔧 Disabling quiet hours for immediate testing...');
+    
+    const { pool } = require('./services/database');
+    
+    // Check if quiet_hours table exists
+    const tableCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'quiet_hours'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No quiet_hours table found - notifications already send immediately',
+        actions: []
+      });
+    }
+    
+    const actions = [];
+    
+    // Delete all quiet hours configurations to disable quiet hours
+    const result = await pool.query(`
+      DELETE FROM quiet_hours WHERE tenant_id = 1
+    `);
+    
+    actions.push(`Deleted ${result.rowCount} quiet hours configurations for tenant 1`);
+    
+    // Also clean up any pending delayed notifications and send them immediately
+    const delayedCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'delayed_notifications'
+    `);
+    
+    if (delayedCheck.rows.length > 0) {
+      const pendingNotifications = await pool.query(`
+        SELECT COUNT(*) as count FROM delayed_notifications 
+        WHERE sent_at IS NULL
+      `);
+      
+      const pendingCount = parseInt(pendingNotifications.rows[0].count);
+      actions.push(`Found ${pendingCount} delayed notifications pending`);
+      
+      if (pendingCount > 0) {
+        // Update scheduled time to now so they process immediately
+        const updateResult = await pool.query(`
+          UPDATE delayed_notifications 
+          SET scheduled_for = NOW() 
+          WHERE sent_at IS NULL
+        `);
+        
+        actions.push(`Updated ${updateResult.rowCount} delayed notifications to send immediately`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours disabled successfully - notifications will now send immediately',
+      actions,
+      instructions: [
+        'Go to Pipedrive and create/update deals',
+        'Notifications should now appear in Google Chat immediately',
+        'To re-enable quiet hours later, configure them in the frontend'
+      ]
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to disable quiet hours:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to disable quiet hours',
+      error: error.message
+    });
+  }
+});
+
+// Complete notification flow diagnostic endpoint
+app.post('/api/v1/test/notification-flow', async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    
+    if (!webhookUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'webhookUrl is required'
+      });
+    }
+
+    const results = {
+      timestamp: new Date().toISOString(),
+      tests: []
+    };
+
+    // Test 1: Database connectivity
+    console.log('🔍 Testing database connectivity...');
+    try {
+      const { healthCheck, getRulesForEvent, getWebhooks } = require('./services/database');
+      const dbHealth = await healthCheck();
+      
+      results.tests.push({
+        name: 'Database Connectivity',
+        status: dbHealth.healthy ? 'PASS' : 'FAIL',
+        details: dbHealth
+      });
+
+      if (dbHealth.healthy) {
+        // Check rules and webhooks for tenant 1
+        const rules = await getRulesForEvent(1, 'deal.*');
+        const webhooks = await getWebhooks(1);
+        
+        results.tests.push({
+          name: 'Rules and Webhooks',
+          status: (rules.length > 0 && webhooks.length > 0) ? 'PASS' : 'FAIL',
+          details: {
+            rulesCount: rules.length,
+            webhooksCount: webhooks.length,
+            rules: rules.map(r => ({ id: r.id, name: r.name, event_type: r.event_type })),
+            webhooks: webhooks.map(w => ({ id: w.id, name: w.name }))
+          }
+        });
+      }
+    } catch (dbError) {
+      results.tests.push({
+        name: 'Database Connectivity',
+        status: 'FAIL',
+        error: dbError.message
+      });
+    }
+
+    // Test 2: Redis/Queue connectivity
+    console.log('🔍 Testing Redis/Queue connectivity...');
+    try {
+      const { getQueueInfo } = require('./jobs/queue');
+      const queueInfo = await getQueueInfo();
+      
+      results.tests.push({
+        name: 'Redis/Queue Connectivity',
+        status: queueInfo.connected ? 'PASS' : 'FAIL',
+        details: queueInfo
+      });
+    } catch (queueError) {
+      results.tests.push({
+        name: 'Redis/Queue Connectivity',
+        status: 'FAIL',
+        error: queueError.message
+      });
+    }
+
+    // Test 3: Worker status
+    console.log('🔍 Testing worker status...');
+    try {
+      const { notificationWorker } = require('./jobs/processor');
+      
+      if (notificationWorker) {
+        // Test worker connection by getting waiting jobs
+        const waitingJobs = await notificationWorker.getWaiting();
+        const activeJobs = await notificationWorker.getActive();
+        
+        results.tests.push({
+          name: 'Worker Status',
+          status: 'PASS',
+          details: {
+            workerExists: true,
+            waitingJobs: waitingJobs.length,
+            activeJobs: activeJobs.length
+          }
+        });
+      } else {
+        results.tests.push({
+          name: 'Worker Status',
+          status: 'FAIL',
+          details: { workerExists: false, error: 'Worker instance not found' }
+        });
+      }
+    } catch (workerError) {
+      results.tests.push({
+        name: 'Worker Status',
+        status: 'FAIL',
+        error: workerError.message
+      });
+    }
+
+    // Test 4: Direct Google Chat test
+    console.log('🔍 Testing direct Google Chat...');
+    try {
+      const { defaultChatClient } = require('./services/chatClient');
+      const directResult = await defaultChatClient.sendTextMessage(
+        webhookUrl,
+        `🧪 Direct test notification - ${new Date().toISOString()}`
+      );
+      
+      results.tests.push({
+        name: 'Direct Google Chat',
+        status: 'PASS',
+        details: directResult
+      });
+    } catch (chatError) {
+      results.tests.push({
+        name: 'Direct Google Chat',
+        status: 'FAIL',
+        error: chatError.message
+      });
+    }
+
+    // Test 5: End-to-end job processing
+    console.log('🔍 Testing end-to-end job processing...');
+    try {
+      const { addNotificationJob } = require('./jobs/queue');
+      
+      const testWebhookData = {
+        event: 'deal.updated',
+        object: {
+          id: 999,
+          type: 'deal',
+          title: 'E2E Test Deal',
+          value: 2000,
+          currency: 'USD'
+        },
+        user_id: 1,
+        company_id: 1,
+        timestamp: new Date().toISOString()
+      };
+
+      const job = await addNotificationJob(testWebhookData, {
+        priority: 1,
+        delay: 0
+      });
+
+      // Wait 5 seconds for processing
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const jobState = await job.getState();
+      let jobResult = null;
+      
+      if (jobState === 'completed') {
+        jobResult = await job.returnvalue;
+      }
+      
+      results.tests.push({
+        name: 'End-to-End Job Processing',
+        status: jobState === 'completed' ? 'PASS' : 'PARTIAL',
+        details: {
+          jobId: job.id,
+          jobState,
+          jobResult,
+          processingTime: '5 seconds waited'
+        }
+      });
+    } catch (e2eError) {
+      results.tests.push({
+        name: 'End-to-End Job Processing',
+        status: 'FAIL',
+        error: e2eError.message
+      });
+    }
+
+    // Summary
+    const passCount = results.tests.filter(t => t.status === 'PASS').length;
+    const totalTests = results.tests.length;
+    
+    results.summary = {
+      totalTests,
+      passed: passCount,
+      failed: totalTests - passCount,
+      overallStatus: passCount === totalTests ? 'ALL_PASS' : 'ISSUES_FOUND'
+    };
+
+    console.log(`🎯 Notification flow test complete: ${passCount}/${totalTests} tests passed`);
+
+    res.json({
+      success: true,
+      message: 'Notification flow diagnostic complete',
+      results
+    });
+    
+  } catch (error) {
+    console.error('Notification flow test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to run notification flow test',
+      error: error.message
+    });
+  }
+});
+
+} // End of development/debug endpoints
+else {
+  console.log('🚀 Production mode - debug endpoints disabled');
+}
+
+// =================================================================
+// PRODUCTION ERROR HANDLING
+// =================================================================
+
 // Sentry error handler (configured when valid DSN is provided)
 
 // Error handling middleware
@@ -848,6 +1260,9 @@ async function startServer() {
   }
 
   if (process.env.NODE_ENV === 'production') {
+    console.log('🚀 Production mode - database migrations should be handled by hosting provider (Railway)');
+    console.log('💡 Railway automatically runs migrations from the migrations/ directory');
+  } else if (runMigration && fixPipedriveConnectionsTable) {
     try {
       console.log('🔄 Running database migrations...');
       await runMigration();
@@ -897,4 +1312,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-module.exports = app;
+module.exports = app;// Force redeploy Thu Sep 18 11:32:38 CDT 2025

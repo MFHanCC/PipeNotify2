@@ -2,6 +2,7 @@
 // Handles all backend communication for Railway-hosted API
 
 import { API_BASE_URL } from '../config/api';
+import { getTenantId } from '../utils/auth';
 
 // Types for API responses
 interface ApiResponse<T> {
@@ -492,8 +493,13 @@ class ApiService {
   }
 
   async getFeatureAccess(): Promise<{ [featureName: string]: { has_access: boolean; plan_required: string } }> {
-    // This would need tenant ID in real implementation
-    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features/1`, {
+    // SECURITY: Prevent cross-tenant reads - require valid tenant context
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      throw new Error('Missing tenant context - authentication required');
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/v1/billing/features/${tenantId}`, {
       headers: this.getAuthHeaders(),
     });
     return this.handleResponse(response);

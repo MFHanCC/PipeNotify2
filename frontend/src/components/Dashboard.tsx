@@ -34,6 +34,7 @@ interface NotificationRule {
   eventType: string;
   templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
   targetSpace: string;
+  targetWebhookId: number; // SECURITY FIX: Actual webhook ID to prevent NaN errors
   filters: {
     // Value filters
     value_min?: number;
@@ -192,7 +193,7 @@ const Dashboard: React.FC = React.memo(() => {
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
-  const [tenantId, setTenantId] = useState<string>('1');
+  const [tenantId, setTenantId] = useState<string>(getTenantId() || '1');
   
   // Filters and pagination
   const [ruleFilter, setRuleFilter] = useState<string>('all');
@@ -344,6 +345,7 @@ const Dashboard: React.FC = React.memo(() => {
           eventType: rule.event_type,
           templateMode: rule.template_mode || 'compact',
           targetSpace: rule.webhook_name || 'Unknown',
+          targetWebhookId: rule.target_webhook_id, // SECURITY FIX: Store actual webhook ID separately from display name
           filters: rule.filters || {},
           enabled: rule.enabled,
           lastTriggered: rule.last_triggered,
@@ -423,7 +425,7 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          target_webhook_id: parseInt(rule.targetSpace),
+          target_webhook_id: rule.targetWebhookId, // SECURITY FIX: Use actual webhook ID instead of parsing name
           template_mode: rule.templateMode,
           enabled: !rule.enabled,
           filters: rule.filters || {}
@@ -487,8 +489,8 @@ const Dashboard: React.FC = React.memo(() => {
         return;
       }
 
-      if (rules.length + missingRules.length > (limits?.rules || 3) && planTier === 'free') {
-        alert(`⚠️ Rule Limit Reached\n\nFree plan allows ${limits?.rules || 3} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
+      if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length + missingRules.length > limits.rules) {
+        alert(`⚠️ Rule Limit Reached\n\nYour ${planTier || 'current'} plan allows ${limits.rules} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
         return;
       }
       
@@ -529,7 +531,7 @@ const Dashboard: React.FC = React.memo(() => {
       enabled: rule.enabled,
       event_type: rule.eventType,
       template_mode: rule.templateMode,
-      target_webhook_id: rule.targetSpace,
+      target_webhook_id: rule.targetWebhookId.toString(), // SECURITY FIX: Use actual webhook ID instead of name
       filters: rule.filters || {}
     });
   };
@@ -608,7 +610,8 @@ const Dashboard: React.FC = React.memo(() => {
                 enabled: editFormData.enabled,
                 eventType: editFormData.event_type,
                 templateMode: editFormData.template_mode,
-                targetSpace: editFormData.target_webhook_id,
+                targetSpace: availableWebhooks.find(w => w.id === editFormData.target_webhook_id)?.name || 'Unknown', // SECURITY FIX: Update display name from webhook list
+                targetWebhookId: parseInt(editFormData.target_webhook_id), // SECURITY FIX: Store actual webhook ID
                 filters: editFormData.filters
               }
             : r
@@ -833,8 +836,8 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     // Check plan limits
-    if (rules.length >= (limits?.rules || 3) && planTier === 'free') {
-      errors.limit = `Free plan is limited to ${limits?.rules || 3} rules. Upgrade to create more rules.`;
+    if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules) {
+      errors.limit = `Your ${planTier || 'current'} plan is limited to ${limits.rules} rules. Upgrade to create more rules.`;
     }
 
     // Check if Deal Updated is restricted for free tier
@@ -997,14 +1000,14 @@ const Dashboard: React.FC = React.memo(() => {
             onClick={openCreateModal}
             aria-label="Create new notification rule"
             type="button"
-            disabled={rules.length >= (limits?.rules || 3) && planTier === 'free'}
-            title={rules.length >= (limits?.rules || 3) && planTier === 'free' 
-              ? `Free plan limit reached (${limits?.rules || 3} rules). Upgrade to create more rules.` 
+            disabled={Boolean(limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules)}
+            title={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules 
+              ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
               : 'Create new notification rule'}
           >
             + Create Rule
-            {rules.length >= (limits?.rules || 3) && planTier === 'free' && (
-              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits?.rules || 3})</span>
+            {limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules && (
+              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits.rules})</span>
             )}
           </button>
         </div>

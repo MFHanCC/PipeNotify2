@@ -265,7 +265,7 @@ router.post('/test-notification', async (req, res) => {
     // Create test webhook data
     const testWebhookData = {
       event: eventType,
-      company_id: companyId || '13887824', // Use provided or default
+      company_id: companyId || process.env.DEFAULT_COMPANY_ID || '0', // Use provided or default
       user_id: 23658744,
       object: {
         type: 'deal',
@@ -279,7 +279,7 @@ router.post('/test-notification', async (req, res) => {
       meta: {
         entity: 'deal',
         action: eventType.split('.')[1] || 'change',
-        company_id: companyId || '13887824',
+        company_id: companyId || process.env.DEFAULT_COMPANY_ID || '0',
         user_id: 23658744
       }
     };

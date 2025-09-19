@@ -455,7 +455,8 @@ async function getSubscription(tenantId) {
           const tenant = tenantCheck.rows[0];
           
           // Known enterprise customer
-          if (tenant.pipedrive_company_id == 13887824) {
+          const enterpriseCompanyId = process.env.ENTERPRISE_COMPANY_ID;
+          if (enterpriseCompanyId && tenant.pipedrive_company_id == enterpriseCompanyId) {
             console.log('🚀 Known enterprise customer detected - assigning Team plan features');
             return {
               tenant_id: tenantId,
@@ -498,7 +499,8 @@ async function getSubscription(tenantId) {
           const tenant = tenantCheck.rows[0];
           
           // Known enterprise customer
-          if (tenant.pipedrive_company_id == 13887824) {
+          const enterpriseCompanyId = process.env.ENTERPRISE_COMPANY_ID;
+          if (enterpriseCompanyId && tenant.pipedrive_company_id == enterpriseCompanyId) {
             console.log('🚀 Known enterprise customer detected - auto-upgrading to Team plan');
             planTier = 'team';
             planPeriodEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
@@ -537,7 +539,8 @@ async function getSubscription(tenantId) {
     if (subscription.plan_tier === 'free') {
       try {
         const tenantCheck = await pool.query('SELECT pipedrive_company_id FROM tenants WHERE id = $1', [tenantId]);
-        if (tenantCheck.rows.length > 0 && tenantCheck.rows[0].pipedrive_company_id == 13887824) {
+        const enterpriseCompanyId = process.env.ENTERPRISE_COMPANY_ID;
+        if (tenantCheck.rows.length > 0 && enterpriseCompanyId && tenantCheck.rows[0].pipedrive_company_id == enterpriseCompanyId) {
           console.log('🚀 Enterprise customer on free plan - auto-upgrading to Team plan');
           
           const now = new Date();

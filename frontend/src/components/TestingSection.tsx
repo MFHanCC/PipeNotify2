@@ -44,7 +44,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
         },
         body: JSON.stringify({
           eventType: 'deal.won',
-          companyId: '13887824',
+          companyId: process.env.REACT_APP_TEST_COMPANY_ID || 'auto',
           tenantId: 'auto' // Let backend determine from token
         }),
       });

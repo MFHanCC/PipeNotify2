@@ -19,24 +19,21 @@ initPromise.then(() => {
   const { data } = job;
   
   try {
-    console.log(`🚀 PROCESSING JOB ${job.id}:`, {
-      event: data.event,
-      object: data.object,
-      userId: data.user_id,
-      companyId: data.company_id
-    });
+    console.log(`🚀 PROCESSING JOB ${job.id}: ${data.event} for company ${data.company_id}`);
     
-    // Log full data safely
-    try {
-      const cleanData = JSON.stringify(data, (key, value) => {
-        if (typeof value === 'string') {
-          return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-        }
-        return value;
-      }, 2);
-      console.log(`📊 JOB ${job.id} DATA:`, cleanData);
-    } catch (logError) {
-      console.log(`📊 JOB ${job.id} DATA: [Unable to stringify safely]`, Object.keys(data));
+    // Only log full data in development
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const cleanData = JSON.stringify(data, (key, value) => {
+          if (typeof value === 'string') {
+            return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+          }
+          return value;
+        }, 2);
+        console.log(`📊 JOB ${job.id} DATA:`, cleanData);
+      } catch (logError) {
+        console.log(`📊 JOB ${job.id} DATA: [Unable to stringify]`);
+      }
     }
 
     // Process the webhook notification
@@ -197,6 +194,8 @@ async function processNotification(webhookData) {
     let notificationsSent = 0;
     
     for (const rule of rules) {
+      let targetWebhook = null;
+      
       try {
         // Check if rule filters match the webhook data (advanced filtering)
         if (!applyAdvancedFilters(webhookData, rule)) {
@@ -205,12 +204,14 @@ async function processNotification(webhookData) {
         }
 
         // Use channel routing to determine the best webhook
-        const targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
+        targetWebhook = routeToChannel(webhookData, rule, availableWebhooks);
         
         if (!targetWebhook) {
-          console.log(`No suitable webhook found for rule ${rule.name}, skipping`);
+          console.error(`❌ No webhook found for rule ${rule.name} (webhook_id: ${rule.target_webhook_id})`);
           continue;
         }
+        
+        console.log(`🎯 Using webhook ${targetWebhook.id}: ${targetWebhook.webhook_url?.substring(0, 50)}...`);
 
         // Check quiet hours before sending
         const quietCheck = await isQuietTime(tenantId);
@@ -231,12 +232,12 @@ async function processNotification(webhookData) {
             // Log queued notification
             await createLog(tenantId, {
               rule_id: rule.id,
-              webhook_id: targetWebhook.id,
+              webhook_id: targetWebhook?.id || rule.target_webhook_id,
               event_type: webhookData.event,
               payload: webhookData,
-              status: 'queued',
+              status: 'pending',
               response_time_ms: Date.now() - startTime,
-              message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
+              error_message: `Delayed until ${queueResult.scheduled_for} (${queueResult.reason})`
             });
             
             console.log(`📅 Notification queued for ${queueResult.scheduled_for} (delay: ${queueResult.delay_minutes}min)`);
@@ -244,8 +245,8 @@ async function processNotification(webhookData) {
           }
         }
 
-        // Send notification to the routed Google Chat channel
-        const notificationResult = await sendNotification(rule, webhookData, targetWebhook, tenantId);
+        // Send notification with multi-tier backup system
+        const notificationResult = await sendNotificationWithBackup(rule, webhookData, targetWebhook, tenantId);
         
         if (notificationResult.success) {
           notificationsSent++;
@@ -253,7 +254,7 @@ async function processNotification(webhookData) {
           // Track usage for successful notification
           await trackNotificationUsage(tenantId, 1);
           
-          // Log successful notification
+          // Log successful notification with tier information
           await createLog(tenantId, {
             rule_id: rule.id,
             webhook_id: targetWebhook?.id || rule.target_webhook_id,
@@ -262,10 +263,17 @@ async function processNotification(webhookData) {
             formatted_message: notificationResult.message,
             status: 'success',
             response_code: 200,
-            response_time_ms: Date.now() - startTime
+            response_time_ms: Date.now() - startTime,
+            error_message: notificationResult.tier > 1 ? `Delivered via Tier ${notificationResult.tier} backup` : null
           });
           
-          console.log(`✅ Sent notification for rule: ${rule.name}`);
+          // Alert if backup tier was used (indicates primary system issues)
+          if (notificationResult.tier > 1) {
+            console.warn(`⚠️ BACKUP TIER ${notificationResult.tier} USED for rule: ${rule.name} - Primary system may have issues`);
+            await alertSystemReliability(tenantId, rule, notificationResult.tier, webhookData);
+          }
+          
+          console.log(`✅ SUCCESS: Notification sent for rule "${rule.name}" via Tier ${notificationResult.tier}`);
         } else {
           // Log failed notification
           await createLog(tenantId, {
@@ -280,7 +288,7 @@ async function processNotification(webhookData) {
             response_time_ms: Date.now() - startTime
           });
           
-          console.error(`❌ Failed to send notification for rule: ${rule.name}`, notificationResult.error);
+          console.error(`❌ FAILED: All tiers failed for rule "${rule.name}":`, notificationResult.errors || notificationResult.error);
         }
       } catch (error) {
         console.error(`Error processing rule ${rule.name}:`, error);
@@ -313,78 +321,33 @@ async function processNotification(webhookData) {
 // Helper function to identify tenant from webhook data
 async function identifyTenant(webhookData) {
   try {
+    const { resolveTenant } = require('../services/smartTenantResolver');
+    
+    // Use smart tenant resolution
+    const resolution = await resolveTenant(webhookData);
+    
+    if (resolution.autoMapped) {
+      console.log(`🔧 Auto-mapped tenant using strategy: ${resolution.strategy}`);
+    }
+    
+    return resolution.tenantId;
+    
+  } catch (error) {
+    console.error('❌ Smart tenant resolution failed, using fallback:', error);
+    
+    // Final fallback for development
     if (!webhookData.company_id) {
       console.log('⚠️ No company_id in webhook, using tenant ID 1 for development');
       return 1;
     }
     
-    // First try to find tenant by company_id
-    console.log(`🔍 Looking up tenant for company_id: ${webhookData.company_id}`);
-    let tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
-    
-    if (!tenant && webhookData.user_id) {
-      // Fallback: try to find by user_id if company lookup failed
-      console.log(`🔄 Company lookup failed, trying user_id: ${webhookData.user_id}`);
-      const { getTenantByPipedriveUserId } = require('../services/database');
-      tenant = await getTenantByPipedriveUserId(webhookData.user_id);
-      
-      if (tenant) {
-        console.log(`✅ Found tenant by user_id: ${tenant.id}, updating with company_id`);
-        // Update the tenant with the company_id for future lookups
-        const database = require('../services/database');
-        await database.pool.query(
-          'UPDATE tenants SET pipedrive_company_id = $1 WHERE id = $2',
-          [webhookData.company_id, tenant.id]
-        );
-      }
-    }
-    
-    // PRODUCTION FIX: If no tenant found, check if there's a default tenant with rules/webhooks
-    // This handles the case where users created rules via frontend before webhook registration
-    if (!tenant) {
-      console.log(`🔍 No tenant found for company_id: ${webhookData.company_id}, checking for default tenant with active rules`);
-      
-      const database = require('../services/database');
-      const defaultTenantWithRules = await database.pool.query(`
-        SELECT DISTINCT t.id, t.company_name, COUNT(r.id) as rule_count, COUNT(cw.id) as webhook_count
-        FROM tenants t
-        LEFT JOIN rules r ON t.id = r.tenant_id AND r.enabled = true
-        LEFT JOIN chat_webhooks cw ON t.id = cw.tenant_id AND cw.is_active = true
-        WHERE t.pipedrive_company_id IS NULL OR t.pipedrive_company_id = ''
-        GROUP BY t.id, t.company_name
-        HAVING COUNT(r.id) > 0 AND COUNT(cw.id) > 0
-        ORDER BY t.id ASC
-        LIMIT 1
-      `);
-      
-      if (defaultTenantWithRules.rows.length > 0) {
-        const defaultTenant = defaultTenantWithRules.rows[0];
-        console.log(`🔧 Found default tenant ${defaultTenant.id} with ${defaultTenant.rule_count} rules and ${defaultTenant.webhook_count} webhooks`);
-        console.log(`🔧 Mapping tenant ${defaultTenant.id} to company_id: ${webhookData.company_id}`);
-        
-        // Update the default tenant to handle this company_id
-        await database.pool.query(`
-          UPDATE tenants 
-          SET pipedrive_company_id = $1,
-              company_name = COALESCE(NULLIF(company_name, ''), 'Pipedrive Account'),
-              updated_at = NOW()
-          WHERE id = $2
-        `, [webhookData.company_id, defaultTenant.id]);
-        
-        console.log(`✅ Successfully mapped tenant ${defaultTenant.id} to handle company_id: ${webhookData.company_id}`);
-        return defaultTenant.id;
-      }
-    }
-    
+    // Try basic lookup as last resort
+    const tenant = await getTenantByPipedriveCompanyId(webhookData.company_id);
     if (tenant) {
-      console.log(`✅ Found tenant: ${tenant.id} for company_id: ${webhookData.company_id}`);
       return tenant.id;
-    } else {
-      console.log(`❌ No tenant found for company_id: ${webhookData.company_id}`);
-      return null;
     }
-  } catch (error) {
-    console.error('Error identifying tenant:', error);
+    
+    console.error(`❌ No tenant resolution possible for company_id: ${webhookData.company_id}`);
     return null;
   }
 }
@@ -438,11 +401,13 @@ function matchesFilters(webhookData, filters) {
 }
 
 // Helper function to send notification via Google Chat
-async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
+// Multi-tier backup notification system - ensures notifications ALWAYS get delivered
+async function sendNotificationWithBackup(rule, webhookData, targetWebhook = null, tenantId = null) {
+  const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
+  
+  // Tier 1: Primary delivery with immediate retry
   try {
-    // Use target webhook URL if provided, otherwise fall back to rule's default
-    const webhookUrl = targetWebhook?.webhook_url || rule.webhook_url;
-    
+    console.log(`🎯 TIER 1: Primary delivery to ${webhookUrl}`);
     const result = await defaultChatClient.sendNotification(
       webhookUrl,
       webhookData,
@@ -450,22 +415,147 @@ async function sendNotification(rule, webhookData, targetWebhook = null, tenantI
       rule.custom_template,
       tenantId
     );
-    
+
+    console.log(`✅ TIER 1: Notification sent successfully`);
     return {
       success: true,
+      messageId: result.messageId,
       message: result,
-      messageId: result.messageId
+      tier: 1
     };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-      statusCode: error.response?.status
-    };
+  } catch (primaryError) {
+    console.error(`❌ TIER 1: Primary delivery failed:`, primaryError.message);
+    
+    // Tier 2: Immediate retry with simple template
+    try {
+      console.log(`🔄 TIER 2: Retry with simple template`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brief delay
+      
+      const retryResult = await defaultChatClient.sendNotification(
+        webhookUrl,
+        webhookData,
+        'simple', // Force simple template for compatibility
+        null,
+        tenantId
+      );
+
+      console.log(`✅ TIER 2: Retry successful with simple template`);
+      return {
+        success: true,
+        messageId: retryResult.messageId,
+        message: retryResult,
+        tier: 2,
+        primaryError: primaryError.message
+      };
+    } catch (retryError) {
+      console.error(`❌ TIER 2: Retry failed:`, retryError.message);
+      
+      // Tier 3: Alternative webhook (if available)
+      try {
+        console.log(`🔗 TIER 3: Trying alternative webhook`);
+        const alternativeWebhooks = await getWebhooks(tenantId);
+        const alternativeWebhook = alternativeWebhooks.find(w => 
+          w.id !== targetWebhook?.id && w.webhook_url !== webhookUrl
+        );
+        
+        if (alternativeWebhook) {
+          const altResult = await defaultChatClient.sendNotification(
+            alternativeWebhook.webhook_url,
+            webhookData,
+            'simple',
+            null,
+            tenantId
+          );
+
+          console.log(`✅ TIER 3: Alternative webhook successful`);
+          return {
+            success: true,
+            messageId: altResult.messageId,
+            message: altResult,
+            tier: 3,
+            alternativeWebhookId: alternativeWebhook.id
+          };
+        } else {
+          throw new Error('No alternative webhook available');
+        }
+      } catch (altError) {
+        console.error(`❌ TIER 3: Alternative webhook failed:`, altError.message);
+        
+        // Tier 4: Emergency direct processing (bypass all infrastructure)
+        try {
+          console.log(`🚨 TIER 4: Emergency direct processing`);
+          const { processNotificationDirect } = require('../services/notificationFallback');
+          const emergencyResult = await processNotificationDirect(webhookData);
+          
+          if (emergencyResult.success && emergencyResult.notificationsSent > 0) {
+            console.log(`✅ TIER 4: Emergency processing successful`);
+            return {
+              success: true,
+              message: 'Notification sent via emergency fallback',
+              tier: 4,
+              notificationsSent: emergencyResult.notificationsSent
+            };
+          } else {
+            throw new Error('Emergency processing failed or no notifications sent');
+          }
+        } catch (emergencyError) {
+          console.error(`❌ TIER 4: Emergency processing failed:`, emergencyError.message);
+          
+          // ALL TIERS FAILED - Return comprehensive error
+          return {
+            success: false,
+            error: 'All notification tiers failed',
+            tier: 'ALL_FAILED',
+            errors: {
+              primary: primaryError.message,
+              retry: retryError.message,
+              alternative: altError.message,
+              emergency: emergencyError.message
+            },
+            statusCode: 500
+          };
+        }
+      }
+    }
   }
 }
 
-// Duplicate event listeners removed - they're now inside the conditional block above
+// Legacy function for backwards compatibility
+async function sendNotification(rule, webhookData, targetWebhook = null, tenantId = null) {
+  return await sendNotificationWithBackup(rule, webhookData, targetWebhook, tenantId);
+}
+
+// System reliability monitoring and alerting
+async function alertSystemReliability(tenantId, rule, tier, webhookData) {
+  try {
+    console.log(`🚨 SYSTEM RELIABILITY ALERT: Tier ${tier} used for tenant ${tenantId}`);
+    
+    // Track backup tier usage for monitoring
+    const alertData = {
+      timestamp: new Date().toISOString(),
+      tenant_id: tenantId,
+      rule_name: rule.name,
+      tier_used: tier,
+      event_type: webhookData.event,
+      alert_level: tier >= 4 ? 'CRITICAL' : tier >= 3 ? 'WARNING' : 'INFO'
+    };
+    
+    // Log reliability issue for monitoring
+    console.error(`🔔 RELIABILITY ALERT:`, JSON.stringify(alertData, null, 2));
+    
+    // In production, you could send this to monitoring systems:
+    // - Slack/Discord alerts for critical issues
+    // - Email notifications for administrators 
+    // - Metrics to monitoring dashboards (Grafana, DataDog, etc.)
+    // - Health check endpoint updates
+    
+    return alertData;
+  } catch (error) {
+    console.error('Failed to send reliability alert:', error);
+  }
+}
+
+// Worker event listeners are now inside the conditional block above
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

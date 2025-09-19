@@ -98,7 +98,7 @@ class ChatClient {
 
       switch (templateMode) {
         case 'detailed':
-          message = this.formatDetailedMessage(webhookData);
+          message = await this.formatDetailedMessage(webhookData, tenantId);
           break;
         case 'card':
           message = this.formatCardMessage(webhookData);
@@ -480,84 +480,104 @@ class ChatClient {
    * Format detailed card message from webhook data
    * @private
    */
-  formatDetailedMessage(webhookData) {
-    const { event, object, user, company } = webhookData;
-    const timestamp = new Date().toISOString();
+  async formatDetailedMessage(webhookData, tenantId = null) {
+    // Get user's timezone
+    let userTimezone = 'UTC';
+    if (tenantId) {
+      try {
+        const quietHours = await getQuietHours(tenantId);
+        userTimezone = quietHours.timezone || 'UTC';
+      } catch (error) {
+        console.error('Error getting timezone:', error);
+      }
+    }
 
-    // Determine color based on event type
-    let color = '#4285f4'; // Default blue
-    if (event.includes('won')) color = '#34a853'; // Green
-    if (event.includes('lost')) color = '#ea4335'; // Red
-    if (event.includes('deleted')) color = '#fbbc04'; // Yellow
+    const { event, object, user, previous } = webhookData;
+    const objectType = object?.type || 'item';
+    const objectName = object?.name || object?.title || `${objectType} #${object?.id}`;
+    const userName = user?.name || 'Someone';
+    const value = object?.value ? `${object.currency || '$'}${object.value}` : null;
 
-    const card = {
-      header: {
-        title: `Pipedrive ${event.replace(/\./g, ' ').toUpperCase()}`,
-        subtitle: company?.name || 'Pipedrive Notification',
-        imageUrl: 'https://cdn.pipedrive.com/assets/icons/pipedrivelogo_108.png'
-      },
-      sections: [
-        {
-          widgets: [
-            {
-              keyValue: {
-                topLabel: 'Event',
-                content: event,
-                contentMultiline: false,
-                iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/event/v1/24px.svg'
-              }
-            },
-            {
-              keyValue: {
-                topLabel: 'Object',
-                content: `${object?.type || 'Unknown'}: ${object?.name || object?.title || object?.id}`,
-                contentMultiline: true
-              }
+    let message = '';
+    let emoji = '🔔';
+
+    // Enhanced detailed formatting for specific events
+    switch (event) {
+      case 'deal.won':
+        emoji = '🎉';
+        message = `${emoji} *Deal Won!* 🏆\n\n`;
+        message += `📋 *${objectName}*\n`;
+        if (value) message += `💰 *${value}*\n`;
+        if (object?.stage_id) message += `🎯 Stage: ${object.stage_id}\n`;
+        if (object?.probability) message += `📊 Probability: ${object.probability}%\n`;
+        message += `👤 Won by: *${userName}*\n`;
+        if (webhookData.timestamp) {
+          const timestamp = new Date(webhookData.timestamp);
+          message += `📅 ${timestamp.toLocaleString('en-US', { timeZone: userTimezone })}`;
+        }
+        break;
+
+      case 'deal.lost':
+        emoji = '📉';
+        message = `${emoji} *Deal Lost*\n\n`;
+        message += `📋 *${objectName}*\n`;
+        if (value) message += `💸 Lost value: *${value}*\n`;
+        if (object?.lost_reason) message += `📝 Reason: ${object.lost_reason}\n`;
+        if (object?.stage_id) message += `🎯 Stage: ${object.stage_id}\n`;
+        message += `👤 Updated by: *${userName}*\n`;
+        if (webhookData.timestamp) {
+          const timestamp = new Date(webhookData.timestamp);
+          message += `📅 ${timestamp.toLocaleString('en-US', { timeZone: userTimezone })}`;
+        }
+        break;
+
+      case 'deal.create':
+        emoji = '✨';
+        message = `${emoji} *New Deal Created*\n\n`;
+        message += `📋 *${objectName}*\n`;
+        if (value) message += `💰 *${value}*\n`;
+        if (object?.stage_id) message += `🎯 Stage: ${object.stage_id}\n`;
+        if (object?.probability) message += `📊 Probability: ${object.probability}%\n`;
+        message += `👤 Created by: *${userName}*\n`;
+        if (webhookData.timestamp) {
+          const timestamp = new Date(webhookData.timestamp);
+          message += `📅 ${timestamp.toLocaleString('en-US', { timeZone: userTimezone })}`;
+        }
+        break;
+
+      default:
+        // Enhanced detailed format for other events
+        let action = 'updated';
+        if (event.includes('create')) action = 'created';
+        if (event.includes('add')) action = 'added';
+        if (event.includes('delete')) action = 'deleted';
+
+        message = `🔔 *${userName}* ${action} ${objectType}: *${objectName}*\n\n`;
+        if (value) message += `💰 Value: *${value}*\n`;
+        if (object?.stage_id) message += `🎯 Stage: ${object.stage_id}\n`;
+        if (object?.probability) message += `📊 Probability: ${object.probability}%\n`;
+        
+        // Show changes if available
+        if (previous && Object.keys(previous).length > 0) {
+          message += `\n📝 *Changes:*\n`;
+          Object.entries(previous).forEach(([key, oldValue]) => {
+            const newValue = object?.[key];
+            if (newValue !== oldValue) {
+              message += `• ${key}: ${oldValue} → ${newValue}\n`;
             }
-          ]
+          });
         }
-      ]
+        
+        if (webhookData.timestamp) {
+          const timestamp = new Date(webhookData.timestamp);
+          message += `\n📅 ${timestamp.toLocaleString('en-US', { timeZone: userTimezone })}`;
+        }
+        break;
+    }
+
+    return {
+      text: message
     };
-
-    // Add user information if available
-    if (user?.name) {
-      card.sections[0].widgets.push({
-        keyValue: {
-          topLabel: 'User',
-          content: user.name,
-          contentMultiline: false,
-          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/person/v1/24px.svg'
-        }
-      });
-    }
-
-    // Add object-specific details
-    if (object?.value && object?.currency) {
-      card.sections[0].widgets.push({
-        keyValue: {
-          topLabel: 'Value',
-          content: `${object.currency} ${object.value}`,
-          contentMultiline: false,
-          iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/attach_money/v1/24px.svg'
-        }
-      });
-    }
-
-    // Add timestamp
-    card.sections.push({
-      widgets: [
-        {
-          keyValue: {
-            topLabel: 'Timestamp',
-            content: new Date(timestamp).toLocaleString(),
-            contentMultiline: false,
-            iconUrl: 'https://fonts.gstatic.com/s/i/materialicons/schedule/v1/24px.svg'
-          }
-        }
-      ]
-    });
-
-    return { cards: [card] };
   }
 
   /**
@@ -572,7 +592,13 @@ class ChatClient {
     let headerIcon = '🔔';
     let actionButtons = [];
     
-    if (event.includes('won')) {
+    if (event === 'deal.won') {
+      headerColor = '#34a853'; // Green
+      headerIcon = '🎉';
+    } else if (event === 'deal.lost') {
+      headerColor = '#ea4335'; // Red  
+      headerIcon = '📉';
+    } else if (event.includes('won')) {
       headerColor = '#34a853'; // Green
       headerIcon = '🎉';
     } else if (event.includes('lost')) {

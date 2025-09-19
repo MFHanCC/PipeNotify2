@@ -14,14 +14,16 @@ try {
 
 /**
  * Default quiet hours configuration
- * Note: timezone will be auto-detected by frontend, UTC is fallback only
+ * PRODUCTION: Quiet hours are DISABLED by default to ensure notifications are always sent
+ * Users must explicitly enable and configure quiet hours if they want them
  */
 const DEFAULT_QUIET_HOURS = {
   timezone: 'UTC', // Fallback only - frontend auto-detects user timezone
-  start_time: '18:00',  // 6 PM
-  end_time: '09:00',    // 9 AM next day
-  weekends_enabled: false,
-  holidays: []
+  start_time: '18:00',  // 6 PM (only used if explicitly enabled)
+  end_time: '09:00',    // 9 AM next day (only used if explicitly enabled)
+  weekends_enabled: true, // Allow weekend notifications by default
+  holidays: [],
+  enabled: false // CRITICAL: Quiet hours disabled by default
 };
 
 /**
@@ -53,6 +55,7 @@ async function getQuietHours(tenantId) {
       end_time: config.end_time || DEFAULT_QUIET_HOURS.end_time,
       weekends_enabled: config.weekends_enabled !== null ? config.weekends_enabled : DEFAULT_QUIET_HOURS.weekends_enabled,
       holidays: config.holidays || DEFAULT_QUIET_HOURS.holidays,
+      enabled: config.enabled !== null ? config.enabled : DEFAULT_QUIET_HOURS.enabled,
       configured: true
     };
     
@@ -133,11 +136,11 @@ async function isQuietTime(tenantId, checkTime = new Date()) {
   try {
     const config = await getQuietHours(tenantId);
     
-    if (!config.configured) {
-      // If no quiet hours configured, never in quiet time
+    if (!config.configured || !config.enabled) {
+      // If no quiet hours configured OR explicitly disabled, never in quiet time
       return {
         is_quiet: false,
-        reason: 'no_config',
+        reason: config.configured ? 'disabled' : 'no_config',
         next_allowed: null,
         config
       };

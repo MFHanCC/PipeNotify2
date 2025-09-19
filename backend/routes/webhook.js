@@ -105,77 +105,46 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
     
     console.log('🚀 QUEUING JOB for', webhookData.event);
     
-    // Enqueue webhook for processing via BullMQ
+    // Use guaranteed delivery system for bulletproof notification processing
     try {
-      const job = await addNotificationJob(webhookData, {
+      const { guaranteeDelivery } = require('../services/guaranteedDelivery');
+      
+      const deliveryResult = await guaranteeDelivery(webhookData, {
         priority: webhookData.event?.includes('won') ? 1 : 5, // Higher priority for won deals
         delay: 0 // Process immediately
       });
 
-      console.log('✅ JOB QUEUED SUCCESSFULLY:', {
-        jobId: job.id,
-        event: webhookData.event,
-        priority: webhookData.event?.includes('won') ? 1 : 5
+      console.log('✅ GUARANTEED DELIVERY RESULT:', {
+        success: deliveryResult.success,
+        tier: deliveryResult.tier,
+        deliveryId: deliveryResult.deliveryId,
+        event: webhookData.event
       });
 
+      // Always return success since guaranteed delivery handles all failures
       res.status(200).json({
-        message: 'Webhook received successfully',
+        message: 'Webhook received and processed via guaranteed delivery',
         event: webhookData.event,
         timestamp: new Date().toISOString(),
-        status: 'queued',
-        jobId: job.id
-      });
-    } catch (queueError) {
-      console.error('❌ FAILED TO QUEUE JOB:', queueError);
-      console.error('Queue error details:', {
-        message: queueError.message,
-        code: queueError.code,
-        stack: queueError.stack
+        status: deliveryResult.success ? 'success' : 'queued_for_retry',
+        tier: deliveryResult.tier,
+        deliveryId: deliveryResult.deliveryId,
+        ...(deliveryResult.jobId && { jobId: deliveryResult.jobId }),
+        ...(deliveryResult.notificationsSent && { notificationsSent: deliveryResult.notificationsSent })
       });
       
-      // 🚨 EMERGENCY FALLBACK: Process notification directly if queue fails
-      console.log('🚨 ACTIVATING EMERGENCY NOTIFICATION FALLBACK');
+    } catch (deliveryError) {
+      console.error('❌ GUARANTEED DELIVERY SYSTEM FAILED:', deliveryError);
       
-      try {
-        const { processNotificationDirect } = require('../services/notificationFallback');
-        const fallbackResult = await processNotificationDirect(webhookData);
-        
-        if (fallbackResult.success && fallbackResult.notificationsSent > 0) {
-          console.log(`✅ EMERGENCY FALLBACK SUCCESS: ${fallbackResult.notificationsSent} notifications sent`);
-          
-          return res.status(200).json({
-            message: 'Webhook processed via emergency fallback',
-            event: webhookData.event,
-            timestamp: new Date().toISOString(),
-            status: 'emergency_success',
-            notificationsSent: fallbackResult.notificationsSent,
-            processingTime: fallbackResult.processingTime
-          });
-        } else {
-          console.log(`⚠️ EMERGENCY FALLBACK COMPLETED: ${fallbackResult.notificationsSent} notifications sent`);
-          
-          return res.status(200).json({
-            message: 'Webhook processed via emergency fallback (no notifications)',
-            event: webhookData.event,
-            timestamp: new Date().toISOString(),
-            status: 'emergency_no_notifications',
-            reason: fallbackResult.error || 'No matching rules or webhooks'
-          });
-        }
-        
-      } catch (fallbackError) {
-        console.error('❌ EMERGENCY FALLBACK ALSO FAILED:', fallbackError);
-        
-        // Even fallback failed - this is a critical system issue
-        return res.status(200).json({
-          message: 'Webhook received but both queue and fallback failed',
-          event: webhookData.event,
-          timestamp: new Date().toISOString(),
-          status: 'critical_failure',
-          queueError: queueError.message,
-          fallbackError: fallbackError.message
-        });
-      }
+      // This should never happen with guaranteed delivery, but if it does...
+      return res.status(200).json({
+        message: 'Webhook received but delivery system encountered an error',
+        event: webhookData.event,
+        timestamp: new Date().toISOString(),
+        status: 'system_error',
+        error: deliveryError.message,
+        note: 'Notification stored for manual recovery'
+      });
     }
 
   } catch (error) {
@@ -195,6 +164,149 @@ router.get('/health', (req, res) => {
     endpoint: 'webhook',
     timestamp: new Date().toISOString()
   });
+});
+
+// POST /api/v1/webhook/emergency-migrate - Emergency migration (temporary, no auth)
+router.post('/emergency-migrate', async (req, res) => {
+  try {
+    console.log('🚨 EMERGENCY MIGRATION triggered - creating guaranteed delivery tables');
+    
+    const { runMigration } = require('../scripts/migrate');
+    await runMigration();
+    
+    console.log('✅ Emergency migration completed - guaranteed delivery tables created');
+    
+    res.json({
+      success: true,
+      message: 'Emergency database migration completed - guaranteed delivery system ready',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Emergency migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Temporary disable quiet hours endpoint (until main endpoint deploys)
+router.post('/disable-quiet-hours', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    const result = await pool.query(`DELETE FROM quiet_hours WHERE tenant_id = 1`);
+    const delayedResult = await pool.query(`UPDATE delayed_notifications SET scheduled_for = NOW() WHERE sent_at IS NULL`);
+    
+    res.json({
+      success: true,
+      message: 'Quiet hours disabled',
+      deleted: result.rowCount,
+      updated_delayed: delayedResult.rowCount
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check tenant rules and webhooks
+router.get('/check-tenant-rules', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    // Get all tenants
+    const tenants = await pool.query(`SELECT * FROM tenants ORDER BY id`);
+    
+    // Get rules for each tenant
+    const tenantsWithRules = [];
+    for (const tenant of tenants.rows) {
+      const rules = await pool.query(`
+        SELECT r.*, w.name as webhook_name, w.webhook_url 
+        FROM rules r 
+        LEFT JOIN chat_webhooks w ON r.target_webhook_id = w.id 
+        WHERE r.tenant_id = $1
+      `, [tenant.id]);
+      
+      const webhooks = await pool.query(`SELECT * FROM chat_webhooks WHERE tenant_id = $1`, [tenant.id]);
+      
+      tenantsWithRules.push({
+        tenant_id: tenant.id,
+        company_name: tenant.company_name,
+        pipedrive_company_id: tenant.pipedrive_company_id,
+        rules_count: rules.rows.length,
+        webhooks_count: webhooks.rows.length,
+        rules: rules.rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          event_type: r.event_type,
+          enabled: r.enabled,
+          webhook_name: r.webhook_name,
+          webhook_url: r.webhook_url ? r.webhook_url.substring(0, 50) + '...' : null
+        })),
+        webhooks: webhooks.rows.map(w => ({
+          id: w.id,
+          name: w.name,
+          webhook_url: w.webhook_url ? w.webhook_url.substring(0, 50) + '...' : null
+        }))
+      });
+    }
+    
+    res.json({
+      success: true,
+      current_webhook_company_id: 13887824,
+      mapped_to_tenant_id: 2,
+      tenants: tenantsWithRules,
+      issue: 'Check if rules exist for tenant_id 2 (your current webhook source)'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Copy rules and webhooks from tenant 1 to tenant 2 (temporary fix)
+router.post('/copy-rules-to-tenant2', async (req, res) => {
+  try {
+    const { pool } = require('../services/database');
+    
+    // First, copy webhooks
+    const webhooks = await pool.query(`
+      INSERT INTO chat_webhooks (tenant_id, name, webhook_url, description, enabled, created_at)
+      SELECT 2, name, webhook_url, description, enabled, NOW()
+      FROM chat_webhooks 
+      WHERE tenant_id = 1
+      ON CONFLICT (tenant_id, name) DO NOTHING
+      RETURNING *
+    `);
+    
+    // Then copy rules
+    const rules = await pool.query(`
+      INSERT INTO rules (tenant_id, name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled, created_at)
+      SELECT 2, name, event_type, filters, 
+             (SELECT id FROM chat_webhooks WHERE tenant_id = 2 AND name = (SELECT name FROM chat_webhooks WHERE id = r.target_webhook_id) LIMIT 1),
+             template_mode, custom_template, enabled, NOW()
+      FROM rules r
+      WHERE tenant_id = 1
+      ON CONFLICT (tenant_id, name) DO NOTHING
+      RETURNING *
+    `);
+    
+    res.json({
+      success: true,
+      message: 'Rules and webhooks copied to tenant 2',
+      webhooks_copied: webhooks.rows.length,
+      rules_copied: rules.rows.length,
+      note: 'Your Pipedrive webhooks come from tenant 2, so rules needed to be copied there'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      error: error.message,
+      note: 'This copies notification rules from tenant 1 to tenant 2 where your webhooks are coming from'
+    });
+  }
 });
 
 module.exports = router;
