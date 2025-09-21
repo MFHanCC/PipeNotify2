@@ -1,7 +1,7 @@
 // Pipedrive → Google Chat Integration API Service
 // Handles all backend communication for Railway-hosted API
 
-import { API_BASE_URL, checkBackendConnection, MOCK_DATA } from '../config/api';
+import { API_BASE_URL, checkBackendConnection } from '../config/api';
 import { getTenantId } from '../utils/auth';
 
 // Types for API responses
@@ -230,24 +230,13 @@ class ApiService {
   }
 
   async getWebhooks(): Promise<Array<{ id: string; name: string; webhook_url: string; description?: string }>> {
-    try {
-      const result = await this.safeRequest<{ webhooks: any[] }>('/api/v1/admin/webhooks', {}, { webhooks: MOCK_DATA.webhooks });
-      const webhooks = result.webhooks.map(webhook => ({
-        id: webhook.id.toString(),
-        name: webhook.name,
-        webhook_url: webhook.webhook_url,
-        description: webhook.description
-      }));
-      
-      // Filter out deleted webhooks for demo mode persistence
-      const deletedWebhookIds = this.getDeletedWebhookIds();
-      return webhooks.filter(webhook => !deletedWebhookIds.includes(webhook.id));
-    } catch (error) {
-      console.warn('Failed to load webhooks, using fallback data');
-      // Filter out deleted webhooks for demo mode persistence
-      const deletedWebhookIds = this.getDeletedWebhookIds();
-      return MOCK_DATA.webhooks.filter(webhook => !deletedWebhookIds.includes(webhook.id));
-    }
+    const result = await this.safeRequest<{ webhooks: any[] }>('/api/v1/admin/webhooks');
+    return result.webhooks.map(webhook => ({
+      id: webhook.id.toString(),
+      name: webhook.name,
+      webhook_url: webhook.webhook_url,
+      description: webhook.description
+    }));
   }
 
   async createWebhook(webhook: { name: string; webhook_url: string; description?: string }): Promise<any> {
@@ -302,26 +291,21 @@ class ApiService {
 
   // Rules management
   async getRules(): Promise<NotificationRule[]> {
-    try {
-      const result = await this.safeRequest<{ rules: any[] }>('/api/v1/admin/rules', {}, { rules: MOCK_DATA.rules });
-      
-      // Transform backend format to frontend format
-      return result.rules.map(rule => ({
-        id: rule.id.toString(),
-        name: rule.name,
-        eventType: rule.event_type || rule.eventType,
-        templateMode: (rule.template_mode || rule.templateMode) === 'detailed' ? 'detailed' : 'compact',
-        targetSpace: rule.webhook_name || rule.targetSpace || `Webhook ${rule.target_webhook_id}`,
-        filters: typeof rule.filters === 'string' ? JSON.parse(rule.filters) : rule.filters,
-        enabled: rule.enabled,
-        lastTriggered: rule.updated_at || rule.lastTriggered,
-        successRate: rule.successRate || 95, // Mock for now, will be calculated from logs
-        createdAt: rule.created_at || rule.createdAt
-      }));
-    } catch (error) {
-      console.warn('Failed to load rules, using fallback data');
-      return MOCK_DATA.rules;
-    }
+    const result = await this.safeRequest<{ rules: any[] }>('/api/v1/admin/rules');
+    
+    // Transform backend format to frontend format
+    return result.rules.map(rule => ({
+      id: rule.id.toString(),
+      name: rule.name,
+      eventType: rule.event_type || rule.eventType,
+      templateMode: (rule.template_mode || rule.templateMode) === 'detailed' ? 'detailed' : 'compact',
+      targetSpace: rule.webhook_name || rule.targetSpace || `Webhook ${rule.target_webhook_id}`,
+      filters: typeof rule.filters === 'string' ? JSON.parse(rule.filters) : rule.filters,
+      enabled: rule.enabled,
+      lastTriggered: rule.updated_at || rule.lastTriggered,
+      successRate: rule.successRate || 95, // Will be calculated from logs
+      createdAt: rule.created_at || rule.createdAt
+    }));
   }
 
   async createRule(rule: Omit<NotificationRule, 'id' | 'createdAt' | 'lastTriggered' | 'successRate'>): Promise<NotificationRule> {
@@ -391,7 +375,7 @@ class ApiService {
 
   // Dashboard data
   async getDashboardStats(range: string = '7d'): Promise<DashboardStats> {
-    return this.safeRequest<DashboardStats>('/api/v1/admin/stats', {}, MOCK_DATA.stats);
+    return this.safeRequest<DashboardStats>('/api/v1/admin/stats');
   }
 
   // Logs management
@@ -411,14 +395,7 @@ class ApiService {
       if (params?.rule && params.rule !== 'all') searchParams.append('rule', params.rule);
       if (params?.range) searchParams.append('range', params.range);
 
-      const fallbackResult = {
-        logs: MOCK_DATA.logs,
-        total: MOCK_DATA.logs.length,
-        page: 1,
-        has_more: false
-      };
-
-      const result = await this.safeRequest<{ logs: any[]; total: number; page: number; has_more: boolean }>(`/api/v1/admin/logs?${searchParams}`, {}, fallbackResult);
+      const result = await this.safeRequest<{ logs: any[]; total: number; page: number; has_more: boolean }>(`/api/v1/admin/logs?${searchParams}`);
       
       // Transform backend format to frontend format
       return {
@@ -438,10 +415,10 @@ class ApiService {
         hasMore: result.has_more
       };
     } catch (error) {
-      console.warn('Failed to load logs, using fallback data');
+      console.warn('Failed to load logs');
       return {
-        logs: MOCK_DATA.logs,
-        total: MOCK_DATA.logs.length,
+        logs: [],
+        total: 0,
         page: 1,
         hasMore: false
       };

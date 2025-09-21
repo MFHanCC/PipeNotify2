@@ -13,7 +13,7 @@ const FREE_TIER_RULES = [
     event_type: 'deal.won', 
     template_mode: 'simple',
     filters: {},
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Get notified when deals are won to celebrate success',
     category: 'outcomes',
     priority: 1
@@ -23,7 +23,7 @@ const FREE_TIER_RULES = [
     event_type: 'deal.lost',
     template_mode: 'simple', 
     filters: {},
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Track lost opportunities for learning and improvement',
     category: 'outcomes',
     priority: 2
@@ -33,7 +33,7 @@ const FREE_TIER_RULES = [
     event_type: 'deal.create',
     template_mode: 'simple',
     filters: {},
-    enabled: true, 
+    enabled: false, // Default disabled, user can enable
     description: 'Get alerted when new opportunities enter your pipeline',
     category: 'pipeline',
     priority: 3
@@ -41,21 +41,11 @@ const FREE_TIER_RULES = [
 ];
 
 /**
- * Starter Tier: 7 rules adding deal progression and value filtering
- * Focus: Pipeline management and high-value opportunity tracking
+ * Starter Tier: 5 default rule templates (same as Free but 2 additional)
+ * Focus: Pipeline management and value filtering
  */
 const STARTER_TIER_RULES = [
   ...FREE_TIER_RULES,
-  {
-    name: '📝 Deal Updated',
-    event_type: 'deal.change',
-    template_mode: 'simple',
-    filters: {},
-    enabled: true,
-    description: 'Get notified when deals are modified or updated',
-    category: 'pipeline',
-    priority: 4
-  },
   {
     name: '📊 Deal Stage Changed',
     event_type: 'deal.update',
@@ -63,10 +53,10 @@ const STARTER_TIER_RULES = [
     filters: {
       stage_change_required: true
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Track when deals move through your pipeline stages',
     category: 'progression',
-    priority: 5
+    priority: 4
   },
   {
     name: '💎 High-Value Deal Alert',
@@ -75,22 +65,10 @@ const STARTER_TIER_RULES = [
     filters: {
       value_min: 10000
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Special attention for deals worth $10,000 or more',
     category: 'value',
-    priority: 6
-  },
-  {
-    name: '📧 Deal Owner Changed',
-    event_type: 'deal.update',
-    template_mode: 'simple',
-    filters: {
-      owner_change_required: true
-    },
-    enabled: true,
-    description: 'Get notified when deal ownership changes',
-    category: 'pipeline',
-    priority: 7
+    priority: 5
   }
 ];
 
@@ -107,7 +85,7 @@ const PRO_TIER_RULES = [
     filters: {
       days_inactive: 7
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: "Get alerted when deals haven't been updated in 7+ days",
     category: 'health',
     priority: 8
@@ -120,7 +98,7 @@ const PRO_TIER_RULES = [
       close_date_within_days: 7,
       status: 'open'
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Remind you when deal close dates are approaching',
     category: 'timing',
     priority: 9
@@ -132,7 +110,7 @@ const PRO_TIER_RULES = [
     filters: {
       entity_type: 'deal'
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Get notified when notes are added to deals',
     category: 'pipeline',
     priority: 10
@@ -144,7 +122,7 @@ const PRO_TIER_RULES = [
     filters: {
       value_change_required: true
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Track when deal values are modified',
     category: 'value',
     priority: 11
@@ -156,7 +134,7 @@ const PRO_TIER_RULES = [
     filters: {
       probability_change_required: true
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: 'Monitor changes in deal win probability',
     category: 'progression',
     priority: 12

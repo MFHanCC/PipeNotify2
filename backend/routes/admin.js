@@ -3,6 +3,7 @@ const router = express.Router();
 const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getWebhooks, createWebhook, pool } = require('../services/database');
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
+const { checkResourceLimit } = require('../middleware/featureGating');
 const { createRoutingRules } = require('../services/channelRouter');
 const { getQuietHours } = require('../services/quietHours');
 
@@ -903,7 +904,7 @@ router.get('/rules', authenticateToken, async (req, res) => {
 });
 
 // POST /api/v1/admin/rules - Create new rule
-router.post('/rules', authenticateToken, async (req, res) => {
+router.post('/rules', authenticateToken, checkResourceLimit('rules'), async (req, res) => {
   try {
     const { name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled } = req.body;
     const tenantId = req.tenantId;
@@ -913,20 +914,6 @@ router.post('/rules', authenticateToken, async (req, res) => {
       return res.status(400).json({
         error: 'Missing required fields',
         required: ['name', 'event_type', 'target_webhook_id']
-      });
-    }
-
-    // Check plan limits before creating rule
-    const { getUsageStatistics } = require('../middleware/quotaEnforcement');
-    const usage = await getUsageStatistics(tenantId);
-    
-    if (usage.rules.current_count >= usage.rules.limit) {
-      return res.status(403).json({
-        error: 'Rule limit exceeded',
-        message: `Your ${usage.plan_name} plan allows ${usage.rules.limit} rules maximum. You currently have ${usage.rules.current_count} rules.`,
-        current_count: usage.rules.current_count,
-        limit: usage.rules.limit,
-        plan_name: usage.plan_name
       });
     }
 
