@@ -2294,16 +2294,39 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
       force: force
     });
 
+    // Enhanced debugging: Check database state before provisioning
+    console.log('🔍 Debugging tenant state before provisioning...');
+    
+    // Check if tenant exists
+    const tenantCheck = await pool.query('SELECT id, company_name FROM tenants WHERE id = $1', [tenantId]);
+    console.log('📊 Tenant check:', tenantCheck.rows);
+    
+    // Check existing webhooks
+    const webhookCheck = await pool.query('SELECT id, name, is_active FROM chat_webhooks WHERE tenant_id = $1', [tenantId]);
+    console.log('🔗 Webhooks check:', webhookCheck.rows);
+    
+    // Check existing rules (all types)
+    const rulesCheck = await pool.query('SELECT id, name, is_default, enabled FROM rules WHERE tenant_id = $1', [tenantId]);
+    console.log('📋 Rules check:', rulesCheck.rows);
+
     const { provisionDefaultRules, getProvisioningStatus } = require('../services/ruleProvisioning');
 
     // Get current status first
+    console.log('🔄 Getting provisioning status...');
     const currentStatus = await getProvisioningStatus(tenantId);
+    console.log('📊 Provisioning status result:', currentStatus);
     
     if (currentStatus.error) {
+      console.error('❌ Provisioning status error:', currentStatus.error);
       return res.status(500).json({
         success: false,
         error: 'Failed to get provisioning status',
-        details: currentStatus.error
+        details: currentStatus.error,
+        debug_info: {
+          tenant: tenantCheck.rows,
+          webhooks: webhookCheck.rows,
+          rules: rulesCheck.rows
+        }
       });
     }
 
