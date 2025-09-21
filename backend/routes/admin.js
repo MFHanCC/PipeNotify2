@@ -891,6 +891,63 @@ router.post('/system/upgrade-to-team', async (req, res) => {
   }
 });
 
+// Debug endpoint to check database schema (no auth for debugging)
+router.get('/debug/schema', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking database schema...');
+    
+    // Check if is_default column exists in rules table
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check if rule_provisioning_log table exists
+    const tablesResult = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name LIKE '%provisioning%'
+    `);
+    
+    // Test a simple query on rules table
+    const rulesCount = await pool.query('SELECT COUNT(*) as count FROM rules');
+    
+    // Try to test the specific query that's failing (use tenant_id 1 for testing)
+    let isDefaultTest = null;
+    try {
+      const testQuery = await pool.query(`
+        SELECT COUNT(*) as total_rules
+        FROM rules 
+        WHERE tenant_id = $1 AND is_default = true
+      `, [1]);
+      isDefaultTest = { success: true, count: testQuery.rows[0].total_rules };
+    } catch (error) {
+      isDefaultTest = { success: false, error: error.message };
+    }
+    
+    res.json({
+      success: true,
+      schema_check: {
+        rules_columns: columnsResult.rows,
+        provisioning_tables: tablesResult.rows,
+        total_rules: rulesCount.rows[0].count,
+        is_default_test: isDefaultTest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Debug schema check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Schema check failed',
+      details: error.message
+    });
+  }
+});
+
 // SECURITY FIX: Apply authentication to ALL production admin routes (moved from below)
 router.use(authenticateToken);
 
@@ -2787,63 +2844,6 @@ router.post('/run-migration', async (req, res) => {
       success: false,
       error: error.message,
       timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Debug endpoint to check database schema (temporarily no auth for debugging)
-router.get('/debug/schema', async (req, res) => {
-  try {
-    console.log('🔍 Debug: Checking database schema...');
-    
-    // Check if is_default column exists in rules table
-    const columnsResult = await pool.query(`
-      SELECT column_name, data_type, is_nullable, column_default
-      FROM information_schema.columns 
-      WHERE table_name = 'rules' 
-      ORDER BY ordinal_position
-    `);
-    
-    // Check if rule_provisioning_log table exists
-    const tablesResult = await pool.query(`
-      SELECT table_name
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      AND table_name LIKE '%provisioning%'
-    `);
-    
-    // Test a simple query on rules table
-    const rulesCount = await pool.query('SELECT COUNT(*) as count FROM rules');
-    
-    // Try to test the specific query that's failing (use tenant_id 1 for testing)
-    let isDefaultTest = null;
-    try {
-      const testQuery = await pool.query(`
-        SELECT COUNT(*) as total_rules
-        FROM rules 
-        WHERE tenant_id = $1 AND is_default = true
-      `, [1]);
-      isDefaultTest = { success: true, count: testQuery.rows[0].total_rules };
-    } catch (error) {
-      isDefaultTest = { success: false, error: error.message };
-    }
-    
-    res.json({
-      success: true,
-      schema_check: {
-        rules_columns: columnsResult.rows,
-        provisioning_tables: tablesResult.rows,
-        total_rules: rulesCount.rows[0].count,
-        is_default_test: isDefaultTest
-      }
-    });
-    
-  } catch (error) {
-    console.error('Debug schema check failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Schema check failed',
-      details: error.message
     });
   }
 });
