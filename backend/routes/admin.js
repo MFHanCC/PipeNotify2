@@ -7,10 +7,26 @@ const { checkResourceLimit } = require('../middleware/featureGating');
 const { createRoutingRules } = require('../services/channelRouter');
 const { getQuietHours } = require('../services/quietHours');
 
-// DEBUG ENDPOINTS - No auth required
+// Security middleware for debug endpoints
+const requireDebugAccess = (req, res, next) => {
+  // In production, always require authentication
+  if (process.env.NODE_ENV === 'production') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // In development, only require auth if debug endpoints are disabled
+  if (process.env.ENABLE_DEBUG_ENDPOINTS !== 'true') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // Allow access in development when debug is explicitly enabled
+  next();
+};
+
+// DEBUG ENDPOINTS - Secured with conditional auth
 
 // Debug timezone for tenant
-router.get('/debug/timezone/:tenantId', async (req, res) => {
+router.get('/debug/timezone/:tenantId', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.params.tenantId || 1;
     const quietHours = await getQuietHours(tenantId);
@@ -30,7 +46,7 @@ router.get('/debug/timezone/:tenantId', async (req, res) => {
 });
 
 // Debug timezone for default tenant (no params)
-router.get('/debug/timezone', async (req, res) => {
+router.get('/debug/timezone', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = 1; // Default to tenant 1
     const quietHours = await getQuietHours(tenantId);
@@ -84,7 +100,7 @@ router.post('/timezone/save', authenticateToken, async (req, res) => {
 });
 
 // Debug: Set timezone for tenant
-router.post('/debug/set-timezone', async (req, res) => {
+router.post('/debug/set-timezone', requireDebugAccess, async (req, res) => {
   try {
     const { tenantId = 1, timezone = 'UTC' } = req.body;
     const { setQuietHours } = require('../services/quietHours');
@@ -103,7 +119,7 @@ router.post('/debug/set-timezone', async (req, res) => {
 });
 
 // Clean up test data for current user
-router.post('/debug/cleanup-test-data', async (req, res) => {
+router.post('/debug/cleanup-test-data', requireDebugAccess, async (req, res) => {
   try {
     const { user_id, company_id } = req.body;
     
@@ -171,7 +187,7 @@ router.post('/debug/cleanup-test-data', async (req, res) => {
   }
 });
 
-router.post('/debug/fix-tenant-rules', async (req, res) => {
+router.post('/debug/fix-tenant-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🔍 DEBUG: Checking tenant and rules state...');
     
@@ -285,7 +301,7 @@ router.post('/debug/fix-tenant-rules', async (req, res) => {
 });
 
 // DEBUG ENDPOINT - Create missing rules and fix webhook assignment
-router.post('/debug/create-missing-rules', async (req, res) => {
+router.post('/debug/create-missing-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🔧 DEBUG: Creating missing rules for tenant 2...');
     
@@ -398,7 +414,7 @@ router.post('/debug/create-missing-rules', async (req, res) => {
 });
 
 // DEBUG ENDPOINT - Create comprehensive notification rules
-router.post('/debug/create-comprehensive-rules', async (req, res) => {
+router.post('/debug/create-comprehensive-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🎯 DEBUG: Creating comprehensive notification rules...');
     
@@ -569,7 +585,7 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
 });
 
 // Debug endpoint to create test log entries
-router.post('/debug/create-test-logs', async (req, res) => {
+router.post('/debug/create-test-logs', requireDebugAccess, async (req, res) => {
   try {
     const { tenant_id } = req.body;
     const testTenantId = tenant_id || 2; // Default to tenant 2 for testing
@@ -622,7 +638,7 @@ router.post('/debug/create-test-logs', async (req, res) => {
 });
 
 // Debug endpoint to check rules and events
-router.get('/debug/rules', async (req, res) => {
+router.get('/debug/rules', requireDebugAccess, async (req, res) => {
   try {
     const rules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, event_type');
     const webhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id');
@@ -1967,7 +1983,7 @@ router.post('/stalled-deals/run', authenticateToken, async (req, res) => {
 
 // DEBUG: Test complete Pipedrive to Google Chat pipeline
 // Comprehensive pipeline diagnostics
-router.post('/debug/pipeline-diagnosis', async (req, res) => {
+router.post('/debug/pipeline-diagnosis', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant?.id || 2;
     const diagnosis = {
@@ -2143,7 +2159,7 @@ router.post('/debug/pipeline-diagnosis', async (req, res) => {
   }
 });
 
-router.post('/debug/test-full-pipeline', async (req, res) => {
+router.post('/debug/test-full-pipeline', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant?.id || 2; // Default to tenant 2 for testing
     
@@ -2617,7 +2633,7 @@ router.post('/emergency/fix-data', async (req, res) => {
 });
 
 // DEBUG: Direct database inspection to understand the PostgreSQL casting issue
-router.get('/debug/database-state', async (req, res) => {
+router.get('/debug/database-state', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     console.log('🔍 DEBUG: Inspecting database state for tenant:', tenantId);

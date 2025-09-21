@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 require('dotenv').config();
 
@@ -57,24 +58,62 @@ app.use(helmet({
 const allowedOrigins = [
   process.env.FRONTEND_URL, // Production frontend URL
   ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []), // Development only
+  // Specific Vercel deployment URLs only
+  'https://pipenotify-frontend.vercel.app',
+  'https://pipenotify-frontend-git-development-mfhanccs.vercel.app'
 ].filter(Boolean); // Remove any undefined values
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // In production, be strict about origins
+    if (process.env.NODE_ENV === 'production' && !origin) {
+      return callback(new Error('No origin header - blocked in production'));
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1 || 
-        (origin && origin.includes('vercel.app'))) {
+    // In development, allow no origin for testing
+    if (process.env.NODE_ENV !== 'production' && !origin) {
       return callback(null, true);
     }
     
-    callback(new Error('Not allowed by CORS'));
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    console.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Rate limiting for security
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Stricter rate limiting for admin and debug endpoints
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 20 : 100, // Very restrictive in production
+  message: {
+    error: 'Too many admin requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  }
+});
+
+app.use('/api/v1/admin', adminLimiter);
+app.use('/health', adminLimiter);
 
 // Raw body preservation for webhook signature validation
 app.use('/api/v1/webhook', express.raw({ type: 'application/json' }));
