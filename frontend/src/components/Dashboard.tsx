@@ -516,7 +516,14 @@ const Dashboard: React.FC = React.memo(() => {
         console.log('✅ Provisioning result:', result);
         
         if (result.rules_created > 0) {
-          alert(`✅ Success! Created ${result.rules_created} basic rules:\n${missingRules.map(type => `• ${type.replace('deal.', '').replace('added', 'New Deal').replace(/\b\w/g, l => l.toUpperCase())}`).join('\n')}\n\nYou can customize the name, target chat, and message format. For advanced filtering, upgrade to Starter plan.`);
+          let successMessage = `✅ Success! Created ${result.rules_created} default rules`;
+          
+          if (result.used_fallback) {
+            successMessage += `\n\n🔧 Note: Used ${result.effective_plan_tier} tier fallback due to subscription service being temporarily unavailable.`;
+          }
+          
+          successMessage += `\n\nYou can now customize these rules in the Rules section.`;
+          alert(successMessage);
         } else {
           alert(`📋 Default rules already exist. Found ${result.status?.default_rules_count || rules.length} existing rules.`);
         }
@@ -537,11 +544,11 @@ const Dashboard: React.FC = React.memo(() => {
           let friendlyMessage = errorMessage;
           
           if (errorMessage.includes('provisioning status') || errorMessage.includes('getProvisioningStatus')) {
-            friendlyMessage = 'Subscription service temporarily unavailable. Your rules will still be created using free tier defaults.';
+            friendlyMessage = 'Subscription service temporarily unavailable. Your rules will still be created using starter tier defaults (5 rules minimum).';
           } else if (errorMessage.includes('webhook') || errorMessage.includes('Google Chat')) {
             friendlyMessage = 'No Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.';
           } else if (errorMessage.includes('subscription') || errorMessage.includes('billing')) {
-            friendlyMessage = 'Billing service temporarily unavailable. Your rules will be created using free tier defaults.';
+            friendlyMessage = 'Billing service temporarily unavailable. Your rules will be created using starter tier defaults (5 rules minimum).';
           }
           
           alert(`❌ Default Rules Setup: ${friendlyMessage}`);

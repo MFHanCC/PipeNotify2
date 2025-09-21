@@ -2375,7 +2375,8 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
       currentStatus = await getProvisioningStatus(tenantId);
       console.log('📊 Provisioning status result:', currentStatus);
       
-      if (currentStatus.error) {
+      // Only throw if the error indicates a complete failure, not fallback mode
+      if (currentStatus.error && !currentStatus.fallback_mode && !currentStatus.fallback) {
         throw new Error(currentStatus.error);
       }
       
@@ -2444,11 +2445,19 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
     );
 
     if (result.success) {
+      // Check if we used fallback mode and adjust the message
+      let message = `Successfully provisioned ${result.rules_created} default rules`;
+      if (currentStatus.fallback_mode || currentStatus.fallback || currentStatus.inferred_from_rules) {
+        message += ` (using intelligent fallback: ${effectivePlanTier} tier)`;
+      }
+      
       res.json({
         success: true,
-        message: `Successfully provisioned ${result.rules_created} default rules`,
+        message: message,
         ...result,
-        previous_status: currentStatus
+        previous_status: currentStatus,
+        used_fallback: !!(currentStatus.fallback_mode || currentStatus.fallback || currentStatus.inferred_from_rules),
+        effective_plan_tier: effectivePlanTier
       });
     } else {
       res.status(500).json({

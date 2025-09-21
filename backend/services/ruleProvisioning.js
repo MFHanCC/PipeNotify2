@@ -31,10 +31,28 @@ async function provisionDefaultRules(tenantId, planTier = null, provisioningType
     if (!planTier) {
       try {
         const subscription = await getSubscription(tenantId);
-        planTier = subscription.plan_tier || 'free';
+        planTier = subscription.plan_tier || 'starter';
       } catch (error) {
-        console.warn(`Could not get subscription for tenant ${tenantId}, defaulting to free tier`);
-        planTier = 'free';
+        console.warn(`Could not get subscription for tenant ${tenantId}, using intelligent fallback`);
+        
+        // Try to infer plan from existing rules before defaulting
+        try {
+          const existingRulesQuery = await client.query('SELECT COUNT(*) as count FROM rules WHERE tenant_id = $1', [tenantId]);
+          const existingRulesCount = parseInt(existingRulesQuery.rows[0].count || 0);
+          
+          if (existingRulesCount >= 10) {
+            planTier = 'pro';
+          } else if (existingRulesCount >= 5) {
+            planTier = 'starter';
+          } else {
+            planTier = 'starter'; // Default to starter instead of free
+          }
+          
+          console.log(`🎯 Inferred plan '${planTier}' from ${existingRulesCount} existing rules`);
+        } catch (inferError) {
+          console.warn(`Could not infer plan from rules, defaulting to starter tier`);
+          planTier = 'starter';
+        }
       }
     }
 
