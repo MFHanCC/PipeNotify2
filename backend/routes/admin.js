@@ -2368,33 +2368,33 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
 
     const { provisionDefaultRules, getProvisioningStatus } = require('../services/ruleProvisioning');
 
-    // Get current status first
+    // Get current status first (with fallback if it fails)
     console.log('🔄 Getting provisioning status...');
-    const currentStatus = await getProvisioningStatus(tenantId);
-    console.log('📊 Provisioning status result:', currentStatus);
-    
-    if (currentStatus.error) {
-      console.error('❌ Provisioning status error:', currentStatus.error);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to get provisioning status',
-        details: currentStatus.error,
-        debug_info: {
-          tenant: tenantCheck.rows,
-          webhooks: webhookCheck.rows,
-          rules: rulesCheck.rows
-        }
-      });
-    }
-
-    // Check if provisioning is needed (unless forced)
-    if (!force && !currentStatus.needs_provisioning) {
-      return res.json({
-        success: true,
-        message: 'Default rules already provisioned',
-        status: currentStatus,
-        rules_created: 0
-      });
+    let currentStatus;
+    try {
+      currentStatus = await getProvisioningStatus(tenantId);
+      console.log('📊 Provisioning status result:', currentStatus);
+      
+      if (currentStatus.error) {
+        throw new Error(currentStatus.error);
+      }
+      
+      // Check if provisioning is needed (unless forced)
+      if (!force && !currentStatus.needs_provisioning) {
+        return res.json({
+          success: true,
+          message: 'Default rules already provisioned',
+          status: currentStatus,
+          rules_created: 0
+        });
+      }
+    } catch (statusError) {
+      console.warn('⚠️ Provisioning status check failed, proceeding with provisioning:', statusError.message);
+      currentStatus = {
+        error: statusError.message,
+        needs_provisioning: true,
+        note: 'Status check bypassed due to schema issues'
+      };
     }
 
     // Provision rules
