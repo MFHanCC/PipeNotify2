@@ -417,6 +417,13 @@ const Dashboard: React.FC = React.memo(() => {
     try {
       console.log('🚀 Provisioning default rules...');
       
+      // Check if user is authenticated first
+      const authToken = getAuthToken();
+      if (!authToken) {
+        alert('🔐 Authentication Required\n\nYou need to be logged in to add default rules.\nPlease connect to Pipedrive first.');
+        return;
+      }
+      
       // Check current rules to see what's missing
       const currentEventTypes = rules.map(rule => rule.eventType);
       
@@ -473,6 +480,12 @@ const Dashboard: React.FC = React.memo(() => {
         return;
       }
       
+      // Check if user has webhooks configured
+      if (availableWebhooks.length === 0) {
+        alert('🔗 Webhook Required\n\nYou need to configure at least one Google Chat webhook before adding default rules.\nPlease add a webhook first in the Webhooks tab.');
+        return;
+      }
+      
       // Production mode - call backend API
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/provision-default-rules`, {
         method: 'POST',
@@ -496,11 +509,31 @@ const Dashboard: React.FC = React.memo(() => {
         loadDashboardData(); // Refresh the rules list
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`❌ Failed to provision default rules: ${errorData.message || 'Unknown error'}`);
+        const errorMessage = errorData.message || errorData.error || `HTTP ${response.status} error`;
+        
+        if (response.status === 401) {
+          alert('🔐 Authentication Failed\n\nYour session has expired. Please refresh the page and reconnect to Pipedrive.');
+        } else if (response.status === 403) {
+          alert('🚫 Permission Denied\n\nYou don\'t have permission to create default rules. Please contact support if this continues.');
+        } else if (response.status === 404) {
+          alert('❌ Service Not Found\n\nThe default rules service is not available. Please try again later or contact support.');
+        } else {
+          alert(`❌ Failed to provision default rules: ${errorMessage}`);
+        }
       }
     } catch (err) {
       console.error('Error provisioning default rules:', err);
-      alert('❌ Failed to provision default rules. Check console for details.');
+      
+      if (err instanceof Error && err.message === 'Authentication failed') {
+        alert('🔐 Authentication Required\n\nYour session has expired. The page will reload to reconnect.');
+        // The authenticatedFetch already redirects, but add a small delay for the alert
+        setTimeout(() => window.location.reload(), 2000);
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        alert('🌐 Network Error\n\nCannot reach the server. Please check your internet connection and try again.');
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Please try again later or contact support.';
+        alert(`❌ Unexpected Error\n\n${errorMessage}`);
+      }
     }
   };
 
