@@ -511,7 +511,7 @@ const Dashboard: React.FC = React.memo(() => {
       enabled: rule.enabled,
       event_type: rule.eventType,
       template_mode: rule.templateMode,
-      target_webhook_id: webhooks[0]?.id || '', // Use first available webhook
+      target_webhook_id: availableWebhooks[0]?.id || '', // Use first available webhook
       filters: rule.filters || {}
     });
   };
