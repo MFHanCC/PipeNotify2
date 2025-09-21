@@ -273,24 +273,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
           throw new Error('Backend not available');
         }
       } catch (healthError) {
-        console.log('🧪 Backend offline, using demo mode for webhook creation');
-        
-        // In demo mode, simulate webhook creation
-        const mockWebhook = {
-          id: `mock-webhook-${Date.now()}`,
-          name: webhookFormData.name || 'Demo Webhook',
-          webhook_url: webhookFormData.webhook_url || 'https://chat.googleapis.com/v1/spaces/DEMO/messages',
-          description: webhookFormData.description || 'Demo webhook for offline mode',
-          created_at: new Date().toISOString()
-        };
-        
-        // Add to local webhooks state
-        setWebhooks(prev => [...prev, mockWebhook]);
-        setRuleFormData(prev => ({ ...prev, target_webhook_id: mockWebhook.id }));
-        
-        // Show success message
-        alert('✅ Demo webhook created successfully! (Backend offline - this is a simulation)');
-        return true;
+        console.error('Backend not available for webhook creation');
+        alert('❌ Backend service is offline. Please ensure the backend is running to create webhooks.');
+        return false;
       }
       
       // Backend is available, proceed with normal creation
@@ -365,14 +350,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
           throw new Error('Backend not available');
         }
       } catch (healthError) {
-        console.log('🧪 Backend offline, simulating test notification');
-        
-        // In demo mode, simulate successful test
+        console.error('Backend not available for testing webhook');
         setTestResult({
-          success: true,
-          message: '✅ Demo test notification simulated successfully! (Backend offline - this would normally send to your Google Chat)'
+          success: false,
+          message: '❌ Backend service is offline. Cannot test webhook at this time.'
         });
-        return true;
+        return false;
       }
 
       // Backend is available, proceed with actual test
@@ -480,9 +463,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
                 <p>To get started, we need to connect to your Pipedrive account to access deal and activity data.</p>
                 
                 {!isCheckingConnection && !isPipedriveConnected && (
-                  <div className="demo-mode-notice">
-                    <div className="demo-badge">🧪 Demo Mode</div>
-                    <p><em>Backend is offline. You can proceed to explore the demo dashboard, or set up the backend to connect to Pipedrive.</em></p>
+                  <div className="connection-notice">
+                    <p><em>Please ensure the backend service is running and connect to Pipedrive to continue.</em></p>
                   </div>
                 )}
                 
@@ -860,9 +842,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       case 'welcome':
         return true; // Welcome step can always proceed
       case 'pipedrive':
-        // Allow proceeding if Pipedrive is connected OR if we're in demo mode
-        // Demo mode: when connection check is done and no token exists (backend offline)
-        return isPipedriveConnected || (!isCheckingConnection && !isPipedriveConnected);
+        // Only allow proceeding if Pipedrive is properly connected
+        return isPipedriveConnected;
       case 'webhook':
         return webhooks.length > 0 || (webhookFormData.name && webhookFormData.webhook_url);
       case 'test':
