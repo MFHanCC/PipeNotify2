@@ -253,223 +253,225 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
   };
 
   const renderSettingsTab = () => (
-    <div className="stalled-settings">
-      <div className="settings-hero">
-        <h2>⚙️ Stalled Deal Settings</h2>
-        <p>Configure automated monitoring for deals with no recent activity</p>
-      </div>
-      
-      <div className="settings-layout">
-        <div className="settings-main">
-          <div className="settings-grid">
-            <div className="settings-category compact">
-              <h4>🔄 Monitoring</h4>
-              <div className="setting-item compact">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={settings.enabled}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      enabled: e.target.checked
-                    })}
-                  />
-                  <span>Enable monitoring</span>
-                </label>
-              </div>
-              <div className="setting-item compact">
-                <label htmlFor="alert-channel">Alert channel</label>
-                <select
-                  id="alert-channel"
-                  className="form-select compact"
-                  value={settings.alertChannel || ''}
+    <div className="stalled-settings-compact">
+      <div className="settings-main-grid">
+        {/* Settings Form */}
+        <div className="settings-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={settings.enabled}
                   onChange={(e) => setSettings({
                     ...settings,
-                    alertChannel: e.target.value || undefined
+                    enabled: e.target.checked
                   })}
-                >
-                  <option value="">Select channel</option>
-                  {webhooks.filter(w => w.is_active).map(webhook => (
-                    <option key={webhook.id} value={webhook.id}>
-                      {webhook.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                />
+                <span>🔄 Enable Monitoring</span>
+              </label>
             </div>
-
-            <div className="settings-category compact">
-              <h4>⏱️ Thresholds</h4>
-              <div className="setting-item compact">
-                <label htmlFor="warning-days">Warning (days)</label>
-                <input
-                  id="warning-days"
-                  type="number"
-                  min="1"
-                  max="30"
-                  className="form-input compact"
-                  value={settings.thresholds.warning}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    thresholds: {
-                      ...settings.thresholds,
-                      warning: parseInt(e.target.value) || 3
-                    }
-                  })}
-                />
-              </div>
-              <div className="setting-item compact">
-                <label htmlFor="stale-days">Stale (days)</label>
-                <input
-                  id="stale-days"
-                  type="number"
-                  min="1"
-                  max="30"
-                  className="form-input compact"
-                  value={settings.thresholds.stale}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    thresholds: {
-                      ...settings.thresholds,
-                      stale: parseInt(e.target.value) || 7
-                    }
-                  })}
-                />
-              </div>
-              <div className="setting-item compact">
-                <label htmlFor="critical-days">Critical (days)</label>
-                <input
-                  id="critical-days"
-                  type="number"
-                  min="1"
-                  max="90"
-                  className="form-input compact"
-                  value={settings.thresholds.critical}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    thresholds: {
-                      ...settings.thresholds,
-                      critical: parseInt(e.target.value) || 14
-                    }
-                  })}
-                />
-              </div>
-            </div>
-
-            <div className="settings-category compact">
-              <h4>⏰ Schedule</h4>
-              <div className="setting-item compact">
-                <label htmlFor="check-time">Daily check time</label>
-                <input
-                  id="check-time"
-                  type="time"
-                  className="form-input compact"
-                  value={settings.scheduleTime}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    scheduleTime: e.target.value
-                  })}
-                />
-              </div>
-              <div className="setting-item compact">
-                <label htmlFor="summary-frequency">Summary reports</label>
-                <select
-                  id="summary-frequency"
-                  className="form-select compact"
-                  value={settings.summaryFrequency}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    summaryFrequency: e.target.value as 'daily' | 'weekly'
-                  })}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="settings-category compact">
-              <h4>💰 Value Filter</h4>
-              <div className="setting-item compact">
-                <label htmlFor="min-deal-value">Minimum deal value ($)</label>
-                <input
-                  id="min-deal-value"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  className="form-input compact"
-                  value={settings.minDealValue || ''}
-                  onChange={(e) => setSettings({
-                    ...settings,
-                    minDealValue: e.target.value ? parseInt(e.target.value) : undefined
-                  })}
-                  placeholder="Leave blank for all deals"
-                />
-              </div>
-            </div>
-            
-            <div className="settings-category compact">
-              <h4>🛠️ Tools</h4>
-              <div className="setting-tools">
-                <button 
-                  className="tool-button" 
-                  onClick={testAlert}
-                  disabled={isTestingAlert || !settings.alertChannel}
-                >
-                  {isTestingAlert ? '⏳ Testing' : '🧪 Test'}
-                </button>
-                <button 
-                  className="tool-button" 
-                  onClick={runMonitoringNow}
-                  disabled={!settings.enabled}
-                >
-                  🚀 Run Now
-                </button>
-              </div>
+            <div className="form-group">
+              <label htmlFor="alert-channel">📢 Alert Channel</label>
+              <select
+                id="alert-channel"
+                className="form-select"
+                value={settings.alertChannel || ''}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  alertChannel: e.target.value || undefined
+                })}
+              >
+                <option value="">Select channel</option>
+                {webhooks.filter(w => w.is_active).map(webhook => (
+                  <option key={webhook.id} value={webhook.id}>
+                    {webhook.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="settings-actions compact">
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="warning-days">⚠️ Warning (days)</label>
+              <input
+                id="warning-days"
+                type="number"
+                min="1"
+                max="30"
+                className="form-input"
+                value={settings.thresholds.warning}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  thresholds: {
+                    ...settings.thresholds,
+                    warning: parseInt(e.target.value) || 3
+                  }
+                })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="stale-days">🟠 Stale (days)</label>
+              <input
+                id="stale-days"
+                type="number"
+                min="1"
+                max="30"
+                className="form-input"
+                value={settings.thresholds.stale}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  thresholds: {
+                    ...settings.thresholds,
+                    stale: parseInt(e.target.value) || 7
+                  }
+                })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="critical-days">🚨 Critical (days)</label>
+              <input
+                id="critical-days"
+                type="number"
+                min="1"
+                max="90"
+                className="form-input"
+                value={settings.thresholds.critical}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  thresholds: {
+                    ...settings.thresholds,
+                    critical: parseInt(e.target.value) || 14
+                  }
+                })}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="check-time">⏰ Check Time</label>
+              <input
+                id="check-time"
+                type="time"
+                className="form-input"
+                value={settings.scheduleTime}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  scheduleTime: e.target.value
+                })}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="summary-frequency">📊 Reports</label>
+              <select
+                id="summary-frequency"
+                className="form-select"
+                value={settings.summaryFrequency}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  summaryFrequency: e.target.value as 'daily' | 'weekly'
+                })}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="min-deal-value">💰 Min Value ($)</label>
+              <input
+                id="min-deal-value"
+                type="number"
+                min="0"
+                step="1000"
+                className="form-input"
+                value={settings.minDealValue || ''}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  minDealValue: e.target.value ? parseInt(e.target.value) : undefined
+                })}
+                placeholder="All deals"
+              />
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button 
+              className="btn btn-test" 
+              onClick={testAlert}
+              disabled={isTestingAlert || !settings.alertChannel}
+            >
+              {isTestingAlert ? '⏳' : '🧪'} Test
+            </button>
+            <button 
+              className="btn btn-run" 
+              onClick={runMonitoringNow}
+              disabled={!settings.enabled}
+            >
+              🚀 Run Now
+            </button>
             <button
-              className="button-primary"
+              className="btn btn-save"
               onClick={saveSettings}
               disabled={isSaving || !settings.alertChannel}
             >
-              {isSaving ? (
-                <>
-                  <span className="loading-spinner-inline"></span>
-                  Saving...
-                </>
-              ) : (
-                '💾 Save Settings'
-              )}
+              {isSaving ? '⏳ Saving...' : '💾 Save'}
             </button>
           </div>
         </div>
 
-        <div className="settings-sidebar">
-          <div className="help-section">
-            <h3>How It Works</h3>
-            <div className="faq-compact">
-              <details className="faq-item">
-                <summary>What are the alert levels?</summary>
-                <p>Warning (3+ days), Stale (7+ days), Critical (14+ days) - alerts trigger when deals haven't been updated for these periods.</p>
-              </details>
-              <details className="faq-item">
-                <summary>When do checks run?</summary>
-                <p>Automated checks run daily at your specified time. You can also trigger manual checks using "Run Now".</p>
-              </details>
-              <details className="faq-item">
-                <summary>Can I filter by deal value?</summary>
-                <p>Yes, set a minimum deal value to only monitor high-value deals. Leave blank to monitor all deals.</p>
-              </details>
+        {/* Live Stats */}
+        <div className="stats-panel">
+          <h4>📊 Current Stats</h4>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-value">{stats.totalDealsMonitored}</span>
+              <span className="stat-label">Monitored</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-value">{stats.stalledDealsFound}</span>
+              <span className="stat-label">Stalled</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-value">{stats.alertsSentToday}</span>
+              <span className="stat-label">Alerts Today</span>
+            </div>
+          </div>
+          
+          <div className="breakdown-mini">
+            <div className="breakdown-item-mini warning">
+              <span className="count">{stats.breakdown.warning}</span>
+              <span className="type">Warning</span>
+            </div>
+            <div className="breakdown-item-mini stale">
+              <span className="count">{stats.breakdown.stale}</span>
+              <span className="type">Stale</span>
+            </div>
+            <div className="breakdown-item-mini critical">
+              <span className="count">{stats.breakdown.critical}</span>
+              <span className="type">Critical</span>
             </div>
           </div>
 
-          <div className="support-section">
-            <h3>Need Help?</h3>
-            <p>Configure thresholds based on your sales cycle and team preferences.</p>
+          <div className="last-run">
+            <span className="last-run-label">Last run:</span>
+            <span className="last-run-time">
+              {stats.lastRunTime ? new Date(stats.lastRunTime).toLocaleString() : 'Never'}
+            </span>
           </div>
+        </div>
+
+        {/* Quick Help */}
+        <div className="help-panel">
+          <h4>💡 Quick Guide</h4>
+          <ul className="help-list">
+            <li><strong>Warning:</strong> {settings.thresholds.warning}+ days inactive</li>
+            <li><strong>Stale:</strong> {settings.thresholds.stale}+ days inactive</li>
+            <li><strong>Critical:</strong> {settings.thresholds.critical}+ days inactive</li>
+            <li><strong>Schedule:</strong> Daily checks at {settings.scheduleTime}</li>
+            <li><strong>Reports:</strong> {settings.summaryFrequency} summaries</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -574,28 +576,19 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
   }
 
   return (
-    <div className="stalled-deal-monitor">
-      <div className="stalled-header">
-        <h3>📊 Stalled Deal Monitoring</h3>
-        <p>Automatically track deals with no recent activity and send proactive alerts</p>
-        {!settings.enabled && (
-          <div className="status-banner disabled">
-            ⚠️ Monitoring is currently disabled
+    <div className="stalled-deal-monitor-compact">
+      <div className="stalled-header-compact">
+        <div className="header-main">
+          <h3>📊 Stalled Deal Monitoring</h3>
+          <div className="status-indicator">
+            {!settings.enabled && <span className="status disabled">⚠️ Disabled</span>}
+            {settings.enabled && !settings.alertChannel && <span className="status warning">🔧 Setup Required</span>}
+            {settings.enabled && settings.alertChannel && <span className="status active">✅ Active</span>}
           </div>
-        )}
-        {settings.enabled && !settings.alertChannel && (
-          <div className="status-banner warning">
-            🔧 Please select an alert channel to complete setup
-          </div>
-        )}
-        {settings.enabled && settings.alertChannel && (
-          <div className="status-banner active">
-            ✅ Monitoring is active and configured
-          </div>
-        )}
+        </div>
       </div>
 
-      <div className="stalled-tabs">
+      <div className="stalled-tabs-compact">
         <button
           className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
@@ -622,22 +615,11 @@ const StalledDealMonitor: React.FC<StalledDealMonitorProps> = ({ webhooks, onRef
         </button>
       </div>
 
-      <div className="stalled-content">
+      <div className="stalled-content-compact">
         {activeTab === 'settings' && renderSettingsTab()}
         {activeTab === 'stats' && renderStatsTab()}
         {activeTab === 'reports' && <StalledDealReports onRefresh={loadStalledDealData} />}
         {activeTab === 'history' && renderHistoryTab()}
-      </div>
-
-      <div className="stalled-info">
-        <h5>How Stalled Deal Monitoring Works</h5>
-        <ul>
-          <li><strong>Activity Tracking:</strong> Monitors when deals were last updated in Pipedrive</li>
-          <li><strong>Smart Alerts:</strong> Different severity levels based on days of inactivity</li>
-          <li><strong>Automated Schedule:</strong> Runs daily checks at your specified time</li>
-          <li><strong>Value Filtering:</strong> Optional minimum deal value threshold</li>
-          <li><strong>Channel Routing:</strong> Sends alerts to your designated Google Chat channel</li>
-        </ul>
       </div>
     </div>
   );

@@ -31,10 +31,8 @@ function OnboardingRoute() {
 }
 
 function BillingRoute() {
-  const navigate = useNavigate();
-  
   return (
-    <BillingDashboard onNavigateToPricing={() => navigate('/pricing')} />
+    <BillingDashboard />
   );
 }
 

@@ -262,6 +262,38 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       setIsLoading(true);
       const apiUrl = API_BASE_URL;
       
+      // Check if backend is available
+      try {
+        const healthCheck = await fetch(`${apiUrl}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Backend not available');
+        }
+      } catch (healthError) {
+        console.log('🧪 Backend offline, using demo mode for webhook creation');
+        
+        // In demo mode, simulate webhook creation
+        const mockWebhook = {
+          id: `mock-webhook-${Date.now()}`,
+          name: webhookFormData.name || 'Demo Webhook',
+          webhook_url: webhookFormData.webhook_url || 'https://chat.googleapis.com/v1/spaces/DEMO/messages',
+          description: webhookFormData.description || 'Demo webhook for offline mode',
+          created_at: new Date().toISOString()
+        };
+        
+        // Add to local webhooks state
+        setWebhooks(prev => [...prev, mockWebhook]);
+        setRuleFormData(prev => ({ ...prev, target_webhook_id: mockWebhook.id }));
+        
+        // Show success message
+        alert('✅ Demo webhook created successfully! (Backend offline - this is a simulation)');
+        return true;
+      }
+      
+      // Backend is available, proceed with normal creation
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
         method: 'POST',
         body: JSON.stringify(webhookFormData)
@@ -322,6 +354,28 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         throw new Error('No webhook selected');
       }
 
+      // Check if backend is available
+      try {
+        const healthCheck = await fetch(`${apiUrl}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Backend not available');
+        }
+      } catch (healthError) {
+        console.log('🧪 Backend offline, simulating test notification');
+        
+        // In demo mode, simulate successful test
+        setTestResult({
+          success: true,
+          message: '✅ Demo test notification simulated successfully! (Backend offline - this would normally send to your Google Chat)'
+        });
+        return true;
+      }
+
+      // Backend is available, proceed with actual test
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks/${selectedWebhook.id}/test`, {
         method: 'POST'
       });
@@ -424,12 +478,34 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               <div className="status-content">
                 <h3>Connect to Pipedrive</h3>
                 <p>To get started, we need to connect to your Pipedrive account to access deal and activity data.</p>
+                
+                {!isCheckingConnection && !isPipedriveConnected && (
+                  <div className="demo-mode-notice">
+                    <div className="demo-badge">🧪 Demo Mode</div>
+                    <p><em>Backend is offline. You can proceed to explore the demo dashboard, or set up the backend to connect to Pipedrive.</em></p>
+                  </div>
+                )}
+                
                 <button 
                   className="connect-button"
                   onClick={() => {
                     const clientId = process.env.REACT_APP_PIPEDRIVE_CLIENT_ID;
                     const redirectUri = encodeURIComponent(process.env.REACT_APP_PIPEDRIVE_REDIRECT_URI || `${window.location.origin}/onboarding`);
                     const authUrl = `https://oauth.pipedrive.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
+                    
+                    // Debug logging
+                    console.log('🔍 OAuth Debug Info:');
+                    console.log('Client ID:', clientId);
+                    console.log('Redirect URI (raw):', process.env.REACT_APP_PIPEDRIVE_REDIRECT_URI || `${window.location.origin}/onboarding`);
+                    console.log('Redirect URI (encoded):', redirectUri);
+                    console.log('Full OAuth URL:', authUrl);
+                    
+                    if (!clientId) {
+                      alert('❌ Missing REACT_APP_PIPEDRIVE_CLIENT_ID environment variable');
+                      return;
+                    }
+                    
+                    // Redirect to Pipedrive OAuth
                     window.location.href = authUrl;
                   }}
                 >
@@ -751,12 +827,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               </div>
             </div>
           </div>
-          
-          <div className="success-actions">
-            <button className="complete-button" onClick={onComplete}>
-              🚀 Go to Dashboard
-            </button>
-          </div>
         </div>
       )
     }
@@ -787,8 +857,16 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     const current = steps[currentStep];
     
     switch (current.id) {
+      case 'welcome':
+        return true; // Welcome step can always proceed
+      case 'pipedrive':
+        // Allow proceeding if Pipedrive is connected OR if we're in demo mode
+        // Demo mode: when connection check is done and no token exists (backend offline)
+        return isPipedriveConnected || (!isCheckingConnection && !isPipedriveConnected);
       case 'webhook':
         return webhooks.length > 0 || (webhookFormData.name && webhookFormData.webhook_url);
+      case 'test':
+        return testResult?.success || false; // Must pass test to proceed
       // Skip rule validation since we auto-create default rules
       default:
         return true;

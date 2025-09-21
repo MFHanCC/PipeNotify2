@@ -245,3 +245,50 @@
     flex-direction: column;
   }
 }
+
+/* Plan restriction styles */
+.filter-section.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.filter-section.disabled::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(156, 163, 175, 0.1) 10px,
+    rgba(156, 163, 175, 0.1) 20px
+  );
+  pointer-events: none;
+  border-radius: 6px;
+}
+
+.filter-header .feature-lock {
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+  cursor: help;
+}
+
+.filter-section input:disabled,
+.filter-section select:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.filter-section.disabled .filter-header {
+  cursor: not-allowed;
+}
+
+.filter-section.disabled .filter-header:hover {
+  background-color: transparent;
+}

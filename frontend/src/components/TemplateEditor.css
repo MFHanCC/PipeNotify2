@@ -416,3 +416,29 @@
     width: 100%;
   }
 }
+
+/* Plan restriction styles */
+.template-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.template-option.disabled input[type="radio"] {
+  cursor: not-allowed;
+}
+
+.template-option.disabled span {
+  color: #9ca3af;
+}
+
+.template-option.disabled:hover {
+  background-color: transparent;
+}
+
+/* Feature lock indicator */
+.feature-lock {
+  margin-left: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+  cursor: help;
+}

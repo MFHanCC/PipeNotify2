@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import './RuleFilters.css';
 
 interface FilterData {
@@ -57,10 +58,18 @@ interface UserData {
 }
 
 const RuleFilters: React.FC<RuleFiltersProps> = ({ filters, onChange }) => {
+  const { hasFeature, getFeatureRequiredPlan, planTier } = usePlanFeatures();
   const [pipelines, setPipelines] = useState<PipelineData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<string | null>('value');
+  
+  // Feature availability checks
+  const canUseValueFiltering = hasFeature('value_filtering');
+  const canUseStageFiltering = hasFeature('stage_filtering');
+  const canUseProbabilityFiltering = hasFeature('probability_filtering');
+  const canUseOwnerFiltering = hasFeature('owner_filtering');
+  const canUseTimeFiltering = hasFeature('time_filtering');
 
   useEffect(() => {
     loadPipelineData();
@@ -132,12 +141,20 @@ const RuleFilters: React.FC<RuleFiltersProps> = ({ filters, onChange }) => {
   };
 
   const renderValueFilters = () => (
-    <div className="filter-section">
+    <div className={`filter-section ${!canUseValueFiltering ? 'disabled' : ''}`}>
       <div 
         className={`filter-header ${activeSection === 'value' ? 'active' : ''}`}
-        onClick={() => toggleSection('value')}
+        onClick={() => canUseValueFiltering && toggleSection('value')}
       >
         <span>💰 Deal Value Filters</span>
+        {!canUseValueFiltering && (
+          <span 
+            className="feature-lock" 
+            title={`Value filtering is available in ${getFeatureRequiredPlan('value_filtering')} plan and above`}
+          >
+            🔒
+          </span>
+        )}
         <span className="toggle-icon">{activeSection === 'value' ? '−' : '+'}</span>
       </div>
       
@@ -155,6 +172,7 @@ const RuleFilters: React.FC<RuleFiltersProps> = ({ filters, onChange }) => {
                   value_min: e.target.value ? parseInt(e.target.value) : undefined
                 })}
                 placeholder="e.g., 1000"
+                disabled={!canUseValueFiltering}
               />
             </div>
             
@@ -169,6 +187,7 @@ const RuleFilters: React.FC<RuleFiltersProps> = ({ filters, onChange }) => {
                   value_max: e.target.value ? parseInt(e.target.value) : undefined
                 })}
                 placeholder="e.g., 50000"
+                disabled={!canUseValueFiltering}
               />
             </div>
           </div>

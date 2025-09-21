@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
+import FeatureGate from './FeatureGate';
 import './QuietHours.css';
 
 interface QuietHoursConfig {
@@ -203,11 +204,15 @@ const QuietHours: React.FC<QuietHoursProps> = ({ onRefresh }) => {
   }
 
   return (
-    <div className="quiet-hours">
-      <div className="quiet-hours-header">
-        <h3>Quiet Hours</h3>
-        <p>Control when notifications can be sent to avoid disrupting your team</p>
-      </div>
+    <FeatureGate 
+      feature="quiet_hours"
+      fallbackMessage="Quiet Hours is available in Professional and Team plans"
+    >
+      <div className="quiet-hours">
+        <div className="quiet-hours-header">
+          <h3>Quiet Hours</h3>
+          <p>Control when notifications can be sent to avoid disrupting your team</p>
+        </div>
 
       {status && (
         <div className={`quiet-status ${getStatusColor()}`}>
@@ -421,7 +426,8 @@ const QuietHours: React.FC<QuietHoursProps> = ({ onRefresh }) => {
           <li><strong>Automatic Processing:</strong> Delayed notifications are automatically sent when quiet hours end</li>
         </ul>
       </div>
-    </div>
+      </div>
+    </FeatureGate>
   );
 };
 

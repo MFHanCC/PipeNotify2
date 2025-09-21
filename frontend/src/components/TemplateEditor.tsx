@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import './TemplateEditor.css';
 
 interface TemplateVariables {
@@ -20,11 +21,14 @@ interface TemplateEditorProps {
 }
 
 const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventType }) => {
+  const { hasFeature } = usePlanFeatures();
   const [availableVariables, setAvailableVariables] = useState<TemplateVariables>({});
   const [defaultTemplates, setDefaultTemplates] = useState<{[key: string]: string}>({});
   const [previewData, setPreviewData] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [activeVariableCategory, setActiveVariableCategory] = useState<string>('deal');
+  
+  const hasCustomTemplates = hasFeature('custom_templates');
 
   useEffect(() => {
     loadTemplateData();
@@ -151,6 +155,12 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
   };
 
   const handleTemplateChange = (newTemplateMode: TemplateData['template_mode']) => {
+    // Prevent changing to custom mode if feature is not available
+    if (newTemplateMode === 'custom' && !hasCustomTemplates) {
+      alert('Custom templates are available in Professional and Team plans. Upgrade to unlock this feature.');
+      return;
+    }
+    
     if (newTemplateMode === 'custom') {
       onChange({
         template_mode: 'custom',
@@ -242,14 +252,23 @@ const TemplateEditor: React.FC<TemplateEditorProps> = ({ value, onChange, eventT
             />
             <span>Detailed</span>
           </label>
-          <label className="template-option">
+          <label className={`template-option ${!hasCustomTemplates ? 'disabled' : ''}`}>
             <input
               type="radio"
               value="custom"
               checked={value.template_mode === 'custom'}
               onChange={(e) => handleTemplateChange(e.target.value as any)}
+              disabled={!hasCustomTemplates}
             />
             <span>Custom</span>
+            {!hasCustomTemplates && (
+              <span 
+                className="feature-lock" 
+                title="Custom templates are available in Professional and Team plans"
+              >
+                🔒
+              </span>
+            )}
           </label>
         </div>
       </div>

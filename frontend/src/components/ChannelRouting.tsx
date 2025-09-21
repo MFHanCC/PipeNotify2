@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
+import FeatureGate from './FeatureGate';
 import './ChannelRouting.css';
 
 interface Webhook {
@@ -452,11 +453,15 @@ const ChannelRouting: React.FC<ChannelRoutingProps> = ({ webhooks, onRefresh }) 
   }
 
   return (
-    <div className="channel-routing">
-      <div className="routing-header">
-        <h3>Smart Channel Routing</h3>
-        <p>Automatically route notifications to the right Google Chat channels</p>
-      </div>
+    <FeatureGate 
+      feature="channel_routing"
+      fallbackMessage="Smart Channel Routing is available in Professional and Team plans"
+    >
+      <div className="channel-routing">
+        <div className="routing-header">
+          <h3>Smart Channel Routing</h3>
+          <p>Automatically route notifications to the right Google Chat channels</p>
+        </div>
 
       <div className="routing-tabs">
         <button
@@ -495,7 +500,8 @@ const ChannelRouting: React.FC<ChannelRoutingProps> = ({ webhooks, onRefresh }) 
           <li><strong>Owner-based:</strong> Route to user-specific channels when available</li>
         </ul>
       </div>
-    </div>
+      </div>
+    </FeatureGate>
   );
 };
 
