@@ -48,13 +48,33 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigate
       
       if (response.ok) {
         const data = await response.json();
-        setRules(data.rules || []);
+        console.log('Raw API response:', data);
+        
+        // Transform the API response to match our interface
+        const transformedRules = (data.rules || []).map((rule: any) => ({
+          id: rule.id.toString(),
+          name: rule.name || 'Unnamed Rule',
+          message: rule.formatted_message || rule.name || 'No message preview',
+          isActive: rule.enabled !== false,
+          filters: rule.filters || {},
+          webhook: {
+            url: rule.webhook_url || null,
+            isActive: rule.webhook_active !== false
+          },
+          createdAt: rule.created_at || rule.createdAt || new Date().toISOString(),
+          updatedAt: rule.updated_at || rule.updatedAt || new Date().toISOString()
+        }));
+        
+        console.log('Transformed rules:', transformedRules);
+        setRules(transformedRules);
       } else {
-        throw new Error('Failed to fetch rules');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`Failed to fetch rules: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
       console.error('Error loading rules:', err);
-      setError('Failed to load rules');
+      setError(`Failed to load rules: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

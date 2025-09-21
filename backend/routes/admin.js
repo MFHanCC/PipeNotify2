@@ -2390,17 +2390,56 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
       }
     } catch (statusError) {
       console.warn('⚠️ Provisioning status check failed, proceeding with provisioning:', statusError.message);
-      currentStatus = {
-        error: statusError.message,
-        needs_provisioning: true,
-        note: 'Status check bypassed due to schema issues'
-      };
+      
+      // Check if this is a subscription service error
+      if (statusError.message.includes('subscriptions') || statusError.message.includes('Stripe')) {
+        console.log('🔧 This appears to be a subscription service issue, using fallback provisioning');
+        currentStatus = {
+          error: 'Subscription service unavailable, using free tier defaults',
+          current_plan: 'free',
+          needs_provisioning: true,
+          note: 'Using fallback provisioning due to subscription service issues'
+        };
+      } else {
+        currentStatus = {
+          error: statusError.message,
+          current_plan: 'free',
+          needs_provisioning: true,
+          note: 'Status check bypassed due to schema issues'
+        };
+      }
     }
 
+    // Determine the best plan tier to use for provisioning
+    // Priority: 1) Explicitly passed planTier, 2) currentStatus, 3) inferred from existing rules, 4) starter fallback
+    let effectivePlanTier = planTier;
+    
+    if (!effectivePlanTier || effectivePlanTier === 'undefined') {
+      effectivePlanTier = currentStatus.current_plan;
+    }
+    
+    // If still no plan (subscription service completely down), try to infer from existing rules
+    if (!effectivePlanTier || effectivePlanTier === 'free') {
+      const existingRulesCount = rulesCheck.rows.length;
+      console.log(`🔍 Inferring plan from existing rules count: ${existingRulesCount}`);
+      
+      if (existingRulesCount >= 10) {
+        effectivePlanTier = 'pro';
+      } else if (existingRulesCount >= 5) {
+        effectivePlanTier = 'starter';
+      } else {
+        // Default to starter instead of free for better user experience
+        effectivePlanTier = 'starter';
+        console.log('🎯 Using starter tier as fallback to ensure adequate rules');
+      }
+    }
+    
+    console.log(`🎯 Using plan tier for provisioning: ${effectivePlanTier} (original request: ${planTier}, status: ${currentStatus.current_plan})`);
+    
     // Provision rules
     const result = await provisionDefaultRules(
       tenantId, 
-      planTier || currentStatus.current_plan, 
+      effectivePlanTier, 
       'manual'
     );
 

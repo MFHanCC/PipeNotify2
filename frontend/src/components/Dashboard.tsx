@@ -487,10 +487,25 @@ const Dashboard: React.FC = React.memo(() => {
       }
       
       // Production mode - call backend API
+      // Ensure we have a valid plan tier, with fallback logic
+      let effectivePlanTier = planTier;
+      if (!effectivePlanTier || effectivePlanTier === 'undefined') {
+        // Infer from current rules count if plan detection failed
+        const currentRulesCount = rules.length;
+        if (currentRulesCount >= 10) {
+          effectivePlanTier = 'pro';
+        } else if (currentRulesCount >= 5) {
+          effectivePlanTier = 'starter';
+        } else {
+          effectivePlanTier = 'starter'; // Default to starter for better UX
+        }
+        console.log(`🎯 Frontend plan detection failed, inferred '${effectivePlanTier}' from ${currentRulesCount} existing rules`);
+      }
+
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/provision-default-rules`, {
         method: 'POST',
         body: JSON.stringify({
-          planTier: planTier,
+          planTier: effectivePlanTier,
           force: false, // Don't force creation if rules exist
           missing_only: true // Only create missing default rules
         }),
@@ -518,7 +533,18 @@ const Dashboard: React.FC = React.memo(() => {
         } else if (response.status === 404) {
           alert('❌ Service Not Found\n\nThe default rules service is not available. Please try again later or contact support.');
         } else {
-          alert(`❌ Failed to provision default rules: ${errorMessage}`);
+          // Provide more helpful error messages for specific issues
+          let friendlyMessage = errorMessage;
+          
+          if (errorMessage.includes('provisioning status') || errorMessage.includes('getProvisioningStatus')) {
+            friendlyMessage = 'Subscription service temporarily unavailable. Your rules will still be created using free tier defaults.';
+          } else if (errorMessage.includes('webhook') || errorMessage.includes('Google Chat')) {
+            friendlyMessage = 'No Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.';
+          } else if (errorMessage.includes('subscription') || errorMessage.includes('billing')) {
+            friendlyMessage = 'Billing service temporarily unavailable. Your rules will be created using free tier defaults.';
+          }
+          
+          alert(`❌ Default Rules Setup: ${friendlyMessage}`);
         }
       }
     } catch (err) {

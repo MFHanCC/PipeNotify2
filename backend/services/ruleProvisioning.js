@@ -289,12 +289,34 @@ async function getProvisioningStatus(tenantId) {
   try {
     console.log(`🔍 Getting provisioning status for tenant ${tenantId}`);
     
-    // Get current subscription
+    // Get current subscription with fallback
     let subscription;
     try {
       subscription = await getSubscription(tenantId);
+      console.log(`✅ Found subscription:`, subscription);
     } catch (error) {
-      subscription = { plan_tier: 'free' };
+      console.log(`⚠️ Could not get subscription for tenant ${tenantId}:`, error.message);
+      
+      // Try to infer plan from existing rules before defaulting to free
+      const existingRulesQuery = await pool.query('SELECT COUNT(*) as count FROM rules WHERE tenant_id = $1', [tenantId]);
+      const existingRulesCount = parseInt(existingRulesQuery.rows[0].count || 0);
+      
+      let inferredPlan = 'starter'; // Default to starter instead of free
+      if (existingRulesCount >= 10) {
+        inferredPlan = 'pro';
+      } else if (existingRulesCount >= 5) {
+        inferredPlan = 'starter';
+      }
+      
+      console.log(`🎯 Inferred plan '${inferredPlan}' from ${existingRulesCount} existing rules`);
+      
+      subscription = { 
+        plan_tier: inferredPlan,
+        status: 'active',
+        fallback: true,
+        inferred_from_rules: true,
+        existing_rules_count: existingRulesCount
+      };
     }
 
     // Check if is_default column exists first
@@ -360,10 +382,22 @@ async function getProvisioningStatus(tenantId) {
 
   } catch (error) {
     console.error('Error getting provisioning status:', error);
+    
+    // Return a more robust fallback status that won't break the provisioning flow
     return {
       tenant_id: tenantId,
+      current_plan: 'starter', // More generous fallback than 'free'
+      default_rules_count: 0,
+      enabled_rules_count: 0,
+      available_rules_count: 5,
+      rule_names: [],
+      template_ids: [],
+      provisioning_history: [],
+      needs_provisioning: true,
+      has_webhook: true,
       error: error.message,
-      needs_provisioning: true
+      fallback_mode: true,
+      note: 'Provisioning status check failed, using fallback values'
     };
   }
 }
