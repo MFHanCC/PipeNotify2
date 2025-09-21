@@ -254,6 +254,100 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Migration endpoint to fix Add Default Rules schema (no auth)
+app.post('/debug/run-migration-012', async (req, res) => {
+  try {
+    const { pool } = require('./services/database');
+    
+    console.log('🔄 Running migration 012 via HTTP endpoint...');
+    
+    // Check if the columns already exist
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' 
+      ORDER BY ordinal_position
+    `);
+    
+    const hasIsDefault = columnsResult.rows.some(col => col.column_name === 'is_default');
+    const hasRuleTemplateId = columnsResult.rows.some(col => col.column_name === 'rule_template_id');
+    const hasAutoCreatedAt = columnsResult.rows.some(col => col.column_name === 'auto_created_at');
+    const hasPlanTier = columnsResult.rows.some(col => col.column_name === 'plan_tier');
+    
+    const missingColumns = [];
+    if (!hasIsDefault) missingColumns.push('is_default');
+    if (!hasRuleTemplateId) missingColumns.push('rule_template_id');
+    if (!hasAutoCreatedAt) missingColumns.push('auto_created_at');
+    if (!hasPlanTier) missingColumns.push('plan_tier');
+    
+    // Add missing columns
+    if (missingColumns.length > 0) {
+      if (!hasIsDefault) {
+        await pool.query('ALTER TABLE rules ADD COLUMN is_default BOOLEAN DEFAULT false');
+      }
+      if (!hasRuleTemplateId) {
+        await pool.query('ALTER TABLE rules ADD COLUMN rule_template_id VARCHAR(100)');
+      }
+      if (!hasAutoCreatedAt) {
+        await pool.query('ALTER TABLE rules ADD COLUMN auto_created_at TIMESTAMP WITH TIME ZONE');
+      }
+      if (!hasPlanTier) {
+        await pool.query('ALTER TABLE rules ADD COLUMN plan_tier VARCHAR(20)');
+      }
+    }
+    
+    // Check if rule_provisioning_log table exists
+    const tablesResult = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'rule_provisioning_log'
+    `);
+    
+    let tableCreated = false;
+    if (tablesResult.rows.length === 0) {
+      await pool.query(`
+        CREATE TABLE rule_provisioning_log (
+          id SERIAL PRIMARY KEY,
+          tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+          plan_tier VARCHAR(20) NOT NULL,
+          rules_created INTEGER DEFAULT 0,
+          provisioning_type VARCHAR(50) NOT NULL,
+          from_plan VARCHAR(20),
+          to_plan VARCHAR(20),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          created_rules JSONB DEFAULT '[]',
+          errors JSONB DEFAULT '[]'
+        )
+      `);
+      tableCreated = true;
+    }
+    
+    // Test the is_default query
+    const testResult = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM rules 
+      WHERE tenant_id = 1 AND is_default = true
+    `);
+    
+    res.json({
+      success: true,
+      migration_applied: true,
+      missing_columns_added: missingColumns,
+      table_created: tableCreated,
+      query_test_passed: true,
+      default_rules_count: testResult.rows[0].count
+    });
+    
+  } catch (error) {
+    console.error('Migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Migration failed',
+      details: error.message
+    });
+  }
+});
+
 // Debug endpoint to check database schema (no auth)
 app.get('/debug/schema', async (req, res) => {
   try {
