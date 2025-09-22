@@ -58,8 +58,8 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigate
           isActive: rule.enabled !== false,
           filters: rule.filters || {},
           webhook: {
-            url: rule.webhook_url || null,
-            isActive: rule.webhook_active !== false
+            url: rule.webhook_name || null, // Fixed: Use webhook_name from backend
+            isActive: rule.target_webhook_id ? true : false // Fixed: Check if webhook is assigned
           },
           createdAt: rule.created_at || rule.createdAt || new Date().toISOString(),
           updatedAt: rule.updated_at || rule.updatedAt || new Date().toISOString()
