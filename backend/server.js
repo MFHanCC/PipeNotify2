@@ -1520,4 +1520,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-module.exports = app;// Force redeploy Thu Sep 18 11:32:38 CDT 2025
+module.exports = app;// Force redeploy Mon Sep 22 02:53:30 CDT 2025 - Add Default Rules endpoint fix
