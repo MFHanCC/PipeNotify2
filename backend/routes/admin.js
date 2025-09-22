@@ -1,5 +1,11 @@
 const express = require('express');
 const router = express.Router();
+
+// Debug logging for all admin routes
+router.use((req, res, next) => {
+  console.log(`🔧 Admin route: ${req.method} ${req.path}`);
+  next();
+});
 const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getWebhooks, createWebhook, pool } = require('../services/database');
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
@@ -2490,6 +2496,7 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
 
 // POST /api/v1/admin/add-default-rules - Simple default rules creation (force redeploy)
 router.post('/add-default-rules', authenticateToken, async (req, res) => {
+  console.log('🎯 add-default-rules endpoint HIT');
   try {
     const tenantId = req.tenant.id;
     const { webhookId, planTier = 'starter' } = req.body;
