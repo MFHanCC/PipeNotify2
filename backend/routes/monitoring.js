@@ -14,7 +14,7 @@ const { getRoutingStats, getRoutingSuggestions } = require('../services/channelR
 const { getFilterStats } = require('../services/ruleFilters');
 const { pool, getWebhooks } = require('../services/database');
 const { getDeliveryStats, getSystemHealth, processManualRecovery } = require('../services/guaranteedDelivery');
-const { runSelfHealing, runEmergencyHealing } = require('../services/selfHealing');
+// const { runSelfHealing, runEmergencyHealing } = require('../services/selfHealing'); // Disabled for testing
 
 // Create queue for stalled deal monitoring jobs
 const stalledDealQueue = new Queue('stalled-deals', redisConfig);
@@ -473,10 +473,12 @@ router.post('/delivery/retry-failed', async (req, res) => {
  * Automatic system health monitoring and repair
  */
 
-// POST /api/v1/monitoring/self-healing/run - Run health check and auto-fixes
+// POST /api/v1/monitoring/self-healing/run - Run health check and auto-fixes (DISABLED)
 router.post('/self-healing/run', async (req, res) => {
   try {
-    const result = await runSelfHealing();
+    res.status(503).json({ message: 'Self-healing system temporarily disabled' });
+    return;
+    // const result = await runSelfHealing();
     
     res.json({
       message: 'Self-healing health check completed',
@@ -491,10 +493,12 @@ router.post('/self-healing/run', async (req, res) => {
   }
 });
 
-// POST /api/v1/monitoring/self-healing/emergency - Run emergency healing
+// POST /api/v1/monitoring/self-healing/emergency - Run emergency healing (DISABLED)
 router.post('/self-healing/emergency', async (req, res) => {
   try {
-    const result = await runEmergencyHealing();
+    res.status(503).json({ message: 'Emergency self-healing system temporarily disabled' });
+    return;
+    // const result = await runEmergencyHealing();
     
     res.json({
       message: 'Emergency self-healing completed',
@@ -563,7 +567,7 @@ router.get('/comprehensive-dashboard', async (req, res) => {
       })),
       
       // Self-healing status
-      runSelfHealing().catch(error => ({
+      Promise.resolve({ healthy: false, error: 'Self-healing disabled' }).catch(error => ({
         healthy: false,
         error: error.message,
         issues: [],
@@ -733,7 +737,7 @@ router.get('/comprehensive-dashboard', async (req, res) => {
       // Quick actions available
       actions: {
         retryFailed: failedQueueItems > 0,
-        runEmergencyHealing: !selfHealingCheck.healthy || criticalIssues.length > 0,
+        runEmergencyHealing: false, // Disabled
         manualRecovery: selfHealingCheck.manualActionRequired?.length > 0
       },
       

@@ -1438,12 +1438,13 @@ router.post('/rules/:id/test', authenticateToken, async (req, res) => {
     
     // Log the test
     await pool.query(`
-      INSERT INTO logs (tenant_id, rule_id, webhook_id, event_type, status, formatted_message, response_time_ms, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, event_type, status, formatted_message, response_time_ms, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
     `, [
       tenantId,
       ruleId,
       rule.target_webhook_id,
+      JSON.stringify({ test: true, rule: rule.name, event_type: rule.event_type }),
       'test.notification',
       'success',
       JSON.stringify({ text: testMessage }),
@@ -1463,11 +1464,13 @@ router.post('/rules/:id/test', authenticateToken, async (req, res) => {
     // Log the error
     try {
       await pool.query(`
-        INSERT INTO logs (tenant_id, rule_id, event_type, status, formatted_message, error_message, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        INSERT INTO logs (tenant_id, rule_id, webhook_id, payload, event_type, status, formatted_message, error_message, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       `, [
         req.tenant.id,
         req.params.id,
+        null,
+        JSON.stringify({ test: true, error: true }),
         'test.notification',
         'error',
         JSON.stringify({ error: 'Test notification failed' }),
@@ -1710,14 +1713,14 @@ router.post('/rules/bulk', authenticateToken, async (req, res) => {
     switch (type) {
       case 'activate':
         result = await pool.query(
-          'UPDATE rules SET is_active = true, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
+          'UPDATE rules SET enabled = true, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
           [rule_ids, tenantId]
         );
         break;
         
       case 'deactivate':
         result = await pool.query(
-          'UPDATE rules SET is_active = false, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
+          'UPDATE rules SET enabled = false, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
           [rule_ids, tenantId]
         );
         break;
@@ -1942,13 +1945,14 @@ router.get('/stalled-deals/stats', authenticateToken, async (req, res) => {
     // Query for stalled deal statistics from logs
     const statsQuery = `
       SELECT 
-        COUNT(DISTINCT l.payload->>'object'->>'id') as total_deals_monitored,
-        COUNT(CASE WHEN l.payload->>'event' LIKE 'stalled.deals.%' THEN 1 END) as stalled_deals_found,
+        COUNT(DISTINCT CASE WHEN l.payload ? 'object' THEN l.payload->'object'->>'id' END) as total_deals_monitored,
+        COUNT(CASE WHEN l.payload ? 'event' AND l.payload->>'event' LIKE 'stalled.deals.%' THEN 1 END) as stalled_deals_found,
         COUNT(CASE WHEN l.created_at >= CURRENT_DATE THEN 1 END) as alerts_sent_today,
         MAX(l.created_at) as last_run_time
       FROM logs l
       WHERE l.tenant_id = $1 
         AND l.created_at >= NOW() - INTERVAL '7 days'
+        AND l.payload IS NOT NULL
     `;
 
     const result = await pool.query(statsQuery, [tenantId]);
@@ -2535,29 +2539,32 @@ router.post('/add-default-rules', authenticateToken, async (req, res) => {
     
     console.log(`📋 Will create ${defaultRules.length} default rules for ${planTier} tier`);
 
-    // Check which rules already exist to avoid duplicates
-    const existingRules = await pool.query(
-      'SELECT name, event_type FROM rules WHERE tenant_id = $1',
+    // Check which DEFAULT rules already exist to find missing ones
+    const existingDefaultRules = await pool.query(
+      'SELECT name, event_type FROM rules WHERE tenant_id = $1 AND is_default = true',
       [tenantId]
     );
     
-    const existingNames = existingRules.rows.map(r => r.name);
-    const existingEventTypes = existingRules.rows.map(r => r.event_type);
+    const existingDefaultNames = existingDefaultRules.rows.map(r => r.name);
+    const existingDefaultEventTypes = existingDefaultRules.rows.map(r => r.event_type);
     
-    // Filter out rules that already exist (by name or event type)
-    const newRules = defaultRules.filter(rule => 
-      !existingNames.includes(rule.name) && 
-      !existingEventTypes.includes(rule.event_type)
+    // Find missing default rules (rules that should exist but don't)
+    // Only filter by name since rule names are unique (event_types can be duplicated)
+    const missingRules = defaultRules.filter(rule => 
+      !existingDefaultNames.includes(rule.name)
     );
+    
+    // Always create missing rules to restore complete default set
+    const newRules = missingRules;
 
-    console.log(`📝 Will create ${newRules.length} new rules (${defaultRules.length - newRules.length} already exist)`);
+    console.log(`📝 Will create ${newRules.length} missing default rules (${existingDefaultRules.rows.length} already exist)`);
 
     if (newRules.length === 0) {
       return res.json({
         success: true,
         message: 'All default rules already exist',
         rules_created: 0,
-        existing_rules: existingNames.length,
+        existing_rules: existingDefaultRules.rows.length,
         plan_tier: planTier
       });
     }

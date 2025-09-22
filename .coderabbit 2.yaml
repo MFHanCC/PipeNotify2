@@ -1,0 +1,65 @@
+# CodeRabbit configuration for Pipenotify2
+# AI-powered code review settings
+
+# Review behavior
+reviews:
+  # Enable line-by-line reviews
+  inline_comments: true
+  # Summarize changes in PR description
+  pr_summary: true
+  # Auto-approve simple changes (typos, formatting)
+  auto_approve: false
+
+# Focus areas for this project
+focus:
+  - security        # OAuth 2.0, API tokens, webhook validation
+  - performance     # Background jobs, database queries
+  - maintainability # Code organization, patterns
+  - testing         # Test coverage and quality
+
+# File-specific settings
+files:
+  # Backend API routes and services
+  "backend/**/*.js":
+    - check_error_handling
+    - validate_input_sanitization
+    - verify_async_patterns
+  
+  # Frontend React components
+  "frontend/src/**/*.{js,jsx,tsx}":
+    - check_react_best_practices
+    - validate_accessibility
+    - verify_state_management
+  
+  # Database and migration files
+  "backend/db/**/*.sql":
+    - check_sql_injection_risks
+    - validate_migration_safety
+    - verify_indexing_strategy
+
+# Ignore patterns
+ignore:
+  - "node_modules/**"
+  - "*.log"
+  - "dist/**"
+  - "build/**"
+  - ".env*"
+  - "coverage/**"
+
+# Integration settings
+integrations:
+  # Enable for pull requests only (not individual commits)
+  trigger_on: pull_request
+  # Require reviews before merge
+  blocking: false
+  # Comment style
+  comment_style: conversational
+
+# Project-specific context
+project_context: |
+  Pipenotify2 is a Pipedrive → Google Chat integration with:
+  - OAuth 2.0 compliance for Pipedrive Marketplace
+  - Multi-tenant architecture with PostgreSQL
+  - Background job processing with BullMQ + Redis
+  - React frontend with Tailwind CSS
+  - Railway backend + Vercel frontend deployment

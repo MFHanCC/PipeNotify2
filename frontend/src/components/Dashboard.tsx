@@ -18,7 +18,7 @@ const AnalyticsPanel = lazy(() => import('./AnalyticsPanel'));
 const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
-const BillingDashboard = lazy(() => import('./BillingDashboard'));
+const BillingDashboard = lazy(() => import('./AdaptiveBillingDashboard'));
 const TestingSection = lazy(() => import('./TestingSection'));
 
 // Loading component for Suspense fallback
@@ -475,9 +475,9 @@ const Dashboard: React.FC = React.memo(() => {
         console.log('✅ Add default rules result:', result);
         
         if (result.rules_created > 0) {
-          alert(`✅ Success! Created ${result.rules_created} default rules for ${result.plan_tier} tier:\n\n${result.created_rules.map((name: string) => `• ${name}`).join('\n')}\n\nTarget: ${result.webhook_name}\n\nYou can now customize these rules in the Rules section.`);
+          alert(`✅ Success! Added ${result.rules_created} missing default rule(s) for ${result.plan_tier} tier:\n\n${result.created_rules.map((name: string) => `• ${name}`).join('\n')}\n\nThese rules will send notifications to: ${result.webhook_name}\n\nYour default rule set is now complete! You can customize these rules in the Rules section.`);
         } else {
-          alert(`📋 All Default Rules Already Exist\n\nYou already have all the default rules for your ${result.plan_tier} tier (${result.existing_rules} rules total).\n\nYou can customize existing rules or create new custom rules in the Rules section.`);
+          alert(`✅ Complete Default Rule Set\n\nYou already have all the default rules for your ${result.plan_tier} tier (${result.existing_rules} rules total).\n\nYou can customize existing rules or create new custom rules in the Rules section.`);
         }
         
         loadDashboardData(); // Refresh the rules list
