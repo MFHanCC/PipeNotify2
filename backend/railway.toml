@@ -7,4 +7,4 @@ startCommand = "npm start"
 restartPolicyType = "never"
 
 [variables]
-NODE_ENV = "production"
+NODE_ENV = "production"# Force Railway redeploy - Mon Sep 22 18:20:02 CDT 2025
