@@ -37,19 +37,15 @@ if (process.env.REDIS_URL) {
 
   // Add TLS configuration for rediss:// URLs
   if (url.protocol === 'rediss:') {
-    connectionConfig.tls = {
+    redisConfig.connection.tls = {
       rejectUnauthorized: false // Allow self-signed certificates for Redis providers
     };
   }
 
   // Add username if present in URL
   if (url.username) {
-    connectionConfig.username = url.username;
+    redisConfig.connection.username = url.username;
   }
-
-  redisConfig = {
-    connection: connectionConfig
-  };
 } else {
   // Local development fallback
   console.log('🔧 Using fallback Redis configuration');
