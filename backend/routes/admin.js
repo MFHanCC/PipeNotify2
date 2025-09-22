@@ -2488,7 +2488,7 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/v1/admin/add-default-rules - Simple default rules creation
+// POST /api/v1/admin/add-default-rules - Simple default rules creation (force redeploy)
 router.post('/add-default-rules', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
