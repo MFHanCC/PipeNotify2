@@ -122,6 +122,14 @@ app.use('/api/v1/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Debug logging for add-default-rules requests
+app.use((req, res, next) => {
+  if (req.path.includes('add-default-rules')) {
+    console.log(`🚨 DEBUG: ${req.method} ${req.path} - Headers:`, req.headers);
+  }
+  next();
+});
+
 // Import routes
 const webhookRoutes = require('./routes/webhook');
 const adminRoutes = require('./routes/admin');
