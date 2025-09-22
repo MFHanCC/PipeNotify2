@@ -262,6 +262,23 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       setIsLoading(true);
       const apiUrl = API_BASE_URL;
       
+      // Check if backend is available
+      try {
+        const healthCheck = await fetch(`${apiUrl}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Backend not available');
+        }
+      } catch (healthError) {
+        console.error('Backend not available for webhook creation');
+        alert('❌ Backend service is offline. Please ensure the backend is running to create webhooks.');
+        return false;
+      }
+      
+      // Backend is available, proceed with normal creation
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
         method: 'POST',
         body: JSON.stringify(webhookFormData)
@@ -322,6 +339,26 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         throw new Error('No webhook selected');
       }
 
+      // Check if backend is available
+      try {
+        const healthCheck = await fetch(`${apiUrl}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (!healthCheck.ok) {
+          throw new Error('Backend not available');
+        }
+      } catch (healthError) {
+        console.error('Backend not available for testing webhook');
+        setTestResult({
+          success: false,
+          message: '❌ Backend service is offline. Cannot test webhook at this time.'
+        });
+        return false;
+      }
+
+      // Backend is available, proceed with actual test
       const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks/${selectedWebhook.id}/test`, {
         method: 'POST'
       });
@@ -424,12 +461,33 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               <div className="status-content">
                 <h3>Connect to Pipedrive</h3>
                 <p>To get started, we need to connect to your Pipedrive account to access deal and activity data.</p>
+                
+                {!isCheckingConnection && !isPipedriveConnected && (
+                  <div className="connection-notice">
+                    <p><em>Please ensure the backend service is running and connect to Pipedrive to continue.</em></p>
+                  </div>
+                )}
+                
                 <button 
                   className="connect-button"
                   onClick={() => {
                     const clientId = process.env.REACT_APP_PIPEDRIVE_CLIENT_ID;
                     const redirectUri = encodeURIComponent(process.env.REACT_APP_PIPEDRIVE_REDIRECT_URI || `${window.location.origin}/onboarding`);
                     const authUrl = `https://oauth.pipedrive.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
+                    
+                    // Debug logging
+                    console.log('🔍 OAuth Debug Info:');
+                    console.log('Client ID:', clientId);
+                    console.log('Redirect URI (raw):', process.env.REACT_APP_PIPEDRIVE_REDIRECT_URI || `${window.location.origin}/onboarding`);
+                    console.log('Redirect URI (encoded):', redirectUri);
+                    console.log('Full OAuth URL:', authUrl);
+                    
+                    if (!clientId) {
+                      alert('❌ Missing REACT_APP_PIPEDRIVE_CLIENT_ID environment variable');
+                      return;
+                    }
+                    
+                    // Redirect to Pipedrive OAuth
                     window.location.href = authUrl;
                   }}
                 >
@@ -751,12 +809,6 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
               </div>
             </div>
           </div>
-          
-          <div className="success-actions">
-            <button className="complete-button" onClick={onComplete}>
-              🚀 Go to Dashboard
-            </button>
-          </div>
         </div>
       )
     }
@@ -787,8 +839,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
     const current = steps[currentStep];
     
     switch (current.id) {
+      case 'welcome':
+        return true; // Welcome step can always proceed
+      case 'pipedrive':
+        // Only allow proceeding if Pipedrive is properly connected
+        return isPipedriveConnected;
       case 'webhook':
         return webhooks.length > 0 || (webhookFormData.name && webhookFormData.webhook_url);
+      case 'test':
+        return testResult?.success || false; // Must pass test to proceed
       // Skip rule validation since we auto-create default rules
       default:
         return true;

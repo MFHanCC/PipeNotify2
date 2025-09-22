@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 require('dotenv').config();
 
@@ -47,8 +48,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || (process.env.NODE_ENV === 'development' ? "http://localhost:3000" : "'self'")],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : "'self'")],
     },
   },
 }));
@@ -57,24 +58,62 @@ app.use(helmet({
 const allowedOrigins = [
   process.env.FRONTEND_URL, // Production frontend URL
   ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []), // Development only
+  // Specific Vercel deployment URLs only
+  'https://pipenotify-frontend.vercel.app',
+  'https://pipenotify-frontend-git-development-mfhanccs.vercel.app'
 ].filter(Boolean); // Remove any undefined values
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // In production, be strict about origins
+    if (process.env.NODE_ENV === 'production' && !origin) {
+      return callback(new Error('No origin header - blocked in production'));
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1 || 
-        (origin && origin.includes('vercel.app'))) {
+    // In development, allow no origin for testing
+    if (process.env.NODE_ENV !== 'production' && !origin) {
       return callback(null, true);
     }
     
-    callback(new Error('Not allowed by CORS'));
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    console.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Rate limiting for security
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Stricter rate limiting for admin and debug endpoints
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 20 : 100, // Very restrictive in production
+  message: {
+    error: 'Too many admin requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  }
+});
+
+app.use('/api/v1/admin', adminLimiter);
+app.use('/health', adminLimiter);
 
 // Raw body preservation for webhook signature validation
 app.use('/api/v1/webhook', express.raw({ type: 'application/json' }));
@@ -82,6 +121,18 @@ app.use('/api/v1/webhook', express.raw({ type: 'application/json' }));
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Debug logging for add-default-rules requests
+app.use((req, res, next) => {
+  if (req.path.includes('add-default-rules')) {
+    console.log(`🚨 DEBUG: ${req.method} ${req.originalUrl} ${req.path}`);
+    console.log(`🚨 DEBUG: Origin: ${req.headers.origin}`);
+    console.log(`🚨 DEBUG: Authorization: ${req.headers.authorization ? 'Present' : 'Missing'}`);
+    console.log(`🚨 DEBUG: Content-Type: ${req.headers['content-type']}`);
+    console.log(`🚨 DEBUG: Body:`, req.body);
+  }
+  next();
+});
 
 // Import routes
 const webhookRoutes = require('./routes/webhook');
@@ -92,6 +143,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const billingRoutes = require('./routes/billing');
 const settingsRoutes = require('./routes/settings');
 const templatesRoutes = require('./routes/templates');
+const { authenticateToken } = require('./middleware/auth'); // SECURITY FIX: Import authentication middleware
 
 // Import job processor to start worker
 console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
@@ -214,6 +266,159 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Migration endpoint to fix Add Default Rules schema (no auth)
+app.post('/debug/run-migration-012', async (req, res) => {
+  try {
+    const { pool } = require('./services/database');
+    
+    console.log('🔄 Running migration 012 via HTTP endpoint...');
+    
+    // Check if the columns already exist
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' 
+      ORDER BY ordinal_position
+    `);
+    
+    const hasIsDefault = columnsResult.rows.some(col => col.column_name === 'is_default');
+    const hasRuleTemplateId = columnsResult.rows.some(col => col.column_name === 'rule_template_id');
+    const hasAutoCreatedAt = columnsResult.rows.some(col => col.column_name === 'auto_created_at');
+    const hasPlanTier = columnsResult.rows.some(col => col.column_name === 'plan_tier');
+    
+    const missingColumns = [];
+    if (!hasIsDefault) missingColumns.push('is_default');
+    if (!hasRuleTemplateId) missingColumns.push('rule_template_id');
+    if (!hasAutoCreatedAt) missingColumns.push('auto_created_at');
+    if (!hasPlanTier) missingColumns.push('plan_tier');
+    
+    // Add missing columns
+    if (missingColumns.length > 0) {
+      if (!hasIsDefault) {
+        await pool.query('ALTER TABLE rules ADD COLUMN is_default BOOLEAN DEFAULT false');
+      }
+      if (!hasRuleTemplateId) {
+        await pool.query('ALTER TABLE rules ADD COLUMN rule_template_id VARCHAR(100)');
+      }
+      if (!hasAutoCreatedAt) {
+        await pool.query('ALTER TABLE rules ADD COLUMN auto_created_at TIMESTAMP WITH TIME ZONE');
+      }
+      if (!hasPlanTier) {
+        await pool.query('ALTER TABLE rules ADD COLUMN plan_tier VARCHAR(20)');
+      }
+    }
+    
+    // Check if rule_provisioning_log table exists
+    const tablesResult = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'rule_provisioning_log'
+    `);
+    
+    let tableCreated = false;
+    if (tablesResult.rows.length === 0) {
+      await pool.query(`
+        CREATE TABLE rule_provisioning_log (
+          id SERIAL PRIMARY KEY,
+          tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+          plan_tier VARCHAR(20) NOT NULL,
+          rules_created INTEGER DEFAULT 0,
+          provisioning_type VARCHAR(50) NOT NULL,
+          from_plan VARCHAR(20),
+          to_plan VARCHAR(20),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          created_rules JSONB DEFAULT '[]',
+          errors JSONB DEFAULT '[]'
+        )
+      `);
+      tableCreated = true;
+    }
+    
+    // Test the is_default query
+    const testResult = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM rules 
+      WHERE tenant_id = 1 AND is_default = true
+    `);
+    
+    res.json({
+      success: true,
+      migration_applied: true,
+      missing_columns_added: missingColumns,
+      table_created: tableCreated,
+      query_test_passed: true,
+      default_rules_count: testResult.rows[0].count
+    });
+    
+  } catch (error) {
+    console.error('Migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Migration failed',
+      details: error.message
+    });
+  }
+});
+
+// Debug endpoint to check database schema (no auth)
+app.get('/debug/schema', async (req, res) => {
+  try {
+    const { pool } = require('./services/database');
+    
+    console.log('🔍 Debug: Checking database schema...');
+    
+    // Check if is_default column exists in rules table
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check if rule_provisioning_log table exists
+    const tablesResult = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name LIKE '%provisioning%'
+    `);
+    
+    // Test a simple query on rules table
+    const rulesCount = await pool.query('SELECT COUNT(*) as count FROM rules');
+    
+    // Try to test the specific query that's failing (use tenant_id 1 for testing)
+    let isDefaultTest = null;
+    try {
+      const testQuery = await pool.query(`
+        SELECT COUNT(*) as total_rules
+        FROM rules 
+        WHERE tenant_id = $1 AND is_default = true
+      `, [1]);
+      isDefaultTest = { success: true, count: testQuery.rows[0].total_rules };
+    } catch (error) {
+      isDefaultTest = { success: false, error: error.message };
+    }
+    
+    res.json({
+      success: true,
+      schema_check: {
+        rules_columns: columnsResult.rows,
+        provisioning_tables: tablesResult.rows,
+        total_rules: rulesCount.rows[0].count,
+        is_default_test: isDefaultTest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Debug schema check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Schema check failed',
+      details: error.message
+    });
+  }
+});
+
 // API v1 routes placeholder
 app.get('/api/v1/status', (req, res) => {
   res.json({
@@ -316,28 +521,20 @@ app.get('/api/v1/logs', (req, res) => {
 });
 
 // Integration activation endpoint
-app.post('/api/v1/integration/activate', async (req, res) => {
+app.post('/api/v1/integration/activate', authenticateToken, async (req, res) => {
   try {
     const { webhooks, templates, rules } = req.body;
     
-    // Get tenant ID from JWT token
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+    // SECURITY FIX: Get tenant ID from authenticated request (no fallback to tenant 1)
+    const tenantId = req.tenant.id;
+    if (!tenantId) {
+      return res.status(401).json({ 
+        error: 'Authentication required', 
+        message: 'Valid tenant context required' 
+      });
     }
     
-    let tenantId = 1; // fallback
-    try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.decode(token);
-      if (decoded && decoded.tenantId) {
-        tenantId = decoded.tenantId;
-        console.log(`🔑 Using tenant ID ${tenantId} from JWT token`);
-      }
-    } catch (jwtError) {
-      console.warn('⚠️ Could not decode JWT, using fallback tenant ID 1');
-    }
+    console.log(`🔑 Integration activation for authenticated tenant: ${tenantId}`);
     
     // Validate required data
     if (!webhooks || !templates || !rules || webhooks.length === 0 || templates.length === 0 || rules.length === 0) {
@@ -425,7 +622,7 @@ app.post('/api/v1/integration/activate', async (req, res) => {
       const pipedriveToken = req.headers['x-pipedrive-token'] || process.env.PIPEDRIVE_API_TOKEN;
       
       if (pipedriveToken) {
-        const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+        const webhookUrl = 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive';
         
         // Check if webhook already exists
         const existingWebhooks = await axios.get('https://api.pipedrive.com/v1/webhooks', {
@@ -655,7 +852,7 @@ app.post('/api/v1/pipedrive/register-webhook', async (req, res) => {
     }
 
     const axios = require('axios');
-    const webhookUrl = `https://pipenotify.up.railway.app/api/v1/webhook/pipedrive`;
+    const webhookUrl = 'https://pipenotify.up.railway.app/api/v1/webhook/pipedrive';
     
     // Register webhook for all deal events
     const response = await axios.post('https://api.pipedrive.com/v1/webhooks', {
@@ -1240,6 +1437,10 @@ app.use((error, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  console.log(`❌ 404 NOT FOUND: ${req.method} ${req.originalUrl}`);
+  console.log(`❌ Headers:`, req.headers);
+  console.log(`❌ Body:`, req.body);
+  
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.originalUrl} not found`,
@@ -1319,4 +1520,4 @@ process.on('SIGTERM', () => {
   });
 });
 
-module.exports = app;// Force redeploy Thu Sep 18 11:32:38 CDT 2025
+module.exports = app;// Force redeploy Mon Sep 22 02:53:30 CDT 2025 - Add Default Rules endpoint fix

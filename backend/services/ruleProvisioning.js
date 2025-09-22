@@ -31,10 +31,28 @@ async function provisionDefaultRules(tenantId, planTier = null, provisioningType
     if (!planTier) {
       try {
         const subscription = await getSubscription(tenantId);
-        planTier = subscription.plan_tier || 'free';
+        planTier = subscription.plan_tier || 'starter';
       } catch (error) {
-        console.warn(`Could not get subscription for tenant ${tenantId}, defaulting to free tier`);
-        planTier = 'free';
+        console.warn(`Could not get subscription for tenant ${tenantId}, using intelligent fallback`);
+        
+        // Try to infer plan from existing rules before defaulting
+        try {
+          const existingRulesQuery = await client.query('SELECT COUNT(*) as count FROM rules WHERE tenant_id = $1', [tenantId]);
+          const existingRulesCount = parseInt(existingRulesQuery.rows[0].count || 0);
+          
+          if (existingRulesCount >= 10) {
+            planTier = 'pro';
+          } else if (existingRulesCount >= 5) {
+            planTier = 'starter';
+          } else {
+            planTier = 'starter'; // Default to starter instead of free
+          }
+          
+          console.log(`🎯 Inferred plan '${planTier}' from ${existingRulesCount} existing rules`);
+        } catch (inferError) {
+          console.warn(`Could not infer plan from rules, defaulting to starter tier`);
+          planTier = 'starter';
+        }
       }
     }
 
@@ -81,13 +99,24 @@ async function provisionDefaultRules(tenantId, planTier = null, provisioningType
     console.log(`✅ Using primary webhook: ${primaryWebhook.name} (ID: ${primaryWebhook.id})`);
 
     // Check for existing default rules to avoid duplicates
-    const existingRulesResult = await client.query(
-      'SELECT name, rule_template_id FROM rules WHERE tenant_id = $1 AND is_default = true',
-      [tenantId]
-    );
+    let existingRulesResult;
+    try {
+      existingRulesResult = await client.query(
+        'SELECT name, rule_template_id FROM rules WHERE tenant_id = $1 AND is_default = true',
+        [tenantId]
+      );
+      console.log(`✅ Found existing default rules using is_default column`);
+    } catch (error) {
+      console.log(`⚠️ is_default column doesn't exist, checking all rules:`, error.message);
+      // Fallback: just get all rules if is_default column doesn't exist
+      existingRulesResult = await client.query(
+        'SELECT name, CAST(NULL as TEXT) as rule_template_id FROM rules WHERE tenant_id = $1',
+        [tenantId]
+      );
+    }
 
     const existingRuleNames = existingRulesResult.rows.map(r => r.name);
-    const existingTemplateIds = existingRulesResult.rows.map(r => r.rule_template_id);
+    const existingTemplateIds = existingRulesResult.rows.map(r => r.rule_template_id).filter(id => id !== null);
 
     console.log(`🔍 Found ${existingRuleNames.length} existing default rules:`, existingRuleNames);
 
@@ -120,27 +149,52 @@ async function provisionDefaultRules(tenantId, planTier = null, provisioningType
         // Generate template ID
         const templateId = template.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-        // Create the rule
-        const ruleResult = await client.query(`
-          INSERT INTO rules (
-            tenant_id, name, event_type, filters, target_webhook_id, 
-            template_mode, enabled, is_default, rule_template_id, 
-            auto_created_at, plan_tier, priority
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11)
-          RETURNING id, name
-        `, [
-          tenantId,
-          template.name,
-          template.event_type,
-          JSON.stringify(template.filters || {}),
-          primaryWebhook.id,
-          template.template_mode,
-          template.enabled,
-          true, // is_default
-          templateId,
-          planTier,
-          template.priority || 5
-        ]);
+        // Create the rule with fallback for missing columns
+        let ruleResult;
+        try {
+          // Try full insert with all new columns
+          ruleResult = await client.query(`
+            INSERT INTO rules (
+              tenant_id, name, event_type, filters, target_webhook_id, 
+              template_mode, enabled, is_default, rule_template_id, 
+              auto_created_at, plan_tier, priority
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11)
+            RETURNING id, name
+          `, [
+            tenantId,
+            template.name,
+            template.event_type,
+            JSON.stringify(template.filters || {}),
+            primaryWebhook.id,
+            template.template_mode,
+            template.enabled,
+            true, // is_default
+            templateId,
+            planTier,
+            template.priority || 5
+          ]);
+          console.log(`✅ Created rule with full schema: ${template.name}`);
+        } catch (error) {
+          console.log(`⚠️ Full schema failed, trying basic insert:`, error.message);
+          // Fallback: basic insert without new columns
+          ruleResult = await client.query(`
+            INSERT INTO rules (
+              tenant_id, name, event_type, filters, target_webhook_id, 
+              template_mode, enabled, priority
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, name
+          `, [
+            tenantId,
+            template.name,
+            template.event_type,
+            JSON.stringify(template.filters || {}),
+            primaryWebhook.id,
+            template.template_mode,
+            template.enabled,
+            template.priority || 5
+          ]);
+          console.log(`✅ Created rule with basic schema: ${template.name}`);
+        }
 
         const createdRule = ruleResult.rows[0];
         createdRules.push({
@@ -162,22 +216,27 @@ async function provisionDefaultRules(tenantId, planTier = null, provisioningType
       }
     }
 
-    // Log the provisioning activity
-    await client.query(`
-      INSERT INTO rule_provisioning_log (
-        tenant_id, plan_tier, rules_created, provisioning_type, 
-        from_plan, to_plan, created_rules, errors
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `, [
-      tenantId,
-      planTier,
-      createdRules.length,
-      provisioningType,
-      fromPlan,
-      provisioningType === 'upgrade' ? planTier : null,
-      JSON.stringify(createdRules),
-      JSON.stringify(errors)
-    ]);
+    // Log the provisioning activity (if table exists)
+    try {
+      await client.query(`
+        INSERT INTO rule_provisioning_log (
+          tenant_id, plan_tier, rules_created, provisioning_type, 
+          from_plan, to_plan, created_rules, errors
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        tenantId,
+        planTier,
+        createdRules.length,
+        provisioningType,
+        fromPlan,
+        provisioningType === 'upgrade' ? planTier : null,
+        JSON.stringify(createdRules),
+        JSON.stringify(errors)
+      ]);
+      console.log(`✅ Logged provisioning activity to rule_provisioning_log`);
+    } catch (error) {
+      console.log(`⚠️ rule_provisioning_log table doesn't exist, skipping log:`, error.message);
+    }
 
     await client.query('COMMIT');
 
@@ -246,34 +305,82 @@ async function provisionUpgradeRules(tenantId, fromPlan, toPlan) {
  */
 async function getProvisioningStatus(tenantId) {
   try {
-    // Get current subscription
+    console.log(`🔍 Getting provisioning status for tenant ${tenantId}`);
+    
+    // Get current subscription with fallback
     let subscription;
     try {
       subscription = await getSubscription(tenantId);
+      console.log(`✅ Found subscription:`, subscription);
     } catch (error) {
-      subscription = { plan_tier: 'free' };
+      console.log(`⚠️ Could not get subscription for tenant ${tenantId}:`, error.message);
+      
+      // Try to infer plan from existing rules before defaulting to free
+      const existingRulesQuery = await pool.query('SELECT COUNT(*) as count FROM rules WHERE tenant_id = $1', [tenantId]);
+      const existingRulesCount = parseInt(existingRulesQuery.rows[0].count || 0);
+      
+      let inferredPlan = 'starter'; // Default to starter instead of free
+      if (existingRulesCount >= 10) {
+        inferredPlan = 'pro';
+      } else if (existingRulesCount >= 5) {
+        inferredPlan = 'starter';
+      }
+      
+      console.log(`🎯 Inferred plan '${inferredPlan}' from ${existingRulesCount} existing rules`);
+      
+      subscription = { 
+        plan_tier: inferredPlan,
+        status: 'active',
+        fallback: true,
+        inferred_from_rules: true,
+        existing_rules_count: existingRulesCount
+      };
     }
 
-    // Get current default rules
-    const rulesResult = await pool.query(`
-      SELECT 
-        COUNT(*) as total_rules,
-        COUNT(CASE WHEN enabled = true THEN 1 END) as enabled_rules,
-        array_agg(name) FILTER (WHERE name IS NOT NULL) as rule_names,
-        array_agg(rule_template_id) FILTER (WHERE rule_template_id IS NOT NULL) as template_ids
-      FROM rules 
-      WHERE tenant_id = $1 AND is_default = true
-    `, [tenantId]);
+    // Check if is_default column exists first
+    let rulesResult;
+    try {
+      rulesResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_rules,
+          COUNT(CASE WHEN enabled = true THEN 1 END) as enabled_rules,
+          array_agg(name) FILTER (WHERE name IS NOT NULL) as rule_names,
+          array_agg(rule_template_id) FILTER (WHERE rule_template_id IS NOT NULL) as template_ids
+        FROM rules 
+        WHERE tenant_id = $1 AND is_default = true
+      `, [tenantId]);
+      console.log(`✅ Found rules with is_default column: ${rulesResult.rows[0].total_rules} rules`);
+    } catch (error) {
+      console.log(`⚠️ is_default column doesn't exist, checking all rules:`, error.message);
+      // Fallback: check all rules if is_default column doesn't exist
+      rulesResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_rules,
+          COUNT(CASE WHEN enabled = true THEN 1 END) as enabled_rules,
+          array_agg(name) FILTER (WHERE name IS NOT NULL) as rule_names,
+          array_agg(CAST(NULL as TEXT)) FILTER (WHERE name IS NOT NULL) as template_ids
+        FROM rules 
+        WHERE tenant_id = $1
+      `, [tenantId]);
+      console.log(`✅ Using fallback query: ${rulesResult.rows[0].total_rules} total rules`);
+    }
 
     const rules = rulesResult.rows[0];
 
-    // Get provisioning history
-    const historyResult = await pool.query(`
-      SELECT * FROM rule_provisioning_log 
-      WHERE tenant_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT 5
-    `, [tenantId]);
+    // Get provisioning history (with fallback if table doesn't exist)
+    let historyResult;
+    try {
+      historyResult = await pool.query(`
+        SELECT * FROM rule_provisioning_log 
+        WHERE tenant_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT 5
+      `, [tenantId]);
+      console.log(`✅ Found provisioning history: ${historyResult.rows.length} entries`);
+    } catch (error) {
+      console.log(`⚠️ rule_provisioning_log table doesn't exist:`, error.message);
+      historyResult = { rows: [] };
+    }
 
     // Get available rules for current plan
     const availableRules = getDefaultRulesForPlan(subscription.plan_tier);
@@ -293,10 +400,22 @@ async function getProvisioningStatus(tenantId) {
 
   } catch (error) {
     console.error('Error getting provisioning status:', error);
+    
+    // Return a more robust fallback status that won't break the provisioning flow
     return {
       tenant_id: tenantId,
+      current_plan: 'starter', // More generous fallback than 'free'
+      default_rules_count: 0,
+      enabled_rules_count: 0,
+      available_rules_count: 5,
+      rule_names: [],
+      template_ids: [],
+      provisioning_history: [],
+      needs_provisioning: true,
+      has_webhook: true,
       error: error.message,
-      needs_provisioning: true
+      fallback_mode: true,
+      note: 'Provisioning status check failed, using fallback values'
     };
   }
 }

@@ -6,7 +6,7 @@ let redisConfig;
 // Redis connection configuration
 
 if (process.env.REDIS_URL) {
-  // Parse Railway Redis URL: redis://username:password@host:port
+  // Parse Redis URL: redis:// or rediss:// (TLS)
   const url = new URL(process.env.REDIS_URL);
   console.log('🔧 Configuring Redis for Railway deployment');
   console.log('🔗 Redis host:', url.hostname);
@@ -24,9 +24,7 @@ if (process.env.REDIS_URL) {
       enableOfflineQueue: false,
       keepAlive: 30000,
       // Enhanced Railway networking support
-      maxRetriesPerRequest: 3,
       retryDelayOnClusterDown: 300,
-      retryDelayOnFailover: 500,
       enableReadyCheck: true,
       maxLoadingTimeout: 10000,
       reconnectOnError: (err) => {
@@ -35,6 +33,22 @@ if (process.env.REDIS_URL) {
         return targetErrors.some(error => err.message.includes(error));
       }
     }
+  };
+
+  // Add TLS configuration for rediss:// URLs
+  if (url.protocol === 'rediss:') {
+    connectionConfig.tls = {
+      rejectUnauthorized: false // Allow self-signed certificates for Redis providers
+    };
+  }
+
+  // Add username if present in URL
+  if (url.username) {
+    connectionConfig.username = url.username;
+  }
+
+  redisConfig = {
+    connection: connectionConfig
   };
 } else {
   // Local development fallback
@@ -105,8 +119,8 @@ async function initializeQueue() {
   }
 }
 
-// Initialize queue asynchronously
-initializeQueue();
+// Initialize queue asynchronously and export the promise
+const initPromise = initializeQueue();
 
 // Helper function to add notification job
 async function addNotificationJob(webhookData, options = {}) {
@@ -237,5 +251,6 @@ module.exports = {
   addNotificationJob,
   getQueueStats,
   getQueueInfo,
-  redisConfig
+  redisConfig,
+  initPromise
 };

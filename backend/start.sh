@@ -12,7 +12,19 @@ STARTUP_DELAY=${STARTUP_DELAY:-3}
 echo "⏳ Waiting ${STARTUP_DELAY} seconds for Railway network initialization..."
 sleep $STARTUP_DELAY
 
+<<<<<<< HEAD
+echo "🔗 Network initialization complete, running migrations and starting Node.js server..."
+
+# Run database migrations
+echo "🔄 Running database migrations..."
+if node scripts/migrate.js; then
+    echo "✅ Database migrations completed successfully"
+else
+    echo "⚠️ Database migrations failed, but continuing with server start"
+fi
+=======
 echo "🔗 Network initialization complete, starting Node.js server..."
+>>>>>>> origin/main
 
 # Start the Node.js application
 exec node server.js

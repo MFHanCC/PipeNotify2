@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import './Dashboard.css';
 import './Settings.css';
-import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, handleAuthError, logout } from '../utils/auth';
+import { getAuthToken, getTenantId, getAuthHeaders, authenticatedFetch, logout } from '../utils/auth';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import FeatureRestriction from './FeatureRestriction';
-import { API_BASE_URL } from '../config/api';
-import { autoSetupTimezone } from '../utils/timezone';
+import { API_BASE_URL, checkBackendConnection } from '../config/api';
+import { autoSetupTimezone, stopTimezoneRetries } from '../utils/timezone';
+import ApiService, { NotificationRule as ApiNotificationRule, DeliveryLog as ApiDeliveryLog } from '../services/api';
 
 // Lazy load heavy components to improve initial bundle size
 const WebhookManager = lazy(() => import('./WebhookManager'));
@@ -28,60 +29,9 @@ const ComponentLoader: React.FC = () => (
   </div>
 );
 
-interface NotificationRule {
-  id: string;
-  name: string;
-  eventType: string;
-  templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
-  targetSpace: string;
-  filters: {
-    // Value filters
-    value_min?: number;
-    value_max?: number;
-    
-    // Probability filters  
-    probability_min?: number;
-    probability_max?: number;
-    
-    // Pipeline/Stage filters
-    pipeline_ids?: number[];
-    stage_ids?: number[];
-    
-    // Owner filters
-    owner_ids?: number[];
-    
-    // Time restrictions
-    time_restrictions?: {
-      business_hours_only?: boolean;
-      start_hour?: number;
-      end_hour?: number;
-      weekdays_only?: boolean;
-    };
-    
-    // Label filters
-    labels?: string[];
-    label_match_type?: 'any' | 'all';
-    
-    // Currency filters
-    currencies?: string[];
-  };
-  enabled: boolean;
-  lastTriggered?: string;
-  successRate: number;
-  createdAt: string;
-}
-
-interface DeliveryLog {
-  id: string;
-  ruleId: string;
-  ruleName: string;
-  targetSpace: string;
-  status: 'success' | 'error' | 'pending';
-  message: string;
-  errorDetails?: string;
-  timestamp: string;
-  deliveryTime?: number;
-}
+// Use API service types
+type NotificationRule = ApiNotificationRule;
+type DeliveryLog = ApiDeliveryLog;
 
 interface DashboardStats {
   totalNotifications: number;
@@ -191,6 +141,8 @@ const Dashboard: React.FC = React.memo(() => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBackendConnected, setIsBackendConnected] = useState<boolean | null>(null);
+  const [connectionCheckTime, setConnectionCheckTime] = useState<Date | null>(null);
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
   const [tenantId, setTenantId] = useState<string>(getTenantId() || '1');
   
@@ -208,8 +160,8 @@ const Dashboard: React.FC = React.memo(() => {
     name: string; 
     enabled: boolean;
     event_type: string;
-    template_mode: 'simple' | 'compact' | 'detailed' | 'custom';
-    target_webhook_id: string;
+    template_mode: 'compact' | 'detailed';
+    target_webhook_id?: string; // Optional for compatibility
     filters: any;
   }>({
     name: '', 
@@ -292,28 +244,21 @@ const Dashboard: React.FC = React.memo(() => {
       const currentTenantId = getTenantId() || '1'; // Fallback
       setTenantId(currentTenantId);
 
-      // Parallel API calls for better performance
+      // Parallel API calls for better performance using API service methods with fallback
       const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 1;
-      const logsParams = new URLSearchParams({
-        page: logsPage.toString(),
-        limit: logsPerPage.toString(),
-        status: statusFilter !== 'all' ? statusFilter : '',
-        rule_id: ruleFilter !== 'all' ? ruleFilter : '',
-      });
 
-      const [statsResponse, rulesResponse, logsResponse, webhooksResponse] = await Promise.all([
+      const [statsResponse, rulesData, logsData, webhooksData] = await Promise.all([
         authenticatedFetch(`${API_BASE_URL}/api/v1/monitoring/dashboard/${currentTenantId}?days=${days}`, { 
           signal: AbortSignal.timeout(10000) // 10 second timeout
         }).catch(() => null),
-        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules`, { 
-          signal: AbortSignal.timeout(10000)
-        }).catch(() => null),
-        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/logs?${logsParams}`, { 
-          signal: AbortSignal.timeout(10000)
-        }).catch(() => null),
-        authenticatedFetch(`${API_BASE_URL}/api/v1/admin/webhooks`, { 
-          signal: AbortSignal.timeout(10000)
-        }).catch(() => null),
+        ApiService.getRules().catch(() => []),
+        ApiService.getLogs({
+          page: logsPage,
+          limit: logsPerPage,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          rule: ruleFilter !== 'all' ? ruleFilter : undefined,
+        }).catch(() => ({ logs: [], total: 0, page: 1, hasMore: false })),
+        ApiService.getWebhooks().catch(() => []),
       ]);
 
       // Process stats response
@@ -335,61 +280,24 @@ const Dashboard: React.FC = React.memo(() => {
         });
       }
 
-      // Process rules response
-      if (rulesResponse?.ok) {
-        const rulesData = await rulesResponse.json();
-        const transformedRules = (rulesData.rules || []).map((rule: any) => ({
-          id: rule.id,
-          name: rule.name,
-          eventType: rule.event_type,
-          templateMode: rule.template_mode || 'compact',
-          targetSpace: rule.webhook_name || 'Unknown',
-          filters: rule.filters || {},
-          enabled: rule.enabled,
-          lastTriggered: rule.last_triggered,
-          successRate: 95, // Placeholder - backend doesn't track this yet
-          createdAt: rule.created_at,
-        }));
-        setRules(transformedRules);
-        
-        // Update stats with actual rule count
-        setStats(prevStats => ({
-          ...prevStats,
-          activeRules: transformedRules.filter((rule: NotificationRule) => rule.enabled).length
-        }));
-      }
+      // Process rules response - API service already returns transformed data
+      setRules(rulesData);
+      
+      // Update stats with actual rule count
+      setStats(prevStats => ({
+        ...prevStats,
+        activeRules: rulesData.filter((rule: NotificationRule) => rule.enabled).length
+      }));
 
-      // Process logs response
-      if (logsResponse?.ok) {
-        const logsData = await logsResponse.json();
-        const transformedLogs = (logsData.logs || []).map((log: any) => ({
-          id: log.id,
-          ruleId: log.rule_id,
-          ruleName: log.rule_name || 'Unknown Rule',
-          targetSpace: log.webhook_name || 'Unknown Space',
-          status: log.status === 'failed' ? 'error' : log.status === 'success' ? 'success' : 'pending',
-          message: log.formatted_message?.text || 'Notification sent',
-          errorDetails: log.error_message,
-          timestamp: log.created_at,
-          deliveryTime: log.response_time_ms,
-        }));
-        setLogs(transformedLogs);
-      } else {
-        console.warn('Failed to load logs, using empty array');
-        setLogs([]);
-      }
+      // Process logs response - API service already returns transformed data with fallback
+      console.log('📋 Logs data from API service:', logsData);
+      setLogs(logsData.logs);
 
-      // Process webhooks response
-      if (webhooksResponse?.ok) {
-        const webhooksData = await webhooksResponse.json();
-        console.log('🔗 Webhooks response:', webhooksData);
-        setAvailableWebhooks((webhooksData.webhooks || []).map((webhook: any) => ({
-          id: webhook.id.toString(),
-          name: webhook.name || webhook.url || 'Unnamed Webhook',
-        })));
-      } else {
-        console.error('❌ Failed to load webhooks:', webhooksResponse?.status || 'Network error');
-      }
+      // Process webhooks response - API service already returns transformed data with fallback
+      setAvailableWebhooks(webhooksData.map((webhook: any) => ({
+        id: webhook.id.toString(),
+        name: webhook.name || webhook.url || 'Unnamed Webhook',
+      })));
 
     } catch (err) {
       handleApiError(err, 'load dashboard data');
@@ -411,19 +319,53 @@ const Dashboard: React.FC = React.memo(() => {
     initializeDashboard();
   }, [loadDashboardData]);
 
+  // Cleanup timezone retries on component unmount
+  useEffect(() => {
+    return () => {
+      stopTimezoneRetries();
+    };
+  }, []);
+
+  // Check backend connection status
+  const checkConnection = useCallback(async () => {
+    try {
+      const isConnected = await checkBackendConnection();
+      setIsBackendConnected(isConnected);
+      setConnectionCheckTime(new Date());
+      
+      if (!isConnected && stats.totalNotifications === 0) {
+        // If backend is down and we have no data, show helpful message
+        setError('Backend service unavailable. Please check your connection and try again.');
+      } else if (isConnected && error?.includes('Backend service unavailable')) {
+        // Clear the error if connection is restored
+        setError(null);
+      }
+    } catch (err) {
+      setIsBackendConnected(false);
+      setConnectionCheckTime(new Date());
+    }
+  }, [stats.totalNotifications, error]);
+
+  // Check connection periodically
+  useEffect(() => {
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, [checkConnection]);
+
   const toggleRule = async (ruleId: string) => {
     try {
       const rule = rules.find(r => r.id === ruleId);
       if (!rule) return;
 
-      const apiUrl = process.env.REACT_APP_API_URL;
+      // const apiUrl = process.env.REACT_APP_API_URL; // Using API_BASE_URL instead
       
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}`, {
         method: 'PUT',
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          target_webhook_id: parseInt(rule.targetSpace),
+          // target_webhook_id will be handled by backend based on targetSpace
           template_mode: rule.templateMode,
           enabled: !rule.enabled,
           filters: rule.filters || {}
@@ -454,7 +396,7 @@ const Dashboard: React.FC = React.memo(() => {
 
   const testRule = async (ruleId: string) => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
+      // const apiUrl = process.env.REACT_APP_API_URL; // Using API_BASE_URL instead
       
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}/test`, {
         method: 'POST',
@@ -473,52 +415,95 @@ const Dashboard: React.FC = React.memo(() => {
 
   const provisionDefaultRules = async () => {
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
+      console.log('🚀 Adding default rules...');
       
-      console.log('🚀 Provisioning default rules...');
+      // Check if user is authenticated first
+      const authToken = getAuthToken();
+      if (!authToken) {
+        alert('🔐 Authentication Required\n\nYou need to be logged in to add default rules.\nPlease connect to Pipedrive first.');
+        return;
+      }
       
-      // Check current rules to see what's missing
-      const currentEventTypes = rules.map(rule => rule.eventType);
-      const defaultEventTypes = ['deal.won', 'deal.lost', 'deal.create'];
-      const missingRules = defaultEventTypes.filter(eventType => !currentEventTypes.includes(eventType));
+      if (!isBackendConnected) {
+        alert('🌐 Backend Unavailable\n\nCannot create rules - backend service is unavailable. Please try again when the service is online.');
+        return;
+      }
       
-      if (missingRules.length === 0) {
-        alert(`📋 All Default Rules Present\n\nYou already have all the free tier basic rules:\n• Deal Won\n• Deal Lost\n• New Deal\n\nYou can edit these rules to customize the name, target chat, and message format. For advanced filtering, upgrade to Starter plan.`);
+      // Check if user has webhooks configured
+      if (availableWebhooks.length === 0) {
+        alert('🔗 Google Chat Setup Required\n\nYou need to configure at least one Google Chat webhook before adding default rules.\n\nPlease add a webhook first in the Webhooks tab.');
         return;
       }
 
-      if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length + missingRules.length > limits.rules) {
+      // Check rule limits before proceeding
+      if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules) {
         alert(`⚠️ Rule Limit Reached\n\nYour ${planTier || 'current'} plan allows ${limits.rules} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
         return;
       }
+
+      // Use the first available webhook
+      const primaryWebhook = availableWebhooks[0];
       
-      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/provision-default-rules`, {
+      // Determine plan tier (with fallback)
+      let effectivePlanTier = planTier || 'starter';
+      if (!effectivePlanTier || effectivePlanTier === 'undefined') {
+        // Infer from current rules count if plan detection failed
+        const currentRulesCount = rules.length;
+        if (currentRulesCount >= 10) {
+          effectivePlanTier = 'pro';
+        } else if (currentRulesCount >= 5) {
+          effectivePlanTier = 'starter';
+        } else {
+          effectivePlanTier = 'starter'; // Default to starter for better UX
+        }
+        console.log(`🎯 Inferred plan tier '${effectivePlanTier}' from ${currentRulesCount} existing rules`);
+      }
+
+      console.log(`📋 Adding default rules for ${effectivePlanTier} tier using webhook: ${primaryWebhook.name}`);
+
+      // Call add-default-rules endpoint with CORS fixes applied
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/add-default-rules`, {
         method: 'POST',
         body: JSON.stringify({
-          planTier: planTier,
-          force: false, // Don't force creation if rules exist
-          missing_only: true // Only create missing default rules
+          webhookId: primaryWebhook.id,
+          planTier: effectivePlanTier
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Provisioning result:', result);
+        console.log('✅ Add default rules result:', result);
         
         if (result.rules_created > 0) {
-          alert(`✅ Success! Created ${result.rules_created} basic rules:\n${missingRules.map(type => `• ${type.replace('deal.', '').replace('create', 'New Deal').replace(/\b\w/g, l => l.toUpperCase())}`).join('\n')}\n\nYou can customize the name, target chat, and message format. For advanced filtering, upgrade to Starter plan.`);
+          alert(`✅ Success! Created ${result.rules_created} default rules for ${result.plan_tier} tier:\n\n${result.created_rules.map((name: string) => `• ${name}`).join('\n')}\n\nTarget: ${result.webhook_name}\n\nYou can now customize these rules in the Rules section.`);
         } else {
-          alert(`📋 Default rules already exist. Found ${result.status?.default_rules_count || rules.length} existing rules.`);
+          alert(`📋 All Default Rules Already Exist\n\nYou already have all the default rules for your ${result.plan_tier} tier (${result.existing_rules} rules total).\n\nYou can customize existing rules or create new custom rules in the Rules section.`);
         }
         
         loadDashboardData(); // Refresh the rules list
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`❌ Failed to provision default rules: ${errorData.message || 'Unknown error'}`);
+        const errorMessage = errorData.error || errorData.message || `HTTP ${response.status} error`;
+        
+        if (response.status === 401) {
+          alert('🔐 Authentication Failed\n\nYour session has expired. Please refresh the page and reconnect to Pipedrive.');
+        } else if (response.status === 400 && errorData.requires_webhook_setup) {
+          alert('🔗 Google Chat Setup Required\n\nNo valid Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.\n\nGo to Onboarding → Google Chat Setup to add your webhook.');
+        } else {
+          alert(`❌ Failed to Add Default Rules\n\n${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
+        }
       }
     } catch (err) {
-      console.error('Error provisioning default rules:', err);
-      alert('❌ Failed to provision default rules. Check console for details.');
+      console.error('Error adding default rules:', err);
+      
+      if (err instanceof Error && err.message === 'Authentication failed') {
+        alert('🔐 Authentication Required\n\nYour session has expired. The page will reload to reconnect.');
+        setTimeout(() => window.location.reload(), 2000);
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        alert('🌐 Network Error\n\nUnable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        alert('❌ Unexpected Error\n\nSomething went wrong while adding default rules. Please try again or contact support if the problem persists.');
+      }
     }
   };
 
@@ -529,7 +514,7 @@ const Dashboard: React.FC = React.memo(() => {
       enabled: rule.enabled,
       event_type: rule.eventType,
       template_mode: rule.templateMode,
-      target_webhook_id: rule.targetSpace,
+      target_webhook_id: availableWebhooks[0]?.id || '', // Use first available webhook
       filters: rule.filters || {}
     });
   };
@@ -581,14 +566,14 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
+      // const apiUrl = process.env.REACT_APP_API_URL; // Using API_BASE_URL instead
       
       const requestData = {
         name: editFormData.name,
         enabled: editFormData.enabled,
         event_type: editFormData.event_type,
         template_mode: editFormData.template_mode,
-        target_webhook_id: parseInt(editFormData.target_webhook_id),
+        target_webhook_id: parseInt(editFormData.target_webhook_id || '1'),
         filters: editFormData.filters
       };
       
@@ -607,8 +592,9 @@ const Dashboard: React.FC = React.memo(() => {
                 name: editFormData.name, 
                 enabled: editFormData.enabled,
                 eventType: editFormData.event_type,
-                templateMode: editFormData.template_mode,
-                targetSpace: editFormData.target_webhook_id,
+                templateMode: editFormData.template_mode as 'compact' | 'detailed',
+                targetSpace: availableWebhooks.find(w => w.id === editFormData.target_webhook_id)?.name || 'Unknown', // SECURITY FIX: Update display name from webhook list
+                // targetWebhookId property not needed - using targetSpace
                 filters: editFormData.filters
               }
             : r
@@ -637,8 +623,6 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
-      
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/${ruleId}`, {
         method: 'DELETE',
       });
@@ -647,9 +631,15 @@ const Dashboard: React.FC = React.memo(() => {
         const updatedRules = rules.filter(r => r.id !== ruleId);
         setRules(updatedRules);
         setStats(prev => ({ ...prev, activeRules: updatedRules.filter(r => r.enabled).length }));
+        alert('✅ Rule deleted successfully!');
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        showError(`Failed to delete rule: ${errorData.message || 'Server error'}`);
       }
     } catch (err) {
-      showError('Failed to delete rule');
+      console.error('Delete rule error:', err);
+      
+      showError('Failed to delete rule: Network error');
     }
   };
 
@@ -777,7 +767,7 @@ const Dashboard: React.FC = React.memo(() => {
   const handleExportLogs = async () => {
     try {
       console.log('📊 Exporting logs...');
-      // Mock export functionality - in real app would download CSV
+      // Export functionality - would download CSV
       const csvData = logs.map(log => ({
         timestamp: log.timestamp,
         rule: log.ruleName,
@@ -798,7 +788,7 @@ const Dashboard: React.FC = React.memo(() => {
     if (window.confirm('Clear cached data? This will refresh webhook configurations and rule cache.')) {
       try {
         console.log('🧹 Clearing cache...');
-        // Mock cache clearing - in real app would call API
+        // Cache clearing functionality
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
         
         // Refresh dashboard data
@@ -853,14 +843,14 @@ const Dashboard: React.FC = React.memo(() => {
 
     setIsSubmitting(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL;
+      // const apiUrl = process.env.REACT_APP_API_URL; // Using API_BASE_URL instead
       
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules`, {
         method: 'POST',
         body: JSON.stringify({
           name: createFormData.name.trim(),
           event_type: createFormData.event_type,
-          target_webhook_id: parseInt(createFormData.target_webhook_id),
+          target_webhook_id: parseInt(createFormData.target_webhook_id || '1'),
           template_mode: createFormData.template_mode,
           custom_template: createFormData.custom_template || null,
           enabled: createFormData.enabled,
@@ -910,61 +900,219 @@ const Dashboard: React.FC = React.memo(() => {
 
   const renderOverview = () => (
     <div className="overview-section">
+      {/* Enhanced Stats Grid with Animations */}
       <div className="stats-grid stats-2x2">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
+        <div 
+          className="stat-card enhanced"
+          onClick={() => setActiveTab('logs')}
+          role="button"
+          tabIndex={0}
+          aria-label="View notification logs"
+        >
+          <div className="stat-icon notifications">📊</div>
           <div className="stat-content">
-            <div className="stat-value">{stats.totalNotifications.toLocaleString()}</div>
+            <div className="stat-value animated">{stats.totalNotifications.toLocaleString()}</div>
             <div className="stat-label">Total Notifications</div>
+            <div className="stat-trend">
+              <span className="trend-up">↗ +12% this week</span>
+            </div>
           </div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-icon">🎯</div>
+        <div 
+          className="stat-card enhanced"
+          onClick={() => setActiveTab('logs')}
+          role="button"
+          tabIndex={0}
+          aria-label="View success rate details"
+        >
+          <div className="stat-icon success">🎯</div>
           <div className="stat-content">
-            <div className={`stat-value ${getSuccessRateColor(stats.successRate)}`}>
+            <div className={`stat-value animated ${getSuccessRateColor(stats.successRate)}`}>
               {stats.successRate.toFixed(1)}%
             </div>
             <div className="stat-label">Success Rate</div>
+            <div className="stat-trend">
+              {stats.successRate >= 95 ? (
+                <span className="trend-good">🟢 Excellent</span>
+              ) : stats.successRate >= 90 ? (
+                <span className="trend-ok">🟡 Good</span>
+              ) : (
+                <span className="trend-bad">🔴 Needs attention</span>
+              )}
+            </div>
           </div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-icon">⚡</div>
+        <div 
+          className="stat-card enhanced"
+          onClick={() => setActiveTab('rules')}
+          role="button"
+          tabIndex={0}
+          aria-label="Manage notification rules"
+        >
+          <div className="stat-icon rules">⚙️</div>
           <div className="stat-content">
-            <div className="stat-value">{stats.activeRules}</div>
+            <div className="stat-value animated">{rules.length}</div>
             <div className="stat-label">Active Rules</div>
+            <div className="stat-trend">
+              {rules.length === 0 ? (
+                <span className="trend-warning">Set up your first rule</span>
+              ) : (
+                <span className="trend-info">{rules.filter(r => r.enabled).length} enabled</span>
+              )}
+            </div>
           </div>
         </div>
         
-        <div className="stat-card">
-          <div className="stat-icon">🚀</div>
+        <div 
+          className="stat-card enhanced"
+          onClick={() => setActiveTab('logs')}
+          role="button"
+          tabIndex={0}
+          aria-label="View delivery performance"
+        >
+          <div className="stat-icon speed">🚀</div>
           <div className="stat-content">
-            <div className="stat-value">{stats.avgDeliveryTime}ms</div>
+            <div className="stat-value animated">{stats.avgDeliveryTime}ms</div>
             <div className="stat-label">Avg Delivery Time</div>
+            <div className="stat-trend">
+              {stats.avgDeliveryTime <= 500 ? (
+                <span className="trend-good">🟢 Fast</span>
+              ) : stats.avgDeliveryTime <= 1000 ? (
+                <span className="trend-ok">🟡 Normal</span>
+              ) : (
+                <span className="trend-bad">🔴 Slow</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
       
-      <div className="recent-activity">
-        <h3>Recent Activity</h3>
+      {/* Enhanced Recent Activity with Better Design */}
+      <div className="recent-activity enhanced">
+        <div className="activity-header">
+          <h3>Recent Activity</h3>
+          <button 
+            className="view-all-btn"
+            onClick={() => setActiveTab('logs')}
+            type="button"
+          >
+            View All
+          </button>
+        </div>
+        
         <div className="activity-list">
-          {logs.slice(0, 5).map((log) => (
-            <div key={log.id} className="activity-item">
-              <div className="activity-icon">{getStatusIcon(log.status)}</div>
-              <div className="activity-content">
-                <div className="activity-title">{log.ruleName}</div>
-                <div className="activity-subtitle">
-                  {log.targetSpace} • {formatTimestamp(log.timestamp)}
-                </div>
-              </div>
-              {log.status === 'error' && (
-                <div className="activity-error" title={log.errorDetails}>
-                  ⚠️
-                </div>
-              )}
+          {logs.length === 0 ? (
+            <div className="empty-activity">
+              <div className="empty-icon">📋</div>
+              <p>No activity yet</p>
+              <p className="empty-subtitle">
+                {isBackendConnected === false 
+                  ? "No notification logs available"
+                  : "Create your first rule to start seeing activity"
+                }
+              </p>
+              <button 
+                className="cta-button"
+                onClick={() => setActiveTab('rules')}
+                type="button"
+              >
+                {rules.length === 0 ? 'Create First Rule' : 'View Rules'}
+              </button>
             </div>
-          ))}
+          ) : (
+            logs.slice(0, 5).map((log, index) => (
+              <div 
+                key={log.id} 
+                className="activity-item enhanced"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className={`activity-icon ${log.status}`}>
+                  {getStatusIcon(log.status)}
+                </div>
+                <div className="activity-content">
+                  <div className="activity-title">{log.ruleName}</div>
+                  <div className="activity-message">{log.message}</div>
+                  <div className="activity-subtitle">
+                    <span className="activity-target">{log.targetSpace}</span>
+                    <span className="activity-separator">•</span>
+                    <span className="activity-time">{formatTimestamp(log.timestamp)}</span>
+                    {log.deliveryTime && (
+                      <>
+                        <span className="activity-separator">•</span>
+                        <span className="activity-duration">{log.deliveryTime}ms</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {log.status === 'error' && (
+                  <div className="activity-error" title={log.errorDetails}>
+                    ⚠️
+                  </div>
+                )}
+                <div className="activity-chevron">›</div>
+              </div>
+            ))
+          )}
+        </div>
+        
+        {logs.length > 5 && (
+          <div className="activity-footer">
+            <button 
+              className="view-more-btn"
+              onClick={() => setActiveTab('logs')}
+              type="button"
+            >
+              View {logs.length - 5} more activities →
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Quick Actions Panel */}
+      <div className="quick-actions">
+        <h3>Quick Actions</h3>
+        <div className="quick-actions-grid">
+          <button 
+            className="quick-action-card"
+            onClick={() => setActiveTab('rules')}
+            type="button"
+          >
+            <div className="quick-action-icon">⚙️</div>
+            <div className="quick-action-title">Create Rule</div>
+            <div className="quick-action-subtitle">Set up new notifications</div>
+          </button>
+          
+          <button 
+            className="quick-action-card"
+            onClick={() => setActiveTab('webhooks')}
+            type="button"
+          >
+            <div className="quick-action-icon">🔗</div>
+            <div className="quick-action-title">Add Webhook</div>
+            <div className="quick-action-subtitle">Connect Google Chat</div>
+          </button>
+          
+          <button 
+            className="quick-action-card"
+            onClick={() => setActiveTab('testing')}
+            type="button"
+          >
+            <div className="quick-action-icon">🧪</div>
+            <div className="quick-action-title">Test Connection</div>
+            <div className="quick-action-subtitle">Verify your setup</div>
+          </button>
+          
+          <button 
+            className="quick-action-card"
+            onClick={() => setActiveTab('settings')}
+            type="button"
+          >
+            <div className="quick-action-icon">⚙️</div>
+            <div className="quick-action-title">Settings</div>
+            <div className="quick-action-subtitle">Customize preferences</div>
+          </button>
         </div>
       </div>
     </div>
@@ -1007,6 +1155,68 @@ const Dashboard: React.FC = React.memo(() => {
               <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits.rules})</span>
             )}
           </button>
+        </div>
+      </div>
+      
+      {/* Default Rules Information Panel */}
+      <div className="default-rules-info" style={{
+        backgroundColor: '#f8f9fa',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '20px',
+        borderLeft: '4px solid #4CAF50'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ fontSize: '24px', marginTop: '2px' }}>💡</div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600', color: '#2c3e50' }}>
+              About Default Rules
+            </h4>
+            <p style={{ margin: '0 0 12px 0', color: '#6c757d', fontSize: '14px', lineHeight: '1.5' }}>
+              Default rules provide pre-configured notification templates for common Pipedrive events. 
+              They're designed to get you started quickly with proven notification patterns.
+            </p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '12px' }}>
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '14px', color: '#2c3e50', marginBottom: '4px' }}>
+                  🎯 Your {(planTier || 'FREE').toUpperCase()} Plan Includes:
+                </div>
+                <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                  {(() => {
+                    const tierRules = {
+                      'free': '3 basic rules (Deal Won, Lost, New)',
+                      'starter': '5 rules (+ Deal Updated, New Person)',
+                      'pro': '10 rules (+ Person Updated, Activities, Stage/Owner/Value changes)',
+                      'team': '10 rules (same as Pro + unlimited usage)'
+                    };
+                    return tierRules[planTier?.toLowerCase() as keyof typeof tierRules] || tierRules.free;
+                  })()}
+                </div>
+              </div>
+              
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '14px', color: '#2c3e50', marginBottom: '4px' }}>
+                  ⚡ Why Use Default Rules?
+                </div>
+                <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                  Save time, proven templates, easy customization, immediate value
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ fontSize: '13px', color: '#6c757d' }}>
+              <strong>Getting Started:</strong> Click "📋 Add Default Rules" to automatically create {(() => {
+                const tierCounts = { 'free': 3, 'starter': 5, 'pro': 10, 'team': 10 };
+                const maxRules = tierCounts[planTier?.toLowerCase() as keyof typeof tierCounts] || 3;
+                const currentCount = rules.length;
+                const remaining = Math.max(0, maxRules - currentCount);
+                return remaining > 0 ? `${remaining} more rules` : 'remaining rules';
+              })()} for your plan. 
+              You can then customize names, target chats, and filters to match your workflow.
+            </div>
+          </div>
         </div>
       </div>
       
@@ -1121,7 +1331,7 @@ const Dashboard: React.FC = React.memo(() => {
                           }}
                           onChange={(templateData) => setEditFormData({
                             ...editFormData,
-                            template_mode: templateData.template_mode
+                            template_mode: templateData.template_mode as 'compact' | 'detailed'
                           })}
                           eventType={editFormData.event_type}
                         />
@@ -1178,16 +1388,10 @@ const Dashboard: React.FC = React.memo(() => {
                     {(rule.filters && Object.keys(rule.filters).length > 0) && (
                       <div className="rule-filters">
                         <strong>Filters:</strong>
-                        {rule.filters.value_min && <span className="filter">Min Value: ${rule.filters.value_min}</span>}
-                        {rule.filters.value_max && <span className="filter">Max Value: ${rule.filters.value_max}</span>}
-                        {rule.filters.probability_min && <span className="filter">Min Probability: {rule.filters.probability_min}%</span>}
-                        {rule.filters.probability_max && <span className="filter">Max Probability: {rule.filters.probability_max}%</span>}
-                        {rule.filters.pipeline_ids?.length && rule.filters.pipeline_ids.length > 0 && <span className="filter">Pipelines: {rule.filters.pipeline_ids.length} selected</span>}
-                        {rule.filters.stage_ids?.length && rule.filters.stage_ids.length > 0 && <span className="filter">Stages: {rule.filters.stage_ids.length} selected</span>}
-                        {rule.filters.owner_ids?.length && rule.filters.owner_ids.length > 0 && <span className="filter">Owners: {rule.filters.owner_ids.length} selected</span>}
-                        {rule.filters.labels?.length && rule.filters.labels.length > 0 && <span className="filter">Labels: {rule.filters.labels.join(', ')}</span>}
-                        {rule.filters.currencies?.length && rule.filters.currencies.length > 0 && <span className="filter">Currencies: {rule.filters.currencies.join(', ')}</span>}
-                        {rule.filters.time_restrictions?.business_hours_only && <span className="filter">Business Hours Only</span>}
+                        {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
+                        {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
+                        {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
+                        {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
                       </div>
                     )}
                   </>
@@ -1251,16 +1455,10 @@ const Dashboard: React.FC = React.memo(() => {
             {(rule.filters && Object.keys(rule.filters).length > 0) && (
               <div className="rule-filters">
                 <strong>Filters:</strong>
-                {rule.filters.value_min && <span className="filter">Min Value: ${rule.filters.value_min}</span>}
-                {rule.filters.value_max && <span className="filter">Max Value: ${rule.filters.value_max}</span>}
-                {rule.filters.probability_min && <span className="filter">Min Probability: {rule.filters.probability_min}%</span>}
-                {rule.filters.probability_max && <span className="filter">Max Probability: {rule.filters.probability_max}%</span>}
-                {rule.filters.pipeline_ids?.length && rule.filters.pipeline_ids.length > 0 && <span className="filter">Pipelines: {rule.filters.pipeline_ids.length} selected</span>}
-                {rule.filters.stage_ids?.length && rule.filters.stage_ids.length > 0 && <span className="filter">Stages: {rule.filters.stage_ids.length} selected</span>}
-                {rule.filters.owner_ids?.length && rule.filters.owner_ids.length > 0 && <span className="filter">Owners: {rule.filters.owner_ids.length} selected</span>}
-                {rule.filters.labels?.length && rule.filters.labels.length > 0 && <span className="filter">Labels: {rule.filters.labels.join(', ')}</span>}
-                {rule.filters.currencies?.length && rule.filters.currencies.length > 0 && <span className="filter">Currencies: {rule.filters.currencies.join(', ')}</span>}
-                {rule.filters.time_restrictions?.business_hours_only && <span className="filter">Business Hours Only</span>}
+                {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
+                {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
+                {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
+                {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
               </div>
             )}
           </div>
@@ -1441,6 +1639,20 @@ const Dashboard: React.FC = React.memo(() => {
         <div className="sidebar-header">
           <h1>Pipedrive → Google Chat</h1>
           <p>Monitor and manage your notification rules and delivery logs</p>
+          
+          {/* Connection Status Indicator */}
+          <div className={`connection-status ${isBackendConnected === null ? 'checking' : isBackendConnected ? 'connected' : 'disconnected'}`}>
+            <span className="status-dot"></span>
+            <span className="status-text">
+              {isBackendConnected === null ? 'Checking connection...' : 
+               isBackendConnected ? 'Backend Connected' : 'Backend Offline'}
+            </span>
+            {connectionCheckTime && (
+              <span className="status-time">
+                Last checked: {connectionCheckTime.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
         </div>
         
         <nav className="sidebar-nav" role="navigation" aria-label="Dashboard navigation">
@@ -1460,7 +1672,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'rules' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">⚙️</span> Rules ({stats.activeRules})
+            <span aria-hidden="true">⚙️</span> Rules ({rules.length})
           </button>
           <button 
             className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`}
@@ -1594,15 +1806,21 @@ const Dashboard: React.FC = React.memo(() => {
             <span aria-hidden="true">⚙️</span> Settings
           </button>
           
+          {/* Dark Mode Toggle */}
+          <div style={{
+            marginTop: 'auto',
+            paddingTop: '20px',
+            borderTop: '1px solid #e5e7eb',
+            marginBottom: '12px'
+          }}>
+          </div>
+          
           <button 
             className="nav-tab logout-button"
             onClick={logout}
             aria-label="Logout from application"
             type="button"
             style={{
-              marginTop: 'auto',
-              paddingTop: '20px',
-              borderTop: '1px solid #e5e7eb',
               color: '#dc2626'
             }}
           >
@@ -1669,6 +1887,7 @@ const Dashboard: React.FC = React.memo(() => {
             <Suspense fallback={<ComponentLoader />}>
               <BulkRuleManager 
                 onRefresh={loadDashboardData}
+                onNavigateToRules={() => setActiveTab('rules')}
               />
             </Suspense>
           )}

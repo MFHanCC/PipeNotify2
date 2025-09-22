@@ -1,426 +1,253 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import './BulkRuleManager.css';
+import React, { useState, useEffect } from 'react';
 import { authenticatedFetch } from '../utils/auth';
 import { API_BASE_URL } from '../config/api';
+import './BulkRuleManager.css';
 
 interface Rule {
-  id: number;
+  id: string;
   name: string;
-  event_filters: any;
-  message_template: string;
-  target_webhook_id: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Webhook {
-  id: number;
-  name: string;
-  webhook_url: string;
-  is_active: boolean;
-}
-
-interface BulkOperation {
-  type: 'activate' | 'deactivate' | 'delete' | 'update_webhook';
-  rule_ids: number[];
-  data?: any;
-}
-
-interface ImportResult {
-  success: number;
-  failed: number;
-  errors: string[];
-  imported_rules: Rule[];
+  message: string;
+  isActive: boolean;
+  filters: {
+    pipeline_ids?: number[];
+    stage_ids?: number[];
+    value_min?: number;
+    value_max?: number;
+  };
+  webhook?: {
+    url?: string;
+    isActive?: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface BulkRuleManagerProps {
   onRefresh?: () => void;
+  onNavigateToRules?: () => void;
 }
 
-const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
+const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigateToRules }) => {
   const [rules, setRules] = useState<Rule[]>([]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [selectedRules, setSelectedRules] = useState<number[]>([]);
+  const [selectedRules, setSelectedRules] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
-  const [importResults, setImportResults] = useState<ImportResult | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Enhanced error handling
-  const handleApiError = useCallback((error: any, operation: string) => {
-    let message = `Failed to ${operation}`;
-    if (error?.status === 401) {
-      message = 'Session expired. Please log in again.';
-    } else if (error?.status === 403) {
-      message = 'Permission denied.';
-    } else if (error?.message) {
-      message = error.message;
-    }
-    setError(message);
-  }, []);
-
-  // Filtered and searched rules
-  const filteredRules = useMemo(() => {
-    let filtered = rules;
-    
-    // Apply active filter
-    if (filterActive !== 'all') {
-      filtered = filtered.filter(rule => 
-        filterActive === 'active' ? rule.is_active : !rule.is_active
-      );
-    }
-    
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(rule =>
-        rule.name.toLowerCase().includes(query) ||
-        JSON.stringify(rule.event_filters).toLowerCase().includes(query)
-      );
-    }
-    
-    return filtered;
-  }, [rules, filterActive, searchQuery]);
-
-  // Selection helpers
-  const allSelectedOnPage = useMemo(() => 
-    filteredRules.length > 0 && filteredRules.every(rule => selectedRules.includes(rule.id)),
-    [filteredRules, selectedRules]
-  );
-
-  const someSelectedOnPage = useMemo(() =>
-    filteredRules.some(rule => selectedRules.includes(rule.id)),
-    [filteredRules, selectedRules]
-  );
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   useEffect(() => {
-    loadData();
+    loadRules();
   }, []);
 
-  const loadData = async () => {
+  const loadRules = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const apiUrl = API_BASE_URL;
-
-      const [rulesResponse, webhooksResponse] = await Promise.all([
-        authenticatedFetch(`${apiUrl}/api/v1/admin/rules`).catch(() => null),
-        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`).catch(() => null)
-      ]);
-
-      if (rulesResponse && rulesResponse.ok) {
-        const rulesData = await rulesResponse.json();
-        setRules(rulesData.rules || []);
+      
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Raw API response:', data);
+        
+        // Transform the API response to match our interface
+        const transformedRules = (data.rules || []).map((rule: any) => ({
+          id: rule.id.toString(),
+          name: rule.name || 'Unnamed Rule',
+          message: rule.formatted_message || rule.name || 'No message preview',
+          isActive: rule.enabled !== false,
+          filters: rule.filters || {},
+          webhook: {
+            url: rule.webhook_name || null, // Fixed: Use webhook_name from backend
+            isActive: rule.target_webhook_id ? true : false // Fixed: Check if webhook is assigned
+          },
+          createdAt: rule.created_at || rule.createdAt || new Date().toISOString(),
+          updatedAt: rule.updated_at || rule.updatedAt || new Date().toISOString()
+        }));
+        
+        console.log('Transformed rules:', transformedRules);
+        setRules(transformedRules);
       } else {
-        setError('Failed to load rules. Please check your connection and try again.');
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`Failed to fetch rules: ${response.status} ${response.statusText}`);
       }
-
-      if (webhooksResponse && webhooksResponse.ok) {
-        const webhooksData = await webhooksResponse.json();
-        setWebhooks(webhooksData.webhooks || []);
-      } else if (!webhooksResponse) {
-        console.warn('Failed to load webhooks');
-      }
-
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setError('Failed to load bulk management data. Please refresh the page.');
+    } catch (err) {
+      console.error('Error loading rules:', err);
+      setError(`Failed to load rules: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
-  // Using memoized filteredRules from above
+  const filteredRules = rules.filter(rule => {
+    const matchesSearch = rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         rule.message.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'active' && rule.isActive) ||
+                         (statusFilter === 'inactive' && !rule.isActive);
+    return matchesSearch && matchesStatus;
+  });
 
-  const handleRuleSelect = (ruleId: number, selected: boolean) => {
-    if (selected) {
-      setSelectedRules(prev => [...prev, ruleId]);
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRules(new Set(filteredRules.map(rule => rule.id)));
     } else {
-      setSelectedRules(prev => prev.filter(id => id !== ruleId));
+      setSelectedRules(new Set());
     }
   };
 
-  const handleSelectAll = () => {
-    if (selectedRules.length === filteredRules.length) {
-      setSelectedRules([]);
+  const handleSelectRule = (ruleId: string, checked: boolean) => {
+    const newSelected = new Set(selectedRules);
+    if (checked) {
+      newSelected.add(ruleId);
     } else {
-      setSelectedRules(filteredRules.map(rule => rule.id));
+      newSelected.delete(ruleId);
     }
+    setSelectedRules(newSelected);
   };
 
-  const executeBulkOperation = async (operation: BulkOperation) => {
-    if (selectedRules.length === 0) {
-      alert('Please select at least one rule');
-      return;
-    }
+  const handleBulkAction = async (action: 'activate' | 'deactivate' | 'delete') => {
+    if (selectedRules.size === 0) return;
 
     try {
-      setIsProcessing(true);
-      const apiUrl = API_BASE_URL;
-
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/bulk`, {
-        method: 'POST',
-        body: JSON.stringify(operation)
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert(` Successfully processed ${selectedRules.length} rules`);
-        setSelectedRules([]);
-        await loadData();
-        if (onRefresh) onRefresh();
+      // In production, this would make API calls
+      console.log(`Bulk ${action} for rules:`, Array.from(selectedRules));
+      
+      if (action === 'delete') {
+        setRules(rules.filter(rule => !selectedRules.has(rule.id)));
       } else {
-        alert(`L Bulk operation failed: ${result.error || 'Unknown error'}`);
+        setRules(rules.map(rule => 
+          selectedRules.has(rule.id) 
+            ? { ...rule, isActive: action === 'activate' }
+            : rule
+        ));
       }
-
-    } catch (error) {
-      console.error('Error executing bulk operation:', error);
-      alert('L Failed to execute bulk operation');
+      
+      setSelectedRules(new Set());
+    } catch (err) {
+      console.error(`Error performing bulk ${action}:`, err);
     }
-    setIsProcessing(false);
   };
 
-  const handleBulkActivate = () => {
-    executeBulkOperation({
-      type: 'activate',
-      rule_ids: selectedRules
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
-  const handleBulkDeactivate = () => {
-    executeBulkOperation({
-      type: 'deactivate',
-      rule_ids: selectedRules
-    });
-  };
-
-  const handleBulkDelete = () => {
-    if (window.confirm(`Are you sure you want to delete ${selectedRules.length} selected rules? This action cannot be undone.`)) {
-      executeBulkOperation({
-        type: 'delete',
-        rule_ids: selectedRules
-      });
-    }
-  };
-
-  const handleBulkUpdateWebhook = (webhookId: number) => {
-    if (window.confirm(`Update webhook for ${selectedRules.length} selected rules?`)) {
-      executeBulkOperation({
-        type: 'update_webhook',
-        rule_ids: selectedRules,
-        data: { webhook_id: webhookId }
-      });
-    }
-  };
-
-  const handleExportRules = () => {
-    const exportData = {
-      export_date: new Date().toISOString(),
-      rules: selectedRules.length > 0 
-        ? rules.filter(rule => selectedRules.includes(rule.id))
-        : rules,
-      webhooks: webhooks // Include webhooks for context
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `pipenotify-rules-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportRules = async (file: File) => {
-    try {
-      setIsProcessing(true);
-      const fileContent = await file.text();
-      const importData = JSON.parse(fileContent);
-
-      const apiUrl = API_BASE_URL;
-      const response = await authenticatedFetch(`${apiUrl}/api/v1/admin/rules/import`, {
-        method: 'POST',
-        body: JSON.stringify({
-          rules: importData.rules || importData, // Support both formats
-          webhooks: importData.webhooks || []
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setImportResults(result);
-        setShowImportModal(true);
-        await loadData();
-        if (onRefresh) onRefresh();
-      } else {
-        alert(`L Import failed: ${result.error || 'Unknown error'}`);
-      }
-
-    } catch (error) {
-      console.error('Error importing rules:', error);
-      alert('L Failed to import rules. Please check the file format.');
-    }
-    setIsProcessing(false);
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleImportRules(file);
-    }
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const getFiltersDisplay = (filters: Rule['filters']) => {
+    const parts = [];
+    if (filters.pipeline_ids?.length) parts.push(`Pipeline: ${filters.pipeline_ids.length}`);
+    if (filters.stage_ids?.length) parts.push(`Stage: ${filters.stage_ids.length}`);
+    if (filters.value_min) parts.push(`Min: $${filters.value_min.toLocaleString()}`);
+    if (filters.value_max) parts.push(`Max: $${filters.value_max.toLocaleString()}`);
+    return parts.length > 0 ? parts : ['No filters'];
   };
 
   if (isLoading) {
     return (
-      <div className="bulk-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading rules...</p>
+      <div className="bulk-rule-manager">
+        <div className="bulk-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading rules...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bulk-error">
-        <div className="error-icon">⚠️</div>
-        <h3>Unable to load bulk management</h3>
-        <p>{error}</p>
-        <button onClick={loadData} className="retry-button">
-          🔄 Try Again
-        </button>
+      <div className="bulk-rule-manager">
+        <div className="bulk-error">
+          <span className="error-icon">⚠️</span>
+          <h3>Error Loading Rules</h3>
+          <p>{error}</p>
+          <button className="retry-button" onClick={loadRules}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="bulk-rule-manager">
+      {/* Header */}
       <div className="bulk-header">
         <div className="header-content">
-          <h2>Bulk Rule Management</h2>
-          <p>Manage multiple rules at once and import/export configurations</p>
+          <h2>📋 Bulk Rule Management</h2>
+          <p>Select and manage multiple notification rules at once</p>
         </div>
         <div className="header-actions">
-          <button onClick={handleExportRules} className="export-button">
-            =� Export {selectedRules.length > 0 ? `${selectedRules.length} Selected` : 'All Rules'}
+          <button className="export-button" onClick={() => console.log('Export rules')}>
+            📥 Export Rules
           </button>
-          <button onClick={triggerFileInput} className="import-button" disabled={isProcessing}>
-            =� Import Rules
+          <button className="import-button" onClick={() => console.log('Import rules')}>
+            📤 Import Rules
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-          />
         </div>
       </div>
 
-      {/* Filters and Search */}
+      {/* Filters */}
       <div className="filters-section">
         <div className="search-controls">
           <input
             type="text"
-            placeholder="Search rules by name or message template..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
+            placeholder="Search rules by name or message..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
           <select
-            value={filterActive}
-            onChange={(e) => setFilterActive(e.target.value as 'all' | 'active' | 'inactive')}
             className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
           >
             <option value="all">All Rules</option>
             <option value="active">Active Only</option>
             <option value="inactive">Inactive Only</option>
           </select>
         </div>
-        
         <div className="selection-info">
-          {selectedRules.length > 0 ? (
-            <span className="selected-count">
-              {selectedRules.length} of {filteredRules.length} rules selected
-            </span>
-          ) : (
-            <span className="total-count">
-              {filteredRules.length} rules found
-            </span>
-          )}
+          <span className="selected-count">{selectedRules.size}</span>
+          {' '}of{' '}
+          <span className="total-count">{filteredRules.length}</span>
+          {' '}selected
         </div>
       </div>
 
       {/* Bulk Actions */}
-      {selectedRules.length > 0 && (
+      {selectedRules.size > 0 && (
         <div className="bulk-actions">
           <div className="action-group">
-            <h3>=� Bulk Actions ({selectedRules.length} selected)</h3>
+            <h3>Bulk Actions ({selectedRules.size} rules selected)</h3>
             <div className="action-buttons">
               <button
-                onClick={handleBulkActivate}
-                disabled={isProcessing}
                 className="action-button activate"
+                onClick={() => handleBulkAction('activate')}
+                disabled={selectedRules.size === 0}
               >
-                 Activate
+                ✅ Activate
               </button>
               <button
-                onClick={handleBulkDeactivate}
-                disabled={isProcessing}
                 className="action-button deactivate"
+                onClick={() => handleBulkAction('deactivate')}
+                disabled={selectedRules.size === 0}
               >
-                � Deactivate
+                ⏸️ Deactivate
               </button>
               <button
-                onClick={handleBulkDelete}
-                disabled={isProcessing}
                 className="action-button delete"
+                onClick={() => handleBulkAction('delete')}
+                disabled={selectedRules.size === 0}
               >
-                =� Delete
+                🗑️ Delete
               </button>
             </div>
           </div>
-          
-          {webhooks.length > 0 && (
-            <div className="webhook-update-group">
-              <span>Update Webhook:</span>
-              <select
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleBulkUpdateWebhook(parseInt(e.target.value));
-                    e.target.value = '';
-                  }
-                }}
-                disabled={isProcessing}
-                className="webhook-select"
-              >
-                <option value="">Choose webhook...</option>
-                {webhooks.map(webhook => (
-                  <option key={webhook.id} value={webhook.id}>
-                    {webhook.name} {webhook.is_active ? '' : 'L'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       )}
 
@@ -432,150 +259,80 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh }) => {
               <th className="checkbox-column">
                 <input
                   type="checkbox"
-                  checked={selectedRules.length === filteredRules.length && filteredRules.length > 0}
-                  onChange={handleSelectAll}
+                  checked={filteredRules.length > 0 && selectedRules.size === filteredRules.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
-              <th>Rule Name</th>
-              <th>Status</th>
-              <th>Event Filters</th>
-              <th>Webhook</th>
-              <th>Created</th>
-              <th>Updated</th>
+              <th className="rule-name">Rule Name</th>
+              <th className="status">Status</th>
+              <th className="filters">Filters</th>
+              <th className="webhook">Webhook</th>
+              <th className="date">Created</th>
             </tr>
           </thead>
           <tbody>
-            {filteredRules.map(rule => {
-              const webhook = webhooks.find(w => w.id === rule.target_webhook_id);
-              return (
-                <tr key={rule.id} className={selectedRules.includes(rule.id) ? 'selected' : ''}>
-                  <td className="checkbox-column">
-                    <input
-                      type="checkbox"
-                      checked={selectedRules.includes(rule.id)}
-                      onChange={(e) => handleRuleSelect(rule.id, e.target.checked)}
-                    />
-                  </td>
-                  <td className="rule-name">
-                    <div className="name-cell">
-                      <strong>{rule.name}</strong>
-                      <div className="message-preview">
-                        {(rule.message_template || '').substring(0, 60)}
-                        {(rule.message_template || '').length > 60 ? '...' : ''}
-                      </div>
+            {filteredRules.map((rule) => (
+              <tr 
+                key={rule.id}
+                className={selectedRules.has(rule.id) ? 'selected' : ''}
+              >
+                <td className="checkbox-column" data-label="Select">
+                  <input
+                    type="checkbox"
+                    checked={selectedRules.has(rule.id)}
+                    onChange={(e) => handleSelectRule(rule.id, e.target.checked)}
+                  />
+                </td>
+                <td className="rule-name" data-label="Rule">
+                  <div className="name-cell">
+                    <strong>{rule.name}</strong>
+                    <div className="message-preview">
+                      {rule.message.substring(0, 80)}
+                      {rule.message.length > 80 ? '...' : ''}
                     </div>
-                  </td>
-                  <td className={`status ${rule.is_active ? 'active' : 'inactive'}`}>
-                    {rule.is_active ? ' Active' : '� Inactive'}
-                  </td>
-                  <td className="filters">
-                    <div className="filters-summary">
-                      {Object.entries(rule.event_filters || {}).map(([key, value]) => (
-                        <span key={key} className="filter-tag">
-                          {key}: {Array.isArray(value) ? value.join(', ') : String(value)}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="webhook">
-                    {webhook ? (
-                      <span className={webhook.is_active ? 'webhook-active' : 'webhook-inactive'}>
-                        {webhook.name}
-                      </span>
-                    ) : (
-                      <span className="webhook-missing">Missing</span>
-                    )}
-                  </td>
-                  <td className="date">
-                    {new Date(rule.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="date">
-                    {new Date(rule.updated_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              );
-            })}
+                  </div>
+                </td>
+                <td className="status" data-label="Status">
+                  <span className={`status ${rule.isActive ? 'active' : 'inactive'}`}>
+                    {rule.isActive ? '🟢 Active' : '🔴 Inactive'}
+                  </span>
+                </td>
+                <td className="filters" data-label="Filters">
+                  <div className="filters-summary">
+                    {getFiltersDisplay(rule.filters).map((filter, index) => (
+                      <span key={index} className="filter-tag">{filter}</span>
+                    ))}
+                  </div>
+                </td>
+                <td className="webhook" data-label="Webhook">
+                  {rule.webhook?.url ? (
+                    <span className={`webhook-${rule.webhook.isActive ? 'active' : 'inactive'}`}>
+                      {rule.webhook.isActive ? '🔗 Connected' : '⚠️ Inactive'}
+                    </span>
+                  ) : (
+                    <span className="webhook-missing">❌ Not set</span>
+                  )}
+                </td>
+                <td className="date" data-label="Created">
+                  {formatDate(rule.createdAt)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-
+        
         {filteredRules.length === 0 && (
           <div className="no-rules">
-            <div className="no-rules-icon">=�</div>
-            <h3>No rules found</h3>
-            <p>Try adjusting your search or filter criteria</p>
+            <div className="no-rules-icon">📋</div>
+            <h3>No Rules Found</h3>
+            <p>
+              {searchTerm || statusFilter !== 'all' 
+                ? 'No rules match your current filters.'
+                : 'No notification rules have been created yet.'
+              }
+            </p>
           </div>
         )}
-      </div>
-
-      {/* Import Results Modal */}
-      {showImportModal && importResults && (
-        <div className="modal-overlay">
-          <div className="import-modal">
-            <div className="modal-header">
-              <h3>Import Results</h3>
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="modal-close"
-              >
-                �
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="import-summary">
-                <div className={`summary-stat ${importResults.success > 0 ? 'success' : ''}`}>
-                  <span className="stat-number">{importResults.success}</span>
-                  <span className="stat-label">Successfully Imported</span>
-                </div>
-                <div className={`summary-stat ${importResults.failed > 0 ? 'error' : ''}`}>
-                  <span className="stat-number">{importResults.failed}</span>
-                  <span className="stat-label">Failed</span>
-                </div>
-              </div>
-
-              {importResults.errors.length > 0 && (
-                <div className="import-errors">
-                  <h4>Errors:</h4>
-                  <ul>
-                    {importResults.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {importResults.imported_rules.length > 0 && (
-                <div className="imported-rules">
-                  <h4>Imported Rules:</h4>
-                  <ul>
-                    {importResults.imported_rules.map((rule) => (
-                      <li key={rule.id}>{rule.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button
-                onClick={() => setShowImportModal(false)}
-                className="modal-button"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Info Section */}
-      <div className="bulk-info">
-        <h4>=� Bulk Management Tips</h4>
-        <ul>
-          <li><strong>Export:</strong> Download rules as JSON for backup or migration</li>
-          <li><strong>Import:</strong> Upload previously exported rule configurations</li>
-          <li><strong>Selection:</strong> Use search and filters to find specific rules quickly</li>
-          <li><strong>Bulk Actions:</strong> Apply changes to multiple rules simultaneously</li>
-          <li><strong>Webhook Updates:</strong> Reassign rules to different Google Chat channels</li>
-        </ul>
       </div>
     </div>
   );

@@ -65,11 +65,17 @@ export async function saveUserTimezone(apiUrl) {
   }
 }
 
+// Retry tracking to prevent infinite loops
+let timezoneRetryCount = 0;
+let timezoneRetryTimer = null;
+const MAX_TIMEZONE_RETRIES = 3;
+
 /**
  * Auto-detect and save timezone (call this when user logs in or during onboarding)
  * @param {string} apiUrl - Backend API URL  
+ * @param {number} retryAttempt - Current retry attempt (internal use)
  */
-export async function autoSetupTimezone(apiUrl) {
+export async function autoSetupTimezone(apiUrl, retryAttempt = 0) {
   try {
     console.log('🕐 Auto-setting up user timezone...');
     
@@ -86,13 +92,30 @@ export async function autoSetupTimezone(apiUrl) {
     
     if (success) {
       console.log('✅ Timezone auto-setup completed');
+      // Reset retry count on success
+      timezoneRetryCount = 0;
+      if (timezoneRetryTimer) {
+        clearTimeout(timezoneRetryTimer);
+        timezoneRetryTimer = null;
+      }
+    } else if (retryAttempt < MAX_TIMEZONE_RETRIES) {
+      console.warn(`⚠️ Timezone auto-setup failed, will retry later (attempt ${retryAttempt + 1}/${MAX_TIMEZONE_RETRIES})`);
+      
+      // Clear any existing timer
+      if (timezoneRetryTimer) {
+        clearTimeout(timezoneRetryTimer);
+      }
+      
+      // Exponential backoff: 5s, 10s, 20s
+      const retryDelay = 5000 * Math.pow(2, retryAttempt);
+      
+      timezoneRetryTimer = setTimeout(() => {
+        console.log(`🔄 Retrying timezone setup... (attempt ${retryAttempt + 1}/${MAX_TIMEZONE_RETRIES})`);
+        autoSetupTimezone(apiUrl, retryAttempt + 1);
+      }, retryDelay);
     } else {
-      console.warn('⚠️ Timezone auto-setup failed, will retry later');
-      // Schedule a retry after a delay
-      setTimeout(() => {
-        console.log('🔄 Retrying timezone setup...');
-        autoSetupTimezone(apiUrl);
-      }, 2000);
+      console.error('❌ Timezone setup failed after maximum retries. Giving up.');
+      timezoneRetryCount = 0;
     }
     
     return success;
@@ -100,6 +123,17 @@ export async function autoSetupTimezone(apiUrl) {
     console.error('❌ Timezone auto-setup error:', error);
     return false;
   }
+}
+
+/**
+ * Stop any ongoing timezone retry attempts (call on component unmount)
+ */
+export function stopTimezoneRetries() {
+  if (timezoneRetryTimer) {
+    clearTimeout(timezoneRetryTimer);
+    timezoneRetryTimer = null;
+  }
+  timezoneRetryCount = 0;
 }
 
 /**

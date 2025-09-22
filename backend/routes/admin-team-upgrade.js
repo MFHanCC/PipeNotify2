@@ -204,11 +204,11 @@ router.get('/tenants', async (req, res) => {
     let params = [];
     
     if (search) {
-      query += ` WHERE company_name ILIKE $1 OR pipedrive_user_name ILIKE $1 OR pipedrive_company_id::text = $2`;
+      query += ' WHERE company_name ILIKE $1 OR pipedrive_user_name ILIKE $1 OR pipedrive_company_id::text = $2';
       params = [`%${search}%`, search];
     }
     
-    query += ` ORDER BY created_at DESC LIMIT 20`;
+    query += ' ORDER BY created_at DESC LIMIT 20';
     
     const result = await pool.query(query, params);
     

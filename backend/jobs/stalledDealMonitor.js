@@ -127,43 +127,43 @@ function formatStalledDealMessage(stalledDeals, tenantName = 'Your Team') {
   let message = `🔔 **Stalled Deal Alert** - ${tenantName}\n\n`;
   
   if (criticalDeals.length > 0) {
-    message += `🚨 **CRITICAL** - No activity for 14+ days:\n`;
+    message += '🚨 **CRITICAL** - No activity for 14+ days:\n';
     criticalDeals.slice(0, 3).forEach(deal => { // Show max 3 critical deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (criticalDeals.length > 3) {
       message += `• *...and ${criticalDeals.length - 3} more critical deals*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   if (staleDeals.length > 0) {
-    message += `🟠 **STALE** - No activity for 7+ days:\n`;
+    message += '🟠 **STALE** - No activity for 7+ days:\n';
     staleDeals.slice(0, 3).forEach(deal => { // Show max 3 stale deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (staleDeals.length > 3) {
       message += `• *...and ${staleDeals.length - 3} more stale deals*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   if (warningDeals.length > 0 && criticalDeals.length === 0) {
     // Only show warnings if there are no critical deals (to avoid spam)
-    message += `⚠️ **WARNING** - No activity for 3+ days:\n`;
+    message += '⚠️ **WARNING** - No activity for 3+ days:\n';
     warningDeals.slice(0, 5).forEach(deal => { // Show max 5 warning deals
       message += `• *${deal.title}* - ${deal.currency} ${deal.value.toLocaleString()} (${deal.days_since_activity} days)\n`;
     });
     if (warningDeals.length > 5) {
       message += `• *...and ${warningDeals.length - 5} more deals need attention*\n`;
     }
-    message += `\n`;
+    message += '\n';
   }
   
   // Add summary and call to action
   const totalValue = stalledDeals.reduce((sum, deal) => sum + deal.value, 0);
   message += `💰 **Total stalled pipeline:** ${stalledDeals[0]?.currency || 'USD'} ${totalValue.toLocaleString()}\n`;
-  message += `📈 **Action needed:** Follow up on these deals to keep your pipeline moving!\n`;
+  message += '📈 **Action needed:** Follow up on these deals to keep your pipeline moving!\n';
   
   return message;
 }
@@ -343,37 +343,71 @@ if (process.env.NODE_ENV !== 'test') {
   console.log('⏸️ Skipping cron job scheduling in test environment');
 }
 
-// Also create a BullMQ worker for manual triggering
-const stalledDealWorker = new Worker('stalled-deals', async (job) => {
-  const { tenantId } = job.data;
-  
-  if (tenantId) {
-    // Process single tenant
-    return await processStalledDealMonitoring(tenantId);
-  } else {
-    // Process all tenants
-    return await runStalledDealMonitoring();
+// SECURITY FIX: Conditional Redis worker initialization
+let stalledDealWorker = null;
+
+async function initializeWorker() {
+  try {
+    // Test Redis connection before creating worker
+    console.log('🔄 Testing Redis connection for stalled deal monitor...');
+    const Redis = require('ioredis');
+    const testConnection = new Redis(redisConfig.connection);
+    
+    await testConnection.ping();
+    await testConnection.disconnect();
+    
+    console.log('✅ Redis connection successful, initializing stalled deal worker...');
+    
+    stalledDealWorker = new Worker('stalled-deals', async (job) => {
+      const { tenantId } = job.data;
+      
+      if (tenantId) {
+        // Process single tenant
+        return await processStalledDealMonitoring(tenantId);
+      } else {
+        // Process all tenants
+        return await runStalledDealMonitoring();
+      }
+    }, redisConfig);
+
+    stalledDealWorker.on('completed', (job, result) => {
+      console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
+    });
+
+    stalledDealWorker.on('failed', (job, err) => {
+      console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
+    });
+    
+    console.log('📋 Stalled deal worker initialized successfully');
+    
+  } catch (error) {
+    console.warn('⚠️ Redis not available, stalled deal worker disabled:', error.message);
+    console.log('📋 Stalled deal monitoring will run via cron only (no queue support)');
+    stalledDealWorker = null;
   }
-}, redisConfig);
+}
 
-stalledDealWorker.on('completed', (job, result) => {
-  console.log(`✅ Stalled deal monitoring job ${job.id} completed:`, result);
-});
+// Initialize worker only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  initializeWorker().catch(err => {
+    console.error('Failed to initialize stalled deal worker:', err);
+  });
+}
 
-stalledDealWorker.on('failed', (job, err) => {
-  console.error(`❌ Stalled deal monitoring job ${job.id} failed:`, err.message);
-});
-
-// Graceful shutdown
+// Graceful shutdown with conditional worker check
 process.on('SIGTERM', async () => {
   console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close();
+  if (stalledDealWorker) {
+    await stalledDealWorker.close();
+  }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('Shutting down stalled deal monitor...');
-  await stalledDealWorker.close(); 
+  if (stalledDealWorker) {
+    await stalledDealWorker.close();
+  }
   process.exit(0);
 });
 
@@ -385,5 +419,5 @@ module.exports = {
   sendStalledDealAlerts,
   processStalledDealMonitoring,
   runStalledDealMonitoring,
-  stalledDealWorker
+  getStalledDealWorker: () => stalledDealWorker
 };

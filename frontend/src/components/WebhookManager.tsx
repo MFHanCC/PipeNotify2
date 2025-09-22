@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiService from '../services/api';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
+import LimitWarning from './LimitWarning';
 import './WebhookManager.css';
 
 interface Webhook {
@@ -160,7 +161,15 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
       const result = await apiService.deleteWebhook(webhookId);
       
       if (result.success) {
-        await loadWebhooks(); // Refresh the list
+        // Update local state immediately for demo mode
+        setWebhooks(prevWebhooks => prevWebhooks.filter(w => w.id !== webhookId));
+        
+        // Also notify parent component of the change
+        if (onWebhooksChange) {
+          const updatedWebhooks = webhooks.filter(w => w.id !== webhookId);
+          onWebhooksChange(updatedWebhooks);
+        }
+        
         alert('✅ Webhook deleted successfully!');
       } else {
         setError('Delete failed: ' + result.message);
@@ -203,27 +212,34 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
 
   return (
     <div className="webhook-manager">
-      <div className="webhook-manager-header">
-        <h3>Google Chat Webhooks</h3>
-        <button 
-          className="btn-primary"
-          onClick={() => {
-            if (!showAddForm && !isWithinWebhookLimit(webhooks.length)) {
-              return; // Don't show form if at limit
+      <div className="section-header">
+        <h3>
+          🔗 Google Chat Webhooks 
+          <span className="count-badge">
+            ({webhooks.length}/{getWebhookLimitMessage()})
+          </span>
+        </h3>
+        <div className="header-buttons">
+          <button 
+            className="create-webhook-button"
+            onClick={() => {
+              if (!showAddForm && !isWithinWebhookLimit(webhooks.length)) {
+                return; // Don't show form if at limit
+              }
+              setShowAddForm(!showAddForm);
+            }}
+            disabled={featuresLoading || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
+            title={!isWithinWebhookLimit(webhooks.length)
+              ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getWebhookLimitMessage()} webhook${getWebhookLimitMessage() === '1' ? '' : 's'} max). Upgrade to add more webhooks.`
+              : 'Add a new Google Chat webhook'
             }
-            setShowAddForm(!showAddForm);
-          }}
-          disabled={featuresLoading || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
-          title={!isWithinWebhookLimit(webhooks.length)
-            ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getWebhookLimitMessage()} webhook${getWebhookLimitMessage() === '1' ? '' : 's'} max). Upgrade to add more webhooks.`
-            : 'Add a new Google Chat webhook'
-          }
-        >
-          {showAddForm ? 'Cancel' : '+ Add Webhook'}
-          {!showAddForm && !isWithinWebhookLimit(webhooks.length) && (
-            <span style={{marginLeft: '4px', opacity: 0.7}}>({webhooks.length}/{getWebhookLimitMessage()})</span>
-          )}
-        </button>
+          >
+            {showAddForm ? '✕ Cancel' : '+ Add Webhook'}
+            {!showAddForm && !isWithinWebhookLimit(webhooks.length) && (
+              <span style={{marginLeft: '4px', opacity: 0.7}}>({webhooks.length}/{getWebhookLimitMessage()})</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -232,14 +248,11 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         </div>
       )}
 
-      {!isWithinWebhookLimit(webhooks.length) && (
-        <div className="error-message">
-          ⚠️ You have {webhooks.length} webhooks but your {planTier} plan only allows {getWebhookLimitMessage()}. 
-          {getWebhookLimitMessage() !== 'unlimited' && (
-            <>Please delete {webhooks.length - (limits?.webhooks || 1)} webhook{webhooks.length - (limits?.webhooks || 1) > 1 ? 's' : ''} or upgrade your plan.</>
-          )}
-        </div>
-      )}
+      <LimitWarning 
+        resourceType="webhooks"
+        currentUsage={webhooks.length}
+        compact={false}
+      />
 
       {showAddForm && isWithinWebhookLimit(webhooks.length) && (
         <div className="webhook-form">
@@ -293,10 +306,10 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="btn-primary" disabled={!!webhookUrlError}>
+              <button type="submit" className="create-webhook-button" disabled={!!webhookUrlError}>
                 Add Webhook
               </button>
-              <button type="button" className="btn-secondary" onClick={() => setShowAddForm(false)}>
+              <button type="button" className="cancel-button" onClick={() => setShowAddForm(false)}>
                 Cancel
               </button>
             </div>
@@ -310,63 +323,65 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
             <div className="empty-icon">🔗</div>
             <h4>No webhooks configured</h4>
             <p>Add a Google Chat webhook to start receiving notifications</p>
-            <button className="btn-primary" onClick={() => setShowAddForm(true)}>
+            <button className="create-webhook-button" onClick={() => setShowAddForm(true)}>
               Add Your First Webhook
             </button>
           </div>
         ) : (
           webhooks.map((webhook) => (
-            <div key={webhook.id} className="webhook-item">
-              <div className="webhook-info">
-                <h4>{webhook.name}</h4>
-                {webhook.description && (
-                  <p className="webhook-description">{webhook.description}</p>
-                )}
-                <div className="webhook-url">
-                  <span className="url-label">URL:</span>
-                  <code className="webhook-url-text">
-                    {webhook.webhook_url.substring(0, 50)}...
-                  </code>
+            <div key={webhook.id} className="webhook-card">
+              <div className="webhook-header">
+                <div className="webhook-info">
+                  <h4>{webhook.name}</h4>
+                  {webhook.description && (
+                    <p className="webhook-description">{webhook.description}</p>
+                  )}
+                  <div className="webhook-url">
+                    <span className="url-label">URL:</span>
+                    <code className="webhook-url-text">
+                      {webhook.webhook_url.substring(0, 50)}...
+                    </code>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="webhook-actions">
-                <button
-                  className="action-button test-button"
-                  onClick={() => handleTestWebhook(webhook.id)}
-                  disabled={testingId === webhook.id || deletingId === webhook.id}
-                  title={`Test webhook "${webhook.name}"`}
-                >
-                  {testingId === webhook.id ? (
-                    <>
-                      <span className="loading-spinner-inline"></span>
-                      Testing
-                    </>
-                  ) : (
-                    <>
-                      <span className="button-icon">🧪</span>
-                      Test
-                    </>
-                  )}
-                </button>
-                <button
-                  className="action-button delete-button"
-                  onClick={() => handleDeleteWebhook(webhook.id, webhook.name)}
-                  disabled={testingId === webhook.id || deletingId === webhook.id}
-                  title={`Delete webhook "${webhook.name}"`}
-                >
-                  {deletingId === webhook.id ? (
-                    <>
-                      <span className="loading-spinner-inline"></span>
-                      Deleting
-                    </>
-                  ) : (
-                    <>
-                      <span className="button-icon">🗑️</span>
-                      Delete
-                    </>
-                  )}
-                </button>
+                
+                <div className="webhook-actions">
+                  <button
+                    className="action-button test-button"
+                    onClick={() => handleTestWebhook(webhook.id)}
+                    disabled={testingId === webhook.id || deletingId === webhook.id}
+                    title={`Test webhook "${webhook.name}"`}
+                  >
+                    {testingId === webhook.id ? (
+                      <>
+                        <span className="loading-spinner-inline"></span>
+                        Testing
+                      </>
+                    ) : (
+                      <>
+                        <span className="button-icon">🧪</span>
+                        Test
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="action-button delete-button"
+                    onClick={() => handleDeleteWebhook(webhook.id, webhook.name)}
+                    disabled={testingId === webhook.id || deletingId === webhook.id}
+                    title={`Delete webhook "${webhook.name}"`}
+                  >
+                    {deletingId === webhook.id ? (
+                      <>
+                        <span className="loading-spinner-inline"></span>
+                        Deleting
+                      </>
+                    ) : (
+                      <>
+                        <span className="button-icon">🗑️</span>
+                        Delete
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))

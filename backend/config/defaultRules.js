@@ -9,88 +9,66 @@
  */
 const FREE_TIER_RULES = [
   {
-    name: "🎉 Deal Won Celebration",
-    event_type: "deal.won", 
-    template_mode: "simple",
+    name: '🎉 Deal Won Celebration',
+    event_type: 'deal.won', 
+    template_mode: 'simple',
     filters: {},
-    enabled: true,
-    description: "Get notified when deals are won to celebrate success",
-    category: "outcomes",
+    enabled: false, // Default disabled, user can enable
+    description: 'Get notified when deals are won to celebrate success',
+    category: 'outcomes',
     priority: 1
   },
   {
-    name: "⚠️ Deal Lost Alert", 
-    event_type: "deal.lost",
-    template_mode: "simple", 
+    name: '⚠️ Deal Lost Alert', 
+    event_type: 'deal.lost',
+    template_mode: 'simple', 
     filters: {},
-    enabled: true,
-    description: "Track lost opportunities for learning and improvement",
-    category: "outcomes",
+    enabled: false, // Default disabled, user can enable
+    description: 'Track lost opportunities for learning and improvement',
+    category: 'outcomes',
     priority: 2
   },
   {
-    name: "✨ New Deal Created",
-    event_type: "deal.create",
-    template_mode: "simple",
+    name: '✨ New Deal Created',
+    event_type: 'deal.create',
+    template_mode: 'simple',
     filters: {},
-    enabled: true, 
-    description: "Get alerted when new opportunities enter your pipeline",
-    category: "pipeline",
+    enabled: false, // Default disabled, user can enable
+    description: 'Get alerted when new opportunities enter your pipeline',
+    category: 'pipeline',
     priority: 3
   }
 ];
 
 /**
- * Starter Tier: 7 rules adding deal progression and value filtering
- * Focus: Pipeline management and high-value opportunity tracking
+ * Starter Tier: 5 default rule templates (same as Free but 2 additional)
+ * Focus: Pipeline management and value filtering
  */
 const STARTER_TIER_RULES = [
   ...FREE_TIER_RULES,
   {
-    name: "📝 Deal Updated",
-    event_type: "deal.change",
-    template_mode: "simple",
-    filters: {},
-    enabled: true,
-    description: "Get notified when deals are modified or updated",
-    category: "pipeline",
-    priority: 4
-  },
-  {
-    name: "📊 Deal Stage Changed",
-    event_type: "deal.update",
-    template_mode: "simple", 
+    name: '📊 Deal Stage Changed',
+    event_type: 'deal.update',
+    template_mode: 'simple', 
     filters: {
       stage_change_required: true
     },
-    enabled: true,
-    description: "Track when deals move through your pipeline stages",
-    category: "progression",
-    priority: 5
+    enabled: false, // Default disabled, user can enable
+    description: 'Track when deals move through your pipeline stages',
+    category: 'progression',
+    priority: 4
   },
   {
-    name: "💎 High-Value Deal Alert",
-    event_type: "deal.*",
-    template_mode: "simple",
+    name: '💎 High-Value Deal Alert',
+    event_type: 'deal.*',
+    template_mode: 'simple',
     filters: {
       value_min: 10000
     },
-    enabled: true,
-    description: "Special attention for deals worth $10,000 or more",
-    category: "value",
-    priority: 6
-  },
-  {
-    name: "📧 Deal Owner Changed",
-    event_type: "deal.update",
-    template_mode: "simple",
-    filters: {
-      owner_change_required: true
-    },
-    enabled: true,
-    description: "Get notified when deal ownership changes",
-    category: "pipeline",
-    priority: 7
+    enabled: false, // Default disabled, user can enable
+    description: 'Special attention for deals worth $10,000 or more',
+    category: 'value',
+    priority: 5
   }
 ];
 
@@ -101,64 +79,64 @@ const STARTER_TIER_RULES = [
 const PRO_TIER_RULES = [
   ...STARTER_TIER_RULES,
   {
-    name: "⏰ Stalled Deal Alert",
-    event_type: "deal.stalled",
-    template_mode: "detailed",
+    name: '⏰ Stalled Deal Alert',
+    event_type: 'deal.stalled',
+    template_mode: 'detailed',
     filters: {
       days_inactive: 7
     },
-    enabled: true,
+    enabled: false, // Default disabled, user can enable
     description: "Get alerted when deals haven't been updated in 7+ days",
-    category: "health",
+    category: 'health',
     priority: 8
   },
   {
-    name: "📅 Deal Close Date Approaching", 
-    event_type: "deal.update",
-    template_mode: "detailed",
+    name: '📅 Deal Close Date Approaching', 
+    event_type: 'deal.update',
+    template_mode: 'detailed',
     filters: {
       close_date_within_days: 7,
-      status: "open"
+      status: 'open'
     },
-    enabled: true,
-    description: "Remind you when deal close dates are approaching",
-    category: "timing",
+    enabled: false, // Default disabled, user can enable
+    description: 'Remind you when deal close dates are approaching',
+    category: 'timing',
     priority: 9
   },
   {
-    name: "🔔 Deal Note Added",
-    event_type: "note.added",
-    template_mode: "detailed",
+    name: '🔔 Deal Note Added',
+    event_type: 'note.added',
+    template_mode: 'detailed',
     filters: {
-      entity_type: "deal"
+      entity_type: 'deal'
     },
-    enabled: true,
-    description: "Get notified when notes are added to deals",
-    category: "pipeline",
+    enabled: false, // Default disabled, user can enable
+    description: 'Get notified when notes are added to deals',
+    category: 'pipeline',
     priority: 10
   },
   {
-    name: "💰 Deal Value Changed",
-    event_type: "deal.update",
-    template_mode: "detailed",
+    name: '💰 Deal Value Changed',
+    event_type: 'deal.update',
+    template_mode: 'detailed',
     filters: {
       value_change_required: true
     },
-    enabled: true,
-    description: "Track when deal values are modified",
-    category: "value",
+    enabled: false, // Default disabled, user can enable
+    description: 'Track when deal values are modified',
+    category: 'value',
     priority: 11
   },
   {
-    name: "🏆 Deal Probability Updated",
-    event_type: "deal.update",
-    template_mode: "detailed",
+    name: '🏆 Deal Probability Updated',
+    event_type: 'deal.update',
+    template_mode: 'detailed',
     filters: {
       probability_change_required: true
     },
-    enabled: true,
-    description: "Monitor changes in deal win probability",
-    category: "progression",
+    enabled: false, // Default disabled, user can enable
+    description: 'Monitor changes in deal win probability',
+    category: 'progression',
     priority: 12
   }
 ];
@@ -228,52 +206,52 @@ function getUpgradeRules(fromPlan, toPlan) {
 function getRuleCategories() {
   return {
     outcomes: {
-      name: "Deal Outcomes",
-      description: "Won and lost deal notifications",
-      icon: "🎯",
-      color: "green"
+      name: 'Deal Outcomes',
+      description: 'Won and lost deal notifications',
+      icon: '🎯',
+      color: 'green'
     },
     pipeline: {
-      name: "Pipeline Activity", 
-      description: "New deals and pipeline changes",
-      icon: "📊",
-      color: "blue"
+      name: 'Pipeline Activity', 
+      description: 'New deals and pipeline changes',
+      icon: '📊',
+      color: 'blue'
     },
     progression: {
-      name: "Deal Progression",
-      description: "Stage changes and deal movement",
-      icon: "📈", 
-      color: "purple"
+      name: 'Deal Progression',
+      description: 'Stage changes and deal movement',
+      icon: '📈', 
+      color: 'purple'
     },
     value: {
-      name: "Value-Based Alerts",
-      description: "High-value deal notifications",
-      icon: "💎",
-      color: "yellow"
+      name: 'Value-Based Alerts',
+      description: 'High-value deal notifications',
+      icon: '💎',
+      color: 'yellow'
     },
     health: {
-      name: "Pipeline Health",
-      description: "Stalled deals and health monitoring", 
-      icon: "⚡",
-      color: "orange"
+      name: 'Pipeline Health',
+      description: 'Stalled deals and health monitoring', 
+      icon: '⚡',
+      color: 'orange'
     },
     timing: {
-      name: "Time-Based Alerts",
-      description: "Date and deadline notifications",
-      icon: "⏰",
-      color: "red"
+      name: 'Time-Based Alerts',
+      description: 'Date and deadline notifications',
+      icon: '⏰',
+      color: 'red'
     },
     analytics: {
-      name: "Team Analytics",
-      description: "Summary reports and insights",
-      icon: "📊",
-      color: "indigo"
+      name: 'Team Analytics',
+      description: 'Summary reports and insights',
+      icon: '📊',
+      color: 'indigo'
     },
     opportunity: {
-      name: "Hot Opportunities",
-      description: "High-probability deal alerts", 
-      icon: "🔥",
-      color: "pink"
+      name: 'Hot Opportunities',
+      description: 'High-probability deal alerts', 
+      icon: '🔥',
+      color: 'pink'
     }
   };
 }

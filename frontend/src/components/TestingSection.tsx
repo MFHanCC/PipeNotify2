@@ -10,6 +10,22 @@ interface TestResult {
   duration?: number;
 }
 
+interface WebhookTestResult {
+  webhookId: string;
+  webhookName: string;
+  success: boolean;
+  message: string;
+  duration: number;
+  timestamp: string;
+}
+
+interface Webhook {
+  id: string;
+  name: string;
+  webhook_url: string;
+  description?: string;
+}
+
 interface TestingSectionProps {
   onTestComplete?: (result: TestResult) => void;
 }
@@ -18,6 +34,10 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
   const [isTestingLive, setIsTestingLive] = useState(false);
   const [isTestingSystem, setIsTestingSystem] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<TestResult | null>(null);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [selectedWebhooks, setSelectedWebhooks] = useState<string[]>([]);
+  const [webhookTestResults, setWebhookTestResults] = useState<WebhookTestResult[]>([]);
+  const [testAllWebhooks, setTestAllWebhooks] = useState(true);
   const [systemHealth, setSystemHealth] = useState<{
     status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
     lastChecked?: string;
@@ -30,41 +50,115 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
   const lastHealthCheck = useRef<number>(0);
   const consecutiveHealthyChecks = useRef<number>(0);
 
+  const handleWebhookSelection = (webhookId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedWebhooks(prev => [...prev, webhookId]);
+    } else {
+      setSelectedWebhooks(prev => prev.filter(id => id !== webhookId));
+    }
+  };
+
+  const toggleTestAllWebhooks = (testAll: boolean) => {
+    setTestAllWebhooks(testAll);
+    if (testAll) {
+      setSelectedWebhooks(webhooks.map(w => w.id));
+    }
+  };
+
+  // Load webhooks on component mount
+  useEffect(() => {
+    loadWebhooks();
+  }, []);
+
+  const loadWebhooks = async () => {
+    try {
+      const apiModule = await import('../services/api');
+      const apiService = apiModule.default;
+      const webhookList = await apiService.getWebhooks();
+      setWebhooks(webhookList);
+      // Initially select all webhooks
+      setSelectedWebhooks(webhookList.map((w: Webhook) => w.id));
+    } catch (error) {
+      console.error('Failed to load webhooks:', error);
+    }
+  };
+
   const sendLiveTest = async () => {
+    if (webhooks.length === 0) {
+      alert('No webhooks found. Please configure at least one webhook first.');
+      return;
+    }
+
     setIsTestingLive(true);
-    const startTime = Date.now();
+    setWebhookTestResults([]);
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/health/test-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          eventType: 'deal.won',
-          companyId: process.env.REACT_APP_TEST_COMPANY_ID || 'auto',
-          tenantId: 'auto' // Let backend determine from token
-        }),
-      });
-
-      const result = await response.json();
-      const duration = Date.now() - startTime;
+      const webhooksToTest = testAllWebhooks ? webhooks : webhooks.filter(w => selectedWebhooks.includes(w.id));
       
-      // Health endpoint returns different format: overallResult, notificationsSent
-      const success = response.ok && (result.overallResult === 'success' || result.notificationsSent > 0);
-      const message = success 
-        ? `✅ Test notification sent successfully! ${result.notificationsSent || 1} messages delivered`
-        : `❌ Test failed: ${result.fallbackTest?.error || result.message || 'No notifications sent'}`;
+      if (webhooksToTest.length === 0) {
+        alert('Please select at least one webhook to test.');
+        setIsTestingLive(false);
+        return;
+      }
+
+      const results: WebhookTestResult[] = [];
+      
+      // Test each webhook individually
+      for (const webhook of webhooksToTest) {
+        const startTime = Date.now();
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/admin/webhooks/${webhook.id}/test`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            }
+          });
+
+          const result = await response.json();
+          const duration = Date.now() - startTime;
+          
+          const success = response.ok && !result.error;
+          const message = success 
+            ? `Test notification sent successfully!`
+            : `Test failed: ${result.error || 'Unknown error'}`;
+          
+          results.push({
+            webhookId: webhook.id,
+            webhookName: webhook.name,
+            success,
+            message,
+            duration,
+            timestamp: new Date().toISOString()
+          });
+          
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          results.push({
+            webhookId: webhook.id,
+            webhookName: webhook.name,
+            success: false,
+            message: `Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            duration,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+      
+      setWebhookTestResults(results);
+      
+      // Create overall test result
+      const successCount = results.filter(r => r.success).length;
+      const totalDuration = results.reduce((sum, r) => sum + r.duration, 0);
       
       const testResult: TestResult = {
         id: Date.now(),
         type: 'live_test',
         timestamp: new Date().toISOString(),
-        success,
-        message,
-        duration
+        success: successCount > 0,
+        message: `${successCount}/${results.length} webhooks tested successfully`,
+        duration: totalDuration
       };
       
       setLastTestResult(testResult);
@@ -77,7 +171,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
         timestamp: new Date().toISOString(),
         success: false,
         message: `Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        duration: Date.now() - startTime
+        duration: 0
       };
       
       setLastTestResult(testResult);
@@ -108,147 +202,89 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
         lastChecked: new Date().toISOString()
       });
       
-      const testResult: TestResult = {
-        id: Date.now(),
-        type: 'system_health',
-        timestamp: new Date().toISOString(),
-        success: response.ok && status === 'healthy',
-        message: result.overallHealth || `System status: ${status.toUpperCase()}`
-      };
-      
-      setLastTestResult(testResult);
-      onTestComplete?.(testResult);
+      consecutiveHealthyChecks.current = status === 'healthy' ? consecutiveHealthyChecks.current + 1 : 0;
+      lastHealthCheck.current = Date.now();
       
     } catch (error) {
+      console.error('Health check failed:', error);
       setSystemHealth({
         status: 'unhealthy',
         lastChecked: new Date().toISOString()
       });
-      
-      const testResult: TestResult = {
-        id: Date.now(),
-        type: 'system_health',
-        timestamp: new Date().toISOString(),
-        success: false,
-        message: `Health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-      
-      setLastTestResult(testResult);
-      onTestComplete?.(testResult);
+      consecutiveHealthyChecks.current = 0;
     } finally {
       setIsTestingSystem(false);
     }
   };
 
-  // Automated health monitoring
-  const performAutoHealthCheck = async () => {
-    if (!autoMonitoring || document.hidden) return;
-    
-    // Don't auto-check if user is manually testing
-    if (isTestingSystem || isTestingLive) return;
-    
-    lastHealthCheck.current = Date.now();
-    await checkSystemHealth();
-    
-    // Smart interval: if system is consistently healthy, check less frequently
-    if (systemHealth.status === 'healthy') {
-      consecutiveHealthyChecks.current += 1;
-    } else {
-      consecutiveHealthyChecks.current = 0;
-    }
-  };
-
-  const getNextCheckInterval = () => {
-    // Base interval: 60 seconds
-    let interval = 60000;
-    
-    // If system has been healthy for a while, check less frequently
-    if (consecutiveHealthyChecks.current > 5) {
-      interval = 120000; // 2 minutes
-    }
-    if (consecutiveHealthyChecks.current > 15) {
-      interval = 300000; // 5 minutes
-    }
-    
-    return interval;
-  };
-
   const startAutoMonitoring = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    
-    const runCheck = () => {
-      performAutoHealthCheck();
-      
-      // Schedule next check
-      const nextInterval = getNextCheckInterval();
-      setNextCheckIn(nextInterval / 1000); // Convert to seconds for display
-      
-      intervalRef.current = setTimeout(runCheck, nextInterval);
-    };
-    
-    // Initial check in 2 seconds, then start regular interval
-    setTimeout(runCheck, 2000);
-  };
-
-  const stopAutoMonitoring = () => {
+    // Clear any existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
-      intervalRef.current = null;
     }
-    setNextCheckIn(0);
+    
+    // Set up monitoring interval (5 minutes)
+    intervalRef.current = setInterval(() => {
+      // Only auto-check if we haven't checked recently
+      const timeSinceLastCheck = Date.now() - lastHealthCheck.current;
+      if (timeSinceLastCheck > 4 * 60 * 1000) { // 4 minutes
+        checkSystemHealth();
+      }
+      
+      // Update countdown
+      const timeToNextCheck = 5 * 60 * 1000 - (Date.now() - lastHealthCheck.current);
+      setNextCheckIn(Math.max(0, Math.floor(timeToNextCheck / 1000)));
+    }, 1000);
   };
 
-  // Setup auto-monitoring and cleanup
+  // Auto-monitoring effect
+  useEffect(() => {
+    if (autoMonitoring) {
+      // Initial health check
+      checkSystemHealth();
+      startAutoMonitoring();
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [autoMonitoring]);
+
+  // Another monitoring effect
   useEffect(() => {
     if (autoMonitoring) {
       startAutoMonitoring();
-    } else {
-      stopAutoMonitoring();
     }
     
-    return () => stopAutoMonitoring();
-  }, [autoMonitoring, systemHealth.status]);
-
-  // Countdown timer for next check
-  useEffect(() => {
-    if (nextCheckIn <= 0 || !autoMonitoring) return;
-    
-    const timer = setInterval(() => {
-      setNextCheckIn(prev => Math.max(0, prev - 1));
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [nextCheckIn, autoMonitoring]);
-
-  // Pause monitoring when tab is hidden
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopAutoMonitoring();
-      } else if (autoMonitoring) {
-        startAutoMonitoring();
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [autoMonitoring]);
+  }, []);
 
-  const getStatusIcon = (status: string) => {
+  const getHealthStatusIcon = (status: string) => {
     switch (status) {
-      case 'healthy': return '✅';
-      case 'degraded': return '⚠️';
-      case 'unhealthy': return '❌';
+      case 'healthy': return '💚';
+      case 'degraded': return '💛';
+      case 'unhealthy': return '🔴';
       default: return '❓';
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getHealthStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return '#10b981';
-      case 'degraded': return '#f59e0b';
-      case 'unhealthy': return '#ef4444';
-      default: return '#6b7280';
+      case 'healthy': return '#28a745';
+      case 'degraded': return '#ffc107';
+      case 'unhealthy': return '#dc3545';
+      default: return '#6c757d';
     }
   };
 
@@ -265,53 +301,100 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
           <div className="card-header">
             <h4>🚀 Live Notification Test</h4>
             <div className="card-description">
-              Send a real test notification to your Google Chat channel
+              Send test notifications to your Google Chat webhooks
             </div>
           </div>
           
           <div className="card-content">
+            {webhooks.length > 0 && (
+              <div className="webhook-selection">
+                <div className="selection-header">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={testAllWebhooks}
+                      onChange={(e) => toggleTestAllWebhooks(e.target.checked)}
+                    />
+                    Test All Webhooks ({webhooks.length} found)
+                  </label>
+                </div>
+                
+                {!testAllWebhooks && (
+                  <div className="webhook-list">
+                    {webhooks.map(webhook => (
+                      <label key={webhook.id} className="webhook-option">
+                        <input
+                          type="checkbox"
+                          checked={selectedWebhooks.includes(webhook.id)}
+                          onChange={(e) => handleWebhookSelection(webhook.id, e.target.checked)}
+                        />
+                        {webhook.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <button
               className={`test-button primary ${isTestingLive ? 'loading' : ''}`}
               onClick={sendLiveTest}
-              disabled={isTestingLive}
+              disabled={isTestingLive || webhooks.length === 0}
             >
               {isTestingLive ? (
                 <>
                   <span className="spinner"></span>
-                  Sending Test...
+                  Testing Webhooks...
                 </>
               ) : (
                 <>
                   <span className="icon">🚀</span>
-                  Send Test Message
+                  Send Test Messages
                 </>
               )}
             </button>
             
+            {webhookTestResults.length > 0 && (
+              <div className="test-results">
+                <h5>📊 Test Results:</h5>
+                {webhookTestResults.map(result => (
+                  <div key={result.webhookId} className={`result-item ${result.success ? 'success' : 'error'}`}>
+                    <span className="result-icon">{result.success ? '✅' : '❌'}</span>
+                    <span className="webhook-name">{result.webhookName}</span>
+                    <span className="result-message">{result.message}</span>
+                    <span className="result-duration">({result.duration}ms)</span>
+                  </div>
+                ))}
+                <div className="result-summary">
+                  Summary: {webhookTestResults.filter(r => r.success).length}/{webhookTestResults.length} successful
+                </div>
+              </div>
+            )}
+            
             <div className="test-info">
-              <small>This will send an actual notification using your configured rules and webhooks</small>
+              <small>This will send actual test notifications to your selected Google Chat webhooks</small>
             </div>
           </div>
         </div>
 
         {/* System Health Card */}
-        <div className="test-card">
+        <div className="test-card secondary">
           <div className="card-header">
-            <h4>🔍 System Health</h4>
+            <h4>📊 System Health Monitor</h4>
             <div className="card-description">
-              Check the overall health of your notification pipeline
+              Monitor notification system status and performance
             </div>
           </div>
           
           <div className="card-content">
             <div className="health-status">
               <div className="status-indicator">
+                <span className="status-icon">{getHealthStatusIcon(systemHealth.status)}</span>
                 <span 
-                  className="status-dot"
-                  style={{ backgroundColor: getStatusColor(systemHealth.status) }}
-                ></span>
-                <span className="status-text">
-                  {getStatusIcon(systemHealth.status)} {systemHealth.status.toUpperCase()}
+                  className="status-text"
+                  style={{ color: getHealthStatusColor(systemHealth.status) }}
+                >
+                  {systemHealth.status.toUpperCase()}
                 </span>
               </div>
               
@@ -320,28 +403,8 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
                   Last checked: {new Date(systemHealth.lastChecked).toLocaleTimeString()}
                 </div>
               )}
-              
-              {autoMonitoring && nextCheckIn > 0 && (
-                <div className="auto-check-countdown">
-                  Next auto-check in: {Math.floor(nextCheckIn / 60)}:{(nextCheckIn % 60).toString().padStart(2, '0')}
-                </div>
-              )}
             </div>
-            
-            <div className="auto-monitoring-controls">
-              <label className="auto-monitoring-toggle">
-                <input
-                  type="checkbox"
-                  checked={autoMonitoring}
-                  onChange={(e) => setAutoMonitoring(e.target.checked)}
-                />
-                <span className="toggle-text">
-                  🔄 Auto-monitor (every {consecutiveHealthyChecks.current > 5 ? 
-                    consecutiveHealthyChecks.current > 15 ? '5 min' : '2 min' : '1 min'})
-                </span>
-              </label>
-            </div>
-            
+
             <button
               className={`test-button secondary ${isTestingSystem ? 'loading' : ''}`}
               onClick={checkSystemHealth}
@@ -355,62 +418,55 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
               ) : (
                 <>
                   <span className="icon">🔍</span>
-                  Check Health
+                  Check System Health
                 </>
               )}
             </button>
-          </div>
-        </div>
 
-        {/* Test Result Card */}
-        {lastTestResult && (
-          <div className={`test-card result ${lastTestResult.success ? 'success' : 'failure'}`}>
-            <div className="card-header">
-              <h4>📊 Latest Test Result</h4>
-            </div>
-            
-            <div className="card-content">
-              <div className="result-summary">
-                <div className="result-status">
-                  <span className="result-icon">
-                    {lastTestResult.success ? '✅' : '❌'}
-                  </span>
-                  <span className="result-text">
-                    {lastTestResult.success ? 'Success' : 'Failed'}
-                  </span>
+            <div className="monitoring-controls">
+              <label className="monitoring-toggle">
+                <input
+                  type="checkbox"
+                  checked={autoMonitoring}
+                  onChange={(e) => setAutoMonitoring(e.target.checked)}
+                />
+                Auto-monitor (5 min intervals)
+              </label>
+              
+              {autoMonitoring && nextCheckIn > 0 && (
+                <div className="next-check">
+                  Next check in: {Math.floor(nextCheckIn / 60)}:{(nextCheckIn % 60).toString().padStart(2, '0')}
                 </div>
-                
-                <div className="result-details">
-                  <div className="result-message">{lastTestResult.message}</div>
-                  <div className="result-meta">
-                    <span>Type: {lastTestResult.type.replace('_', ' ')}</span>
-                    {lastTestResult.duration && (
-                      <span>Duration: {lastTestResult.duration}ms</span>
-                    )}
-                    <span>Time: {new Date(lastTestResult.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Quick Info Card */}
-        <div className="test-card info">
-          <div className="card-header">
-            <h4>💡 Testing Tips</h4>
-          </div>
-          
-          <div className="card-content">
-            <ul className="tips-list">
-              <li><strong>Live Test:</strong> Sends a real notification to verify end-to-end functionality</li>
-              <li><strong>Health Check:</strong> Validates database, queue, and webhook connectivity</li>
-              <li><strong>Best Practice:</strong> Test after making configuration changes</li>
-              <li><strong>Troubleshooting:</strong> Check the Activity Logs tab if tests fail</li>
-            </ul>
           </div>
         </div>
       </div>
+
+      {/* Latest Test Result */}
+      {lastTestResult && (
+        <div className="latest-result">
+          <h4>📊 Latest Test Result</h4>
+          <div className={`result-card ${lastTestResult.success ? 'success' : 'error'}`}>
+            <div className="result-header">
+              <span className="result-status">
+                {lastTestResult.success ? '✅' : '❌'}
+              </span>
+              <span className="result-type">
+                {lastTestResult.success ? 'Success' : 'Failed'}
+              </span>
+            </div>
+            <div className="result-details">
+              <div className="result-message">{lastTestResult.message}</div>
+              <div className="result-metadata">
+                <span>Type: {lastTestResult.type}</span>
+                {lastTestResult.duration && <span>Duration: {lastTestResult.duration}ms</span>}
+                <span>Time: {new Date(lastTestResult.timestamp).toLocaleTimeString()}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

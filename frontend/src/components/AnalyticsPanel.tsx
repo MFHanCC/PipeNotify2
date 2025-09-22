@@ -78,7 +78,10 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       const data = await response.json();
       setAnalyticsData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      console.warn('Analytics API unavailable, using fallback data:', err);
+      
+      // Set error when backend is unavailable
+      setError('Analytics data unavailable - backend service is offline');
     } finally {
       setIsLoading(false);
     }

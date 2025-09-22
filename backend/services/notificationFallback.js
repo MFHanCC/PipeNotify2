@@ -174,7 +174,7 @@ async function identifyTenantRobust(webhookData) {
     }
     
     // Strategy 2: Find tenant with rules and webhooks, then map it
-    console.log(`🔄 No direct mapping found, searching for tenant with active rules and webhooks`);
+    console.log('🔄 No direct mapping found, searching for tenant with active rules and webhooks');
     
     const database = require('./database');
     const candidateTenants = await database.pool.query(`
@@ -197,16 +197,20 @@ async function identifyTenantRobust(webhookData) {
       const candidateTenant = candidateTenants.rows[0];
       console.log(`🔧 Found candidate tenant ${candidateTenant.id} with ${candidateTenant.rule_count} rules and ${candidateTenant.webhook_count} webhooks`);
       
-      // Auto-map this tenant to the company_id
-      await database.pool.query(`
-        UPDATE tenants 
-        SET pipedrive_company_id = $1,
-            company_name = COALESCE(NULLIF(company_name, ''), 'Pipedrive Account'),
-            updated_at = NOW()
-        WHERE id = $2
-      `, [companyId, candidateTenant.id]);
-      
-      console.log(`✅ Auto-mapped tenant ${candidateTenant.id} to company_id: ${companyId}`);
+      // SECURITY: Only auto-map in safe contexts (explicitly opted-in and non-production)
+      if (process.env.ALLOW_AUTO_TENANT_MAPPING === 'true' && process.env.NODE_ENV !== 'production') {
+        await database.pool.query(`
+          UPDATE tenants 
+          SET pipedrive_company_id = $1,
+              company_name = COALESCE(NULLIF(company_name, ''), 'Pipedrive Account'),
+              updated_at = NOW()
+          WHERE id = $2
+        `, [companyId, candidateTenant.id]);
+        
+        console.log(`✅ Auto-mapped tenant ${candidateTenant.id} to company_id: ${companyId}`);
+      } else {
+        console.warn('🔒 Skipping auto-mapping (disabled for security or in production)');
+      }
       return candidateTenant.id;
     }
     
@@ -224,13 +228,17 @@ async function identifyTenantRobust(webhookData) {
       const tenantId = fallbackTenant.rows[0].id;
       console.log(`🆘 Using fallback tenant: ${tenantId} for company_id: ${companyId}`);
       
-      // Map this tenant to the company_id
-      await database.pool.query(`
-        UPDATE tenants 
-        SET pipedrive_company_id = $1,
-            updated_at = NOW()
-        WHERE id = $2
-      `, [companyId, tenantId]);
+      // SECURITY: Only auto-map in safe contexts (explicitly opted-in and non-production)
+      if (process.env.ALLOW_AUTO_TENANT_MAPPING === 'true' && process.env.NODE_ENV !== 'production') {
+        await database.pool.query(`
+          UPDATE tenants 
+          SET pipedrive_company_id = $1,
+              updated_at = NOW()
+          WHERE id = $2
+        `, [companyId, tenantId]);
+      } else {
+        console.warn('🔒 Skipping fallback auto-mapping (disabled for security or in production)');
+      }
       
       return tenantId;
     }

@@ -2,14 +2,31 @@ const express = require('express');
 const router = express.Router();
 const { healthCheck } = require('../services/database');
 const { healthCheck: fallbackHealthCheck } = require('../services/notificationFallback');
+const { authenticateToken } = require('../middleware/auth');
 
 /**
  * Comprehensive health monitoring for the notification system
  * These endpoints help detect and diagnose notification delivery issues
  */
 
+// Security middleware for debug endpoints
+const requireDebugAccess = (req, res, next) => {
+  // In production, always require authentication
+  if (process.env.NODE_ENV === 'production') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // In development, only require auth if debug endpoints are disabled
+  if (process.env.ENABLE_DEBUG_ENDPOINTS !== 'true') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // Allow access in development when debug is explicitly enabled
+  next();
+};
+
 // Overall system health check
-router.get('/notifications', async (req, res) => {
+router.get('/notifications', requireDebugAccess, async (req, res) => {
   try {
     const checks = {
       timestamp: new Date().toISOString(),
@@ -102,7 +119,7 @@ router.get('/notifications', async (req, res) => {
 });
 
 // Worker-specific health check
-router.get('/worker', async (req, res) => {
+router.get('/worker', requireDebugAccess, async (req, res) => {
   try {
     const workerHealth = await checkWorkerHealth();
     res.json(workerHealth);
@@ -116,7 +133,7 @@ router.get('/worker', async (req, res) => {
 });
 
 // Queue-specific health check
-router.get('/queue', async (req, res) => {
+router.get('/queue', requireDebugAccess, async (req, res) => {
   try {
     const queueHealth = await checkQueueHealth();
     res.json(queueHealth);
@@ -130,7 +147,7 @@ router.get('/queue', async (req, res) => {
 });
 
 // Tenant mapping health check
-router.get('/tenants', async (req, res) => {
+router.get('/tenants', requireDebugAccess, async (req, res) => {
   try {
     const { pool } = require('../services/database');
     
@@ -206,7 +223,7 @@ router.get('/heartbeat', (req, res) => {
 });
 
 // Force heartbeat check
-router.post('/heartbeat/force', async (req, res) => {
+router.post('/heartbeat/force', requireDebugAccess, async (req, res) => {
   try {
     const { forceHeartbeat } = require('../services/heartbeatMonitor');
     const result = await forceHeartbeat();
@@ -223,7 +240,7 @@ router.post('/heartbeat/force', async (req, res) => {
 });
 
 // Resilience system status
-router.get('/resilience', async (req, res) => {
+router.get('/resilience', requireDebugAccess, async (req, res) => {
   try {
     const { resilienceHealthCheck, getResilienceStatus } = require('../middleware/notificationResilience');
     const [healthCheck, status] = await Promise.all([
@@ -244,7 +261,7 @@ router.get('/resilience', async (req, res) => {
 });
 
 // Reset circuit breaker
-router.post('/resilience/reset', (req, res) => {
+router.post('/resilience/reset', requireDebugAccess, (req, res) => {
   try {
     const { resetCircuitBreaker } = require('../middleware/notificationResilience');
     const result = resetCircuitBreaker();
@@ -258,7 +275,7 @@ router.post('/resilience/reset', (req, res) => {
 });
 
 // Test notification delivery
-router.post('/test-notification', async (req, res) => {
+router.post('/test-notification', requireDebugAccess, async (req, res) => {
   try {
     const { tenantId, eventType = 'deal.won', companyId } = req.body;
     
@@ -582,5 +599,6 @@ router.post('/upgrade-team/:tenantId', async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

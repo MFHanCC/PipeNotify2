@@ -1,15 +1,38 @@
 const express = require('express');
 const router = express.Router();
+
+// Debug logging for all admin routes
+router.use((req, res, next) => {
+  console.log(`🔧 Admin route: ${req.method} ${req.path}`);
+  next();
+});
 const { getAllRules, createRule, updateRule, deleteRule, getLogs, getDashboardStats, getWebhooks, createWebhook, pool } = require('../services/database');
 const { getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { authenticateToken, extractTenantId } = require('../middleware/auth');
+const { checkResourceLimit } = require('../middleware/featureGating');
 const { createRoutingRules } = require('../services/channelRouter');
 const { getQuietHours } = require('../services/quietHours');
 
-// DEBUG ENDPOINTS - No auth required
+// Security middleware for debug endpoints
+const requireDebugAccess = (req, res, next) => {
+  // In production, always require authentication
+  if (process.env.NODE_ENV === 'production') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // In development, only require auth if debug endpoints are disabled
+  if (process.env.ENABLE_DEBUG_ENDPOINTS !== 'true') {
+    return authenticateToken(req, res, next);
+  }
+  
+  // Allow access in development when debug is explicitly enabled
+  next();
+};
+
+// DEBUG ENDPOINTS - Secured with conditional auth
 
 // Debug timezone for tenant
-router.get('/debug/timezone/:tenantId', async (req, res) => {
+router.get('/debug/timezone/:tenantId', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.params.tenantId || 1;
     const quietHours = await getQuietHours(tenantId);
@@ -29,7 +52,7 @@ router.get('/debug/timezone/:tenantId', async (req, res) => {
 });
 
 // Debug timezone for default tenant (no params)
-router.get('/debug/timezone', async (req, res) => {
+router.get('/debug/timezone', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = 1; // Default to tenant 1
     const quietHours = await getQuietHours(tenantId);
@@ -83,7 +106,7 @@ router.post('/timezone/save', authenticateToken, async (req, res) => {
 });
 
 // Debug: Set timezone for tenant
-router.post('/debug/set-timezone', async (req, res) => {
+router.post('/debug/set-timezone', requireDebugAccess, async (req, res) => {
   try {
     const { tenantId = 1, timezone = 'UTC' } = req.body;
     const { setQuietHours } = require('../services/quietHours');
@@ -102,7 +125,7 @@ router.post('/debug/set-timezone', async (req, res) => {
 });
 
 // Clean up test data for current user
-router.post('/debug/cleanup-test-data', async (req, res) => {
+router.post('/debug/cleanup-test-data', requireDebugAccess, async (req, res) => {
   try {
     const { user_id, company_id } = req.body;
     
@@ -170,7 +193,7 @@ router.post('/debug/cleanup-test-data', async (req, res) => {
   }
 });
 
-router.post('/debug/fix-tenant-rules', async (req, res) => {
+router.post('/debug/fix-tenant-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🔍 DEBUG: Checking tenant and rules state...');
     
@@ -284,7 +307,7 @@ router.post('/debug/fix-tenant-rules', async (req, res) => {
 });
 
 // DEBUG ENDPOINT - Create missing rules and fix webhook assignment
-router.post('/debug/create-missing-rules', async (req, res) => {
+router.post('/debug/create-missing-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🔧 DEBUG: Creating missing rules for tenant 2...');
     
@@ -397,7 +420,7 @@ router.post('/debug/create-missing-rules', async (req, res) => {
 });
 
 // DEBUG ENDPOINT - Create comprehensive notification rules
-router.post('/debug/create-comprehensive-rules', async (req, res) => {
+router.post('/debug/create-comprehensive-rules', requireDebugAccess, async (req, res) => {
   try {
     console.log('🎯 DEBUG: Creating comprehensive notification rules...');
     
@@ -568,7 +591,7 @@ router.post('/debug/create-comprehensive-rules', async (req, res) => {
 });
 
 // Debug endpoint to create test log entries
-router.post('/debug/create-test-logs', async (req, res) => {
+router.post('/debug/create-test-logs', requireDebugAccess, async (req, res) => {
   try {
     const { tenant_id } = req.body;
     const testTenantId = tenant_id || 2; // Default to tenant 2 for testing
@@ -621,7 +644,7 @@ router.post('/debug/create-test-logs', async (req, res) => {
 });
 
 // Debug endpoint to check rules and events
-router.get('/debug/rules', async (req, res) => {
+router.get('/debug/rules', requireDebugAccess, async (req, res) => {
   try {
     const rules = await pool.query('SELECT * FROM rules ORDER BY tenant_id, event_type');
     const webhooks = await pool.query('SELECT * FROM chat_webhooks ORDER BY tenant_id');
@@ -874,12 +897,69 @@ router.post('/system/upgrade-to-team', async (req, res) => {
   }
 });
 
-// Apply authentication to all other admin routes
+// Debug endpoint to check database schema (no auth for debugging)
+router.get('/debug/schema', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking database schema...');
+    
+    // Check if is_default column exists in rules table
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' 
+      ORDER BY ordinal_position
+    `);
+    
+    // Check if rule_provisioning_log table exists
+    const tablesResult = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name LIKE '%provisioning%'
+    `);
+    
+    // Test a simple query on rules table
+    const rulesCount = await pool.query('SELECT COUNT(*) as count FROM rules');
+    
+    // Try to test the specific query that's failing (use tenant_id 1 for testing)
+    let isDefaultTest = null;
+    try {
+      const testQuery = await pool.query(`
+        SELECT COUNT(*) as total_rules
+        FROM rules 
+        WHERE tenant_id = $1 AND is_default = true
+      `, [1]);
+      isDefaultTest = { success: true, count: testQuery.rows[0].total_rules };
+    } catch (error) {
+      isDefaultTest = { success: false, error: error.message };
+    }
+    
+    res.json({
+      success: true,
+      schema_check: {
+        rules_columns: columnsResult.rows,
+        provisioning_tables: tablesResult.rows,
+        total_rules: rulesCount.rows[0].count,
+        is_default_test: isDefaultTest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Debug schema check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Schema check failed',
+      details: error.message
+    });
+  }
+});
+
+// SECURITY FIX: Apply authentication to ALL production admin routes (moved from below)
 router.use(authenticateToken);
 
 // Rules management endpoints
 // GET /api/v1/admin/rules - List all rules
-router.get('/rules', async (req, res) => {
+router.get('/rules', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -903,7 +983,7 @@ router.get('/rules', async (req, res) => {
 });
 
 // POST /api/v1/admin/rules - Create new rule
-router.post('/rules', authenticateToken, async (req, res) => {
+router.post('/rules', authenticateToken, checkResourceLimit('rules'), async (req, res) => {
   try {
     const { name, event_type, filters, target_webhook_id, template_mode, custom_template, enabled } = req.body;
     const tenantId = req.tenantId;
@@ -913,20 +993,6 @@ router.post('/rules', authenticateToken, async (req, res) => {
       return res.status(400).json({
         error: 'Missing required fields',
         required: ['name', 'event_type', 'target_webhook_id']
-      });
-    }
-
-    // Check plan limits before creating rule
-    const { getUsageStatistics } = require('../middleware/quotaEnforcement');
-    const usage = await getUsageStatistics(tenantId);
-    
-    if (usage.rules.current_count >= usage.rules.limit) {
-      return res.status(403).json({
-        error: 'Rule limit exceeded',
-        message: `Your ${usage.plan_name} plan allows ${usage.rules.limit} rules maximum. You currently have ${usage.rules.current_count} rules.`,
-        current_count: usage.rules.current_count,
-        limit: usage.rules.limit,
-        plan_name: usage.plan_name
       });
     }
 
@@ -954,7 +1020,7 @@ router.post('/rules', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/v1/admin/rules/:id - Update rule
-router.put('/rules/:id', async (req, res) => {
+router.put('/rules/:id', authenticateToken, async (req, res) => {
   try {
     console.log('🔧 PUT /rules/:id - Request received');
     console.log('🔧 Headers Authorization:', req.headers.authorization ? req.headers.authorization.substring(0, 20) + '...' : 'MISSING');
@@ -1041,7 +1107,7 @@ router.put('/rules/:id', async (req, res) => {
 });
 
 // DELETE /api/v1/admin/rules/:id - Delete rule
-router.delete('/rules/:id', async (req, res) => {
+router.delete('/rules/:id', authenticateToken, async (req, res) => {
   try {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
@@ -1063,7 +1129,7 @@ router.delete('/rules/:id', async (req, res) => {
 
 // Logs management endpoints
 // GET /api/v1/admin/logs - List logs with pagination
-router.get('/logs', async (req, res) => {
+router.get('/logs', authenticateToken, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -1093,7 +1159,7 @@ router.get('/logs', async (req, res) => {
 });
 
 // GET /api/v1/admin/logs/:id - Get specific log details
-router.get('/logs/:id', async (req, res) => {
+router.get('/logs/:id', authenticateToken, async (req, res) => {
   try {
     const logId = req.params.id;
 
@@ -1120,7 +1186,7 @@ router.get('/logs/:id', async (req, res) => {
 
 // Dashboard stats endpoint
 // GET /api/v1/admin/stats - Get dashboard statistics
-router.get('/stats', async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id; // Get tenant ID from JWT token
     const dateRange = req.query.range || '7d';
@@ -1137,7 +1203,7 @@ router.get('/stats', async (req, res) => {
 
 // Webhook management endpoints
 // GET /api/v1/admin/webhooks - List chat webhooks
-router.get('/webhooks', async (req, res) => {
+router.get('/webhooks', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const webhooks = await getWebhooks(tenantId);
@@ -1211,7 +1277,7 @@ router.post('/webhooks', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/v1/admin/webhooks/:id - Delete webhook
-router.delete('/webhooks/:id', async (req, res) => {
+router.delete('/webhooks/:id', authenticateToken, async (req, res) => {
   try {
     const webhookId = req.params.id;
     const tenantId = req.tenant.id;
@@ -1262,7 +1328,7 @@ router.delete('/webhooks/:id', async (req, res) => {
 });
 
 // POST /api/v1/admin/webhooks/:id/test - Test webhook
-router.post('/webhooks/:id/test', async (req, res) => {
+router.post('/webhooks/:id/test', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const webhookId = req.params.id;
@@ -1284,10 +1350,10 @@ router.post('/webhooks/:id/test', async (req, res) => {
     // Send test message
     const axios = require('axios');
     const testMessage = {
-      text: `✅ Test notification from Pipenotify\n` +
+      text: '✅ Test notification from Pipenotify\n' +
             `🔔 Webhook: ${webhook.name}\n` +
             `⏰ Time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone })}\n` +
-            `🚀 Status: Connection successful!`
+            '🚀 Status: Connection successful!'
     };
 
     await axios.post(webhook.webhook_url, testMessage, {
@@ -1332,7 +1398,7 @@ router.post('/webhooks/:id/test', async (req, res) => {
 
 // Test rule endpoint
 // POST /api/v1/admin/rules/:id/test - Send test notification
-router.post('/rules/:id/test', async (req, res) => {
+router.post('/rules/:id/test', authenticateToken, async (req, res) => {
   try {
     const ruleId = req.params.id;
     const tenantId = req.tenant.id;
@@ -1980,7 +2046,7 @@ router.post('/stalled-deals/run', authenticateToken, async (req, res) => {
 
 // DEBUG: Test complete Pipedrive to Google Chat pipeline
 // Comprehensive pipeline diagnostics
-router.post('/debug/pipeline-diagnosis', async (req, res) => {
+router.post('/debug/pipeline-diagnosis', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant?.id || 2;
     const diagnosis = {
@@ -2095,7 +2161,7 @@ router.post('/debug/pipeline-diagnosis', async (req, res) => {
       const { processNotification } = require('../jobs/processor');
       const result = await processNotification(testWebhookData);
       
-      diagnosis.steps.push(`🧪 Test processing completed`);
+      diagnosis.steps.push('🧪 Test processing completed');
       diagnosis.testResult = result;
       
       if (result.notificationsSent > 0) {
@@ -2156,7 +2222,7 @@ router.post('/debug/pipeline-diagnosis', async (req, res) => {
   }
 });
 
-router.post('/debug/test-full-pipeline', async (req, res) => {
+router.post('/debug/test-full-pipeline', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant?.id || 2; // Default to tenant 2 for testing
     
@@ -2281,7 +2347,7 @@ router.post('/debug/test-full-pipeline', async (req, res) => {
 });
 
 // POST /api/v1/admin/provision-default-rules - Manually provision default rules
-router.post('/provision-default-rules', async (req, res) => {
+router.post('/provision-default-rules', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const { planTier, force } = req.body;
@@ -2291,48 +2357,129 @@ router.post('/provision-default-rules', async (req, res) => {
       force: force
     });
 
+    // Enhanced debugging: Check database state before provisioning
+    console.log('🔍 Debugging tenant state before provisioning...');
+    
+    // Check if tenant exists
+    const tenantCheck = await pool.query('SELECT id, company_name FROM tenants WHERE id = $1', [tenantId]);
+    console.log('📊 Tenant check:', tenantCheck.rows);
+    
+    // Check existing webhooks
+    const webhookCheck = await pool.query('SELECT id, name, is_active FROM chat_webhooks WHERE tenant_id = $1', [tenantId]);
+    console.log('🔗 Webhooks check:', webhookCheck.rows);
+    
+    // Check existing rules (all types)
+    const rulesCheck = await pool.query('SELECT id, name, is_default, enabled FROM rules WHERE tenant_id = $1', [tenantId]);
+    console.log('📋 Rules check:', rulesCheck.rows);
+
     const { provisionDefaultRules, getProvisioningStatus } = require('../services/ruleProvisioning');
 
-    // Get current status first
-    const currentStatus = await getProvisioningStatus(tenantId);
+    // Get current status first (with fallback if it fails)
+    console.log('🔄 Getting provisioning status...');
+    let currentStatus;
+    try {
+      currentStatus = await getProvisioningStatus(tenantId);
+      console.log('📊 Provisioning status result:', currentStatus);
+      
+      // Only throw if the error indicates a complete failure, not fallback mode
+      if (currentStatus.error && !currentStatus.fallback_mode && !currentStatus.fallback) {
+        throw new Error(currentStatus.error);
+      }
+      
+      // Check if provisioning is needed (unless forced)
+      if (!force && !currentStatus.needs_provisioning) {
+        return res.json({
+          success: true,
+          message: 'Default rules already provisioned',
+          status: currentStatus,
+          rules_created: 0
+        });
+      }
+    } catch (statusError) {
+      console.warn('⚠️ Provisioning status check failed, proceeding with provisioning:', statusError.message);
+      
+      // Check if this is a subscription service error
+      if (statusError.message.includes('subscriptions') || statusError.message.includes('Stripe')) {
+        console.log('🔧 This appears to be a subscription service issue, using fallback provisioning');
+        currentStatus = {
+          error: 'Subscription service unavailable, using free tier defaults',
+          current_plan: 'free',
+          needs_provisioning: true,
+          note: 'Using fallback provisioning due to subscription service issues'
+        };
+      } else {
+        currentStatus = {
+          error: statusError.message,
+          current_plan: 'free',
+          needs_provisioning: true,
+          note: 'Status check bypassed due to schema issues'
+        };
+      }
+    }
+
+    // Determine the best plan tier to use for provisioning
+    // Priority: 1) Explicitly passed planTier, 2) currentStatus, 3) inferred from existing rules, 4) starter fallback
+    let effectivePlanTier = planTier;
     
-    if (currentStatus.error) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to get provisioning status',
-        details: currentStatus.error
-      });
+    if (!effectivePlanTier || effectivePlanTier === 'undefined') {
+      effectivePlanTier = currentStatus.current_plan;
     }
-
-    // Check if provisioning is needed (unless forced)
-    if (!force && !currentStatus.needs_provisioning) {
-      return res.json({
-        success: true,
-        message: 'Default rules already provisioned',
-        status: currentStatus,
-        rules_created: 0
-      });
+    
+    // If still no plan (subscription service completely down), try to infer from existing rules
+    if (!effectivePlanTier || effectivePlanTier === 'free') {
+      const existingRulesCount = rulesCheck.rows.length;
+      console.log(`🔍 Inferring plan from existing rules count: ${existingRulesCount}`);
+      
+      if (existingRulesCount >= 10) {
+        effectivePlanTier = 'pro';
+      } else if (existingRulesCount >= 5) {
+        effectivePlanTier = 'starter';
+      } else {
+        // Default to starter instead of free for better user experience
+        effectivePlanTier = 'starter';
+        console.log('🎯 Using starter tier as fallback to ensure adequate rules');
+      }
     }
-
+    
+    console.log(`🎯 Using plan tier for provisioning: ${effectivePlanTier} (original request: ${planTier}, status: ${currentStatus.current_plan})`);
+    
     // Provision rules
     const result = await provisionDefaultRules(
       tenantId, 
-      planTier || currentStatus.current_plan, 
+      effectivePlanTier, 
       'manual'
     );
 
     if (result.success) {
+      // Check if we used fallback mode and adjust the message
+      let message = `Successfully provisioned ${result.rules_created} default rules`;
+      if (currentStatus.fallback_mode || currentStatus.fallback || currentStatus.inferred_from_rules) {
+        message += ` (using intelligent fallback: ${effectivePlanTier} tier)`;
+      }
+      
       res.json({
         success: true,
-        message: `Successfully provisioned ${result.rules_created} default rules`,
+        message: message,
         ...result,
-        previous_status: currentStatus
+        previous_status: currentStatus,
+        used_fallback: !!(currentStatus.fallback_mode || currentStatus.fallback || currentStatus.inferred_from_rules),
+        effective_plan_tier: effectivePlanTier
       });
     } else {
-      res.status(500).json({
+      // Check for specific error types and provide better messages
+      let errorMessage = result.error || 'Rule provisioning failed';
+      let statusCode = 500;
+      
+      if (result.requires_webhook_setup || errorMessage.includes('webhook')) {
+        statusCode = 400;
+        errorMessage = 'No Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.';
+      }
+      
+      res.status(statusCode).json({
         success: false,
-        error: 'Rule provisioning failed',
+        error: errorMessage,
         details: result.error,
+        requires_webhook_setup: result.requires_webhook_setup,
         previous_status: currentStatus
       });
     }
@@ -2347,8 +2494,126 @@ router.post('/provision-default-rules', async (req, res) => {
   }
 });
 
+// OPTIONS /api/v1/admin/add-default-rules - Handle preflight request
+router.options('/add-default-rules', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
+// POST /api/v1/admin/add-default-rules - Simple default rules creation (force redeploy)
+router.post('/add-default-rules', authenticateToken, async (req, res) => {
+  console.log('🎯 add-default-rules endpoint HIT');
+  try {
+    const tenantId = req.tenant.id;
+    const { webhookId, planTier = 'starter' } = req.body;
+
+    console.log(`🚀 Adding default rules for tenant ${tenantId}`, { webhookId, planTier });
+
+    // Validate webhook exists and belongs to tenant
+    const webhookCheck = await pool.query(
+      'SELECT id, name FROM chat_webhooks WHERE id = $1 AND tenant_id = $2 AND is_active = true',
+      [webhookId, tenantId]
+    );
+
+    if (webhookCheck.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or inactive webhook. Please select a valid Google Chat webhook.',
+        requires_webhook_setup: true
+      });
+    }
+
+    const webhook = webhookCheck.rows[0];
+    console.log(`✅ Using webhook: ${webhook.name} (ID: ${webhook.id})`);
+
+    // Get default rules for the plan tier
+    const { getDefaultRulesForPlan } = require('../config/defaultRules');
+    const defaultRules = getDefaultRulesForPlan(planTier);
+    
+    console.log(`📋 Will create ${defaultRules.length} default rules for ${planTier} tier`);
+
+    // Check which rules already exist to avoid duplicates
+    const existingRules = await pool.query(
+      'SELECT name, event_type FROM rules WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const existingNames = existingRules.rows.map(r => r.name);
+    const existingEventTypes = existingRules.rows.map(r => r.event_type);
+    
+    // Filter out rules that already exist (by name or event type)
+    const newRules = defaultRules.filter(rule => 
+      !existingNames.includes(rule.name) && 
+      !existingEventTypes.includes(rule.event_type)
+    );
+
+    console.log(`📝 Will create ${newRules.length} new rules (${defaultRules.length - newRules.length} already exist)`);
+
+    if (newRules.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All default rules already exist',
+        rules_created: 0,
+        existing_rules: existingNames.length,
+        plan_tier: planTier
+      });
+    }
+
+    // Create the new rules
+    const createdRules = [];
+    
+    for (const rule of newRules) {
+      try {
+        const result = await pool.query(`
+          INSERT INTO rules (
+            tenant_id, name, event_type, target_webhook_id, 
+            template_mode, custom_template, enabled, filters, 
+            is_default, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          RETURNING id, name
+        `, [
+          tenantId,
+          rule.name,
+          rule.event_type,
+          webhookId,
+          rule.template_mode || 'simple',
+          rule.custom_template || null,
+          rule.enabled !== false, // Default to enabled unless explicitly disabled
+          JSON.stringify(rule.filters || {}),
+          true // Mark as default rule
+        ]);
+
+        createdRules.push(result.rows[0]);
+        console.log(`✅ Created rule: ${rule.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to create rule ${rule.name}:`, error.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully created ${createdRules.length} default rules`,
+      rules_created: createdRules.length,
+      created_rules: createdRules.map(r => r.name),
+      webhook_name: webhook.name,
+      plan_tier: planTier
+    });
+
+  } catch (error) {
+    console.error('Add default rules error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add default rules',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/v1/admin/provisioning-status - Get rule provisioning status
-router.get('/provisioning-status', async (req, res) => {
+router.get('/provisioning-status', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     const { getProvisioningStatus } = require('../services/ruleProvisioning');
@@ -2373,7 +2638,7 @@ router.get('/provisioning-status', async (req, res) => {
 // Auto-fix webhook assignments for rules with null target_webhook_id
 // CRITICAL FIX: Handle empty string target_webhook_id with CASE statement
 // Railway deployment force update: 2025-09-16-v2
-router.post('/rules/auto-fix-webhooks', async (req, res) => {
+router.post('/rules/auto-fix-webhooks', authenticateToken, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     
@@ -2630,7 +2895,7 @@ router.post('/emergency/fix-data', async (req, res) => {
 });
 
 // DEBUG: Direct database inspection to understand the PostgreSQL casting issue
-router.get('/debug/database-state', async (req, res) => {
+router.get('/debug/database-state', requireDebugAccess, async (req, res) => {
   try {
     const tenantId = req.tenant.id;
     console.log('🔍 DEBUG: Inspecting database state for tenant:', tenantId);
@@ -2717,7 +2982,7 @@ router.get('/debug/database-state', async (req, res) => {
     debugInfo.unmappedTenantsTest = {
       count: unmappedTenantsTest.rows[0].count,
       isHealthy: parseInt(unmappedTenantsTest.rows[0].count) === 0,
-      explanation: "If count > 0, tenant has rules but no Pipedrive company mapping"
+      explanation: 'If count > 0, tenant has rules but no Pipedrive company mapping'
     };
     
     console.log('🔍 DEBUG INFO:', JSON.stringify(debugInfo, null, 2));

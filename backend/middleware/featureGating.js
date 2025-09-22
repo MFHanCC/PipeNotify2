@@ -78,10 +78,15 @@ const PLAN_LIMITS = {
 function requireFeature(feature) {
   return async (req, res, next) => {
     try {
-      // Extract tenant ID from request
+      // Extract tenant ID from JWT token
       let tenantId = null;
       
-      if (req.params.tenantId) {
+      // First try to get from JWT token (most common case)
+      if (req.user && req.user.tenant_id) {
+        tenantId = req.user.tenant_id;
+      }
+      // Fallback to request parameters for specific endpoints
+      else if (req.params.tenantId) {
         tenantId = parseInt(req.params.tenantId);
       } else if (req.body.tenantId) {
         tenantId = parseInt(req.body.tenantId);
@@ -134,7 +139,10 @@ function checkResourceLimit(resourceType) {
     try {
       let tenantId = null;
       
-      if (req.params.tenantId) {
+      // First try to get from JWT token (most common case for authenticated routes)
+      if (req.tenantId) {
+        tenantId = req.tenantId;
+      } else if (req.params.tenantId) {
         tenantId = parseInt(req.params.tenantId);
       } else if (req.body.tenantId) {
         tenantId = parseInt(req.body.tenantId);
