@@ -415,7 +415,7 @@ const Dashboard: React.FC = React.memo(() => {
 
   const provisionDefaultRules = async () => {
     try {
-      console.log('🚀 Provisioning default rules...');
+      console.log('🚀 Adding default rules...');
       
       // Check if user is authenticated first
       const authToken = getAuthToken();
@@ -424,71 +424,22 @@ const Dashboard: React.FC = React.memo(() => {
         return;
       }
       
-      // Check current rules to see what's missing
-      const currentEventTypes = rules.map(rule => rule.eventType);
-      
-      // Define default rules based on plan tier
-      let defaultEventTypes: string[] = [];
-      const tierRuleCounts = {
-        'free': 3,
-        'starter': 5, 
-        'pro': 10,
-        'team': 10
-      };
-      
-      const currentTier = planTier || 'free';
-      const maxDefaultRules = tierRuleCounts[currentTier as keyof typeof tierRuleCounts] || 3;
-      
-      // Base rules for all tiers
-      const allPossibleRules = [
-        'deal.won',           // 1. Deal Won (Free+)
-        'deal.lost',          // 2. Deal Lost (Free+) 
-        'deal.added',         // 3. New Deal (Free+)
-        'deal.updated',       // 4. Deal Updated (Starter+)
-        'person.added',       // 5. Person Added (Starter+)
-        'person.updated',     // 6. Person Updated (Pro+)
-        'activity.added',     // 7. Activity Added (Pro+)
-        'deal.stage.changed', // 8. Stage Changed (Pro+)
-        'deal.owner.changed', // 9. Owner Changed (Pro+)
-        'deal.value.changed'  // 10. Value Changed (Pro+)
-      ];
-      
-      // Select rules based on plan tier
-      defaultEventTypes = allPossibleRules.slice(0, maxDefaultRules);
-      
-      const missingRules = defaultEventTypes.filter(eventType => !currentEventTypes.includes(eventType));
-      
-      if (missingRules.length === 0) {
-        const tierMessages = {
-          'free': `📋 All Default Rules Present\n\nYou already have all 3 FREE tier basic rules:\n• Deal Won\n• Deal Lost\n• New Deal\n\nYou can edit these rules to customize the name, target chat, and message format. For advanced filtering, upgrade to Starter plan.`,
-          'starter': `📋 All Default Rules Present\n\nYou already have all 5 STARTER tier rules:\n• Deal Won\n• Deal Lost\n• New Deal\n• Deal Updated\n• New Person\n\nFor even more event types and advanced features, upgrade to Pro plan.`,
-          'pro': `📋 All Default Rules Present\n\nYou already have all 10 PRO tier rules including:\n• Deal events (Won, Lost, Added, Updated)\n• Person events (Added, Updated)\n• Activity events\n• Stage & Owner changes\n• Value changes\n\nYou have access to all notification types!`,
-          'team': `📋 All Default Rules Present\n\nYou already have all 10 TEAM tier rules including:\n• Deal events (Won, Lost, Added, Updated)\n• Person events (Added, Updated)\n• Activity events\n• Stage & Owner changes\n• Value changes\n\nYou have access to all notification types with unlimited usage!`
-        };
-        
-        alert(tierMessages[currentTier as keyof typeof tierMessages] || tierMessages.free);
-        return;
-      }
-
-      if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length + missingRules.length > limits.rules) {
-        alert(`⚠️ Rule Limit Reached\n\nYour ${planTier || 'current'} plan allows ${limits.rules} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
-        return;
-      }
-      
       if (!isBackendConnected) {
-        showError('Cannot create rules - backend service is unavailable. Please try again when the service is online.');
+        alert('🌐 Backend Unavailable\n\nCannot create rules - backend service is unavailable. Please try again when the service is online.');
         return;
       }
       
       // Check if user has webhooks configured
       if (availableWebhooks.length === 0) {
-        alert('🔗 Webhook Required\n\nYou need to configure at least one Google Chat webhook before adding default rules.\nPlease add a webhook first in the Webhooks tab.');
+        alert('🔗 Google Chat Setup Required\n\nYou need to configure at least one Google Chat webhook before adding default rules.\n\nPlease add a webhook first in the Webhooks tab.');
         return;
       }
+
+      // Use the first available webhook
+      const primaryWebhook = availableWebhooks[0];
       
-      // Production mode - call backend API
-      // Ensure we have a valid plan tier, with fallback logic
-      let effectivePlanTier = planTier;
+      // Determine plan tier (with fallback)
+      let effectivePlanTier = planTier || 'starter';
       if (!effectivePlanTier || effectivePlanTier === 'undefined') {
         // Infer from current rules count if plan detection failed
         const currentRulesCount = rules.length;
@@ -499,75 +450,52 @@ const Dashboard: React.FC = React.memo(() => {
         } else {
           effectivePlanTier = 'starter'; // Default to starter for better UX
         }
-        console.log(`🎯 Frontend plan detection failed, inferred '${effectivePlanTier}' from ${currentRulesCount} existing rules`);
+        console.log(`🎯 Inferred plan tier '${effectivePlanTier}' from ${currentRulesCount} existing rules`);
       }
 
-      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/provision-default-rules`, {
+      console.log(`📋 Adding default rules for ${effectivePlanTier} tier using webhook: ${primaryWebhook.name}`);
+
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/add-default-rules`, {
         method: 'POST',
         body: JSON.stringify({
-          planTier: effectivePlanTier,
-          force: false, // Don't force creation if rules exist
-          missing_only: true // Only create missing default rules
+          webhookId: primaryWebhook.id,
+          planTier: effectivePlanTier
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Provisioning result:', result);
+        console.log('✅ Add default rules result:', result);
         
         if (result.rules_created > 0) {
-          let successMessage = `✅ Success! Created ${result.rules_created} default rules`;
-          
-          if (result.used_fallback) {
-            successMessage += `\n\n🔧 Note: Used ${result.effective_plan_tier} tier fallback due to subscription service being temporarily unavailable.`;
-          }
-          
-          successMessage += `\n\nYou can now customize these rules in the Rules section.`;
-          alert(successMessage);
+          alert(`✅ Success! Created ${result.rules_created} default rules for ${result.plan_tier} tier:\n\n${result.created_rules.map((name: string) => `• ${name}`).join('\n')}\n\nTarget: ${result.webhook_name}\n\nYou can now customize these rules in the Rules section.`);
         } else {
-          alert(`📋 Default rules already exist. Found ${result.status?.default_rules_count || rules.length} existing rules.`);
+          alert(`📋 All Default Rules Already Exist\n\nYou already have all the default rules for your ${result.plan_tier} tier (${result.existing_rules} rules total).\n\nYou can customize existing rules or create new custom rules in the Rules section.`);
         }
         
         loadDashboardData(); // Refresh the rules list
       } else {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.error || `HTTP ${response.status} error`;
+        const errorMessage = errorData.error || errorData.message || `HTTP ${response.status} error`;
         
         if (response.status === 401) {
           alert('🔐 Authentication Failed\n\nYour session has expired. Please refresh the page and reconnect to Pipedrive.');
-        } else if (response.status === 403) {
-          alert('🚫 Permission Denied\n\nYou don\'t have permission to create default rules. Please contact support if this continues.');
-        } else if (response.status === 404) {
-          alert('❌ Service Not Found\n\nThe default rules service is not available. Please try again later or contact support.');
         } else if (response.status === 400 && errorData.requires_webhook_setup) {
-          alert('🔗 Google Chat Setup Required\n\nNo Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.\n\nGo to Onboarding → Google Chat Setup to add your webhook.');
+          alert('🔗 Google Chat Setup Required\n\nNo valid Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.\n\nGo to Onboarding → Google Chat Setup to add your webhook.');
         } else {
-          // Provide more helpful error messages for specific issues
-          let friendlyMessage = errorMessage;
-          
-          if (errorMessage.includes('provisioning status') || errorMessage.includes('getProvisioningStatus')) {
-            friendlyMessage = 'Subscription service temporarily unavailable. Your rules will still be created using starter tier defaults (5 rules minimum).';
-          } else if (errorMessage.includes('webhook') || errorMessage.includes('Google Chat')) {
-            friendlyMessage = 'No Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.';
-          } else if (errorMessage.includes('subscription') || errorMessage.includes('billing')) {
-            friendlyMessage = 'Billing service temporarily unavailable. Your rules will be created using starter tier defaults (5 rules minimum).';
-          }
-          
-          alert(`❌ Default Rules Setup: ${friendlyMessage}`);
+          alert(`❌ Failed to Add Default Rules\n\n${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
         }
       }
     } catch (err) {
-      console.error('Error provisioning default rules:', err);
+      console.error('Error adding default rules:', err);
       
       if (err instanceof Error && err.message === 'Authentication failed') {
         alert('🔐 Authentication Required\n\nYour session has expired. The page will reload to reconnect.');
-        // The authenticatedFetch already redirects, but add a small delay for the alert
         setTimeout(() => window.location.reload(), 2000);
       } else if (err instanceof TypeError && err.message.includes('fetch')) {
-        alert('🌐 Network Error\n\nCannot reach the server. Please check your internet connection and try again.');
+        alert('🌐 Network Error\n\nUnable to connect to the server. Please check your internet connection and try again.');
       } else {
-        const errorMessage = err instanceof Error ? err.message : 'Please try again later or contact support.';
-        alert(`❌ Unexpected Error\n\n${errorMessage}`);
+        alert('❌ Unexpected Error\n\nSomething went wrong while adding default rules. Please try again or contact support if the problem persists.');
       }
     }
   };

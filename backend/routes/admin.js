@@ -2488,6 +2488,114 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/v1/admin/add-default-rules - Simple default rules creation
+router.post('/add-default-rules', authenticateToken, async (req, res) => {
+  try {
+    const tenantId = req.tenant.id;
+    const { webhookId, planTier = 'starter' } = req.body;
+
+    console.log(`🚀 Adding default rules for tenant ${tenantId}`, { webhookId, planTier });
+
+    // Validate webhook exists and belongs to tenant
+    const webhookCheck = await pool.query(
+      'SELECT id, name FROM chat_webhooks WHERE id = $1 AND tenant_id = $2 AND is_active = true',
+      [webhookId, tenantId]
+    );
+
+    if (webhookCheck.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or inactive webhook. Please select a valid Google Chat webhook.',
+        requires_webhook_setup: true
+      });
+    }
+
+    const webhook = webhookCheck.rows[0];
+    console.log(`✅ Using webhook: ${webhook.name} (ID: ${webhook.id})`);
+
+    // Get default rules for the plan tier
+    const { getDefaultRulesForPlan } = require('../config/defaultRules');
+    const defaultRules = getDefaultRulesForPlan(planTier);
+    
+    console.log(`📋 Will create ${defaultRules.length} default rules for ${planTier} tier`);
+
+    // Check which rules already exist to avoid duplicates
+    const existingRules = await pool.query(
+      'SELECT name, event_type FROM rules WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const existingNames = existingRules.rows.map(r => r.name);
+    const existingEventTypes = existingRules.rows.map(r => r.event_type);
+    
+    // Filter out rules that already exist (by name or event type)
+    const newRules = defaultRules.filter(rule => 
+      !existingNames.includes(rule.name) && 
+      !existingEventTypes.includes(rule.event_type)
+    );
+
+    console.log(`📝 Will create ${newRules.length} new rules (${defaultRules.length - newRules.length} already exist)`);
+
+    if (newRules.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All default rules already exist',
+        rules_created: 0,
+        existing_rules: existingNames.length,
+        plan_tier: planTier
+      });
+    }
+
+    // Create the new rules
+    const createdRules = [];
+    
+    for (const rule of newRules) {
+      try {
+        const result = await pool.query(`
+          INSERT INTO rules (
+            tenant_id, name, event_type, target_webhook_id, 
+            template_mode, custom_template, enabled, filters, 
+            is_default, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          RETURNING id, name
+        `, [
+          tenantId,
+          rule.name,
+          rule.event_type,
+          webhookId,
+          rule.template_mode || 'simple',
+          rule.custom_template || null,
+          rule.enabled !== false, // Default to enabled unless explicitly disabled
+          JSON.stringify(rule.filters || {}),
+          true // Mark as default rule
+        ]);
+
+        createdRules.push(result.rows[0]);
+        console.log(`✅ Created rule: ${rule.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to create rule ${rule.name}:`, error.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully created ${createdRules.length} default rules`,
+      rules_created: createdRules.length,
+      created_rules: createdRules.map(r => r.name),
+      webhook_name: webhook.name,
+      plan_tier: planTier
+    });
+
+  } catch (error) {
+    console.error('Add default rules error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add default rules',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/v1/admin/provisioning-status - Get rule provisioning status
 router.get('/provisioning-status', authenticateToken, async (req, res) => {
   try {
