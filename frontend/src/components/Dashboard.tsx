@@ -539,6 +539,8 @@ const Dashboard: React.FC = React.memo(() => {
           alert('🚫 Permission Denied\n\nYou don\'t have permission to create default rules. Please contact support if this continues.');
         } else if (response.status === 404) {
           alert('❌ Service Not Found\n\nThe default rules service is not available. Please try again later or contact support.');
+        } else if (response.status === 400 && errorData.requires_webhook_setup) {
+          alert('🔗 Google Chat Setup Required\n\nNo Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.\n\nGo to Onboarding → Google Chat Setup to add your webhook.');
         } else {
           // Provide more helpful error messages for specific issues
           let friendlyMessage = errorMessage;

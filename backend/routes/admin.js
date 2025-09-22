@@ -2460,10 +2460,20 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
         effective_plan_tier: effectivePlanTier
       });
     } else {
-      res.status(500).json({
+      // Check for specific error types and provide better messages
+      let errorMessage = result.error || 'Rule provisioning failed';
+      let statusCode = 500;
+      
+      if (result.requires_webhook_setup || errorMessage.includes('webhook')) {
+        statusCode = 400;
+        errorMessage = 'No Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.';
+      }
+      
+      res.status(statusCode).json({
         success: false,
-        error: 'Rule provisioning failed',
+        error: errorMessage,
         details: result.error,
+        requires_webhook_setup: result.requires_webhook_setup,
         previous_status: currentStatus
       });
     }
