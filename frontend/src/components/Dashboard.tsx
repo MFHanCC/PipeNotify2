@@ -455,6 +455,7 @@ const Dashboard: React.FC = React.memo(() => {
 
       console.log(`📋 Adding default rules for ${effectivePlanTier} tier using webhook: ${primaryWebhook.name}`);
 
+      // Call add-default-rules endpoint with CORS fixes applied
       const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/add-default-rules`, {
         method: 'POST',
         body: JSON.stringify({
