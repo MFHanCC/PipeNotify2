@@ -1,9 +1,10 @@
 /* Billing Dashboard Styles */
 .billing-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 1rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -33,29 +34,30 @@
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 1.25rem 1.5rem;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  min-height: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .plan-info h2 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #6b7280;
   margin: 0 0 0.25rem 0;
 }
 
 .plan-name {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #1a1a1a;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
 }
 
 .plan-details {
@@ -67,8 +69,9 @@
 /* Inline usage stats */
 .inline-usage {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   flex-wrap: wrap;
+  margin-top: 0.5rem;
 }
 
 .usage-stat {
@@ -115,8 +118,10 @@
 /* Plan Actions */
 .plan-actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .subscription-actions {
@@ -172,7 +177,8 @@
 
 /* Usage Overview */
 .usage-overview {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
+  width: 100%;
 }
 
 .usage-overview h2 {
@@ -184,8 +190,10 @@
 
 .usage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .usage-card {
@@ -194,6 +202,8 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .usage-header {
@@ -261,7 +271,8 @@
 
 /* Usage History - Enhanced */
 .usage-history {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .history-header {
@@ -310,6 +321,8 @@
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-header {
@@ -412,7 +425,8 @@
 
 /* Feature Access */
 .feature-access {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
+  width: 100%;
 }
 
 .feature-access h2 {
@@ -424,8 +438,10 @@
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .feature-item {
@@ -437,6 +453,8 @@
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .feature-item.enabled {
@@ -489,7 +507,8 @@
 
 /* Support Section - Compact */
 .support-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
+  width: 100%;
 }
 
 .support-section h2 {
@@ -501,8 +520,10 @@
 
 .support-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .support-card {
@@ -516,6 +537,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
   min-height: 80px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .support-card:hover {
@@ -608,7 +631,46 @@
   background: #5a67d8;
 }
 
-/* Responsive Design */
+/* Enhanced Responsive Design */
+@media (min-width: 1400px) {
+  .billing-dashboard {
+    padding: 1.5rem 2rem;
+  }
+  
+  .usage-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .support-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .usage-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .usage-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 1024px) {
   .plan-card {
     flex-direction: column;
@@ -633,7 +695,7 @@
 
 @media (max-width: 768px) {
   .billing-dashboard {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .billing-header h1 {
@@ -659,6 +721,12 @@
 
   .usage-grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .history-header {
@@ -718,6 +786,14 @@
 }
 
 @media (max-width: 480px) {
+  .billing-dashboard {
+    padding: 0.5rem;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .chart-legend {
     flex-direction: column;
     gap: 0.5rem;

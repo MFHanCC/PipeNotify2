@@ -21,7 +21,7 @@ if (process.env.REDIS_URL) {
       lazyConnect: true,
       maxRetriesPerRequest: 3, // Enable retries
       retryDelayOnFailover: 500,
-      enableOfflineQueue: false,
+      enableOfflineQueue: true,
       keepAlive: 30000,
       // Enhanced Railway networking support
       retryDelayOnClusterDown: 300,
@@ -61,7 +61,7 @@ if (process.env.REDIS_URL) {
       family: 4, // IPv4 for local development
       maxRetriesPerRequest: null,
       connectTimeout: 5000,
-      enableOfflineQueue: false,
+      enableOfflineQueue: true,
       keepAlive: 30000
     }
   };

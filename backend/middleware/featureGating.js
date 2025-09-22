@@ -88,9 +88,9 @@ function requireFeature(feature) {
       // Fallback to request parameters for specific endpoints
       else if (req.params.tenantId) {
         tenantId = parseInt(req.params.tenantId);
-      } else if (req.body.tenantId) {
+      } else if (req.body && req.body.tenantId) {
         tenantId = parseInt(req.body.tenantId);
-      } else if (req.query.tenantId) {
+      } else if (req.query && req.query.tenantId) {
         tenantId = parseInt(req.query.tenantId);
       }
       

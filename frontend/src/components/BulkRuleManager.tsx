@@ -111,9 +111,29 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigate
     if (selectedRules.size === 0) return;
 
     try {
-      // In production, this would make API calls
       console.log(`Bulk ${action} for rules:`, Array.from(selectedRules));
       
+      // Make API call to backend
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/rules/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: action,
+          rule_ids: Array.from(selectedRules).map(id => parseInt(id))
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to ${action} rules`);
+      }
+
+      const result = await response.json();
+      console.log(`Bulk ${action} result:`, result);
+
+      // Update local state after successful API call
       if (action === 'delete') {
         setRules(rules.filter(rule => !selectedRules.has(rule.id)));
       } else {
@@ -125,8 +145,13 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigate
       }
       
       setSelectedRules(new Set());
+      
+      // Show success message
+      console.log(`✅ Successfully ${action === 'delete' ? 'deleted' : action + 'd'} ${result.affected_rows} rules`);
+      
     } catch (err) {
       console.error(`Error performing bulk ${action}:`, err);
+      setError(`Failed to ${action} rules: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 

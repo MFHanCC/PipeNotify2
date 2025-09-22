@@ -68,6 +68,7 @@ async function checkNotificationQuota(tenantId, requestedCount = 1) {
         remaining: 10000,
         would_exceed: false,
         allowed: true,
+        within_quota: true, // Add missing property for processor
         reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       };
     }

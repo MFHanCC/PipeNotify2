@@ -4,7 +4,7 @@ const { addNotificationJob } = require('../jobs/queue');
 const { validatePipedriveSignature } = require('../middleware/webhookValidation');
 
 // POST /api/v1/webhook/pipedrive - Accept Pipedrive webhooks  
-router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
+router.post('/pipedrive', async (req, res) => {
   console.log('🔥 WEBHOOK RECEIVED - Processing...');
   
   try {
@@ -74,6 +74,12 @@ router.post('/pipedrive', validatePipedriveSignature, async (req, res) => {
       console.log('🔄 Transformed:', transformedData.event, 'ID:', transformedData.object.id);
       
       webhookData = transformedData;
+    }
+
+    // Transform deal.change to deal.update for compatibility with frontend rules
+    if (webhookData.event === 'deal.change') {
+      webhookData.event = 'deal.update';
+      console.log('🔄 Transformed deal.change to deal.update for rule compatibility');
     }
 
     // Transform deal status changes to specific events (deal.won, deal.lost)

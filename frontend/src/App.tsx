@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import OnboardingWizard from './components/OnboardingWizard';
 import Dashboard from './components/Dashboard';
 import PricingPage from './components/PricingPage';
-import BillingDashboard from './components/BillingDashboard';
+import AdaptiveBillingDashboard from './components/AdaptiveBillingDashboard';
 import { getAuthToken } from './utils/auth';
 import './App.css';
 
@@ -32,7 +32,7 @@ function OnboardingRoute() {
 
 function BillingRoute() {
   return (
-    <BillingDashboard />
+    <AdaptiveBillingDashboard />
   );
 }
 

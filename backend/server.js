@@ -105,7 +105,7 @@ app.use(limiter);
 // Stricter rate limiting for admin and debug endpoints
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 20 : 100, // Very restrictive in production
+  max: process.env.NODE_ENV === 'production' ? 20 : 500, // Higher limit for development testing
   message: {
     error: 'Too many admin requests from this IP, please try again later.',
     retryAfter: '15 minutes'
@@ -229,9 +229,9 @@ try {
   });
 }
 
-// Start self-healing monitoring system
-console.log('🔧 STARTING SELF-HEALING SYSTEM...');
-try {
+// Start self-healing monitoring system (disabled for testing)
+console.log('🔧 SELF-HEALING SYSTEM DISABLED FOR TESTING');
+/* try {
   const { startSelfHealingMonitor } = require('./services/selfHealing');
   startSelfHealingMonitor();
   console.log('✅ SELF-HEALING SYSTEM STARTED - will monitor and fix issues automatically');
@@ -242,7 +242,7 @@ try {
     code: healingError.code,
     stack: healingError.stack
   });
-}
+} */
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);

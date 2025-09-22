@@ -559,9 +559,10 @@
 }
 
 .rules-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 20px;
+  margin-top: 20px;
 }
 
 .rule-card {
@@ -573,7 +574,19 @@
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Allow edit form to extend beyond card */
+}
+
+/* Enhanced rule card when editing */
+.rule-card:has(.edit-form) {
+  background: #f8fafc;
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+  transform: none; /* Prevent transform on hover when editing */
+}
+
+.rule-card:has(.edit-form):hover {
+  transform: none;
 }
 
 .rule-card::before {
@@ -1104,6 +1117,33 @@ input:checked + .toggle-slider:before {
     font-weight: 600;
     color: #6b7280;
   }
+  
+  /* Enhanced tablet responsiveness for rules */
+  .rule-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .rule-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .rule-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .rule-actions .test-button,
+  .rule-actions .edit-button,
+  .rule-actions .delete-button {
+    min-width: 80px;
+    padding: 8px 12px !important;
+    font-size: 0.75rem !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1137,16 +1177,39 @@ input:checked + .toggle-slider:before {
     align-items: stretch;
   }
   
+  /* Enhanced mobile rule card layout */
+  .rule-card {
+    padding: 16px;
+  }
+  
   .rule-header {
     flex-direction: column;
     gap: 12px;
     align-items: stretch;
   }
   
+  .rule-info h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  .rule-meta {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .event-type,
+  .template-mode,
+  .target-space {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+  
   .rule-controls {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 16px;
   }
   
   .rule-stats {
@@ -1154,22 +1217,55 @@ input:checked + .toggle-slider:before {
     order: 2;
     min-width: auto;
     width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
   
   .rule-actions {
     order: 1;
-    justify-content: flex-start;
+    justify-content: space-between;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  /* Enhanced mobile button layout */
+  .rule-actions .toggle-switch {
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .rule-actions .test-button,
+  .rule-actions .edit-button,
+  .rule-actions .delete-button {
+    flex: 1;
+    min-width: 60px;
+    padding: 10px 8px !important;
+    font-size: 0.75rem !important;
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  /* Ensure all action buttons are visible */
+  .rule-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 44px; /* Ensure touch-friendly height */
   }
   
   .last-triggered {
     max-width: 100%;
     margin-top: 4px;
+    font-size: 0.75rem;
   }
   
-  .toggle-switch {
-    margin-right: 8px;
+  .success-rate {
+    font-size: 0.75rem;
+    padding: 2px 6px;
   }
   
   .logs-filters {
@@ -1181,21 +1277,144 @@ input:checked + .toggle-slider:before {
   }
 }
 
+/* Extra small screens (phones in portrait) */
+@media (max-width: 480px) {
+  .rule-card {
+    padding: 12px;
+  }
+  
+  .rule-info h4 {
+    font-size: 14px;
+  }
+  
+  .rule-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .rule-actions .test-button,
+  .rule-actions .edit-button,
+  .rule-actions .delete-button {
+    width: 100%;
+    flex: none;
+    min-width: auto;
+    padding: 12px !important;
+    font-size: 0.875rem !important;
+  }
+  
+  .toggle-switch {
+    align-self: center;
+    margin: 8px 0;
+  }
+  
+  .rule-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .header-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .provision-rules-button,
+  .create-rule-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Edit Rule Form Styles */
 .edit-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Two-column layout for rule forms */
+/* Simple edit form header */
+.edit-form::before {
+  content: "Edit Rule";
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+/* Ensure rule header remains visible during editing */
+.rule-card .rule-header {
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 5;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Keep rule content visible when editing - don't hide it */
+.rule-card:has(.edit-form) .rule-header {
+  opacity: 1;
+  pointer-events: all;
+  background: #f0f9ff;
+  border-color: #0ea5e9;
+}
+
+/* Make sure rule actions remain visible and accessible */
+.rule-card:has(.edit-form) .rule-actions {
+  opacity: 0.8;
+  pointer-events: all;
+}
+
+/* Add separator between rule info and edit form */
+.rule-card .edit-form {
+  border-top: 2px solid #e2e8f0;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+/* Modern compact form layout */
 .rule-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Row layouts for compact forms */
+.form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 12px;
+  gap: 16px;
   align-items: start;
+}
+
+.form-row-thirds {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.form-row-auto {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.form-full-width {
+  grid-column: 1 / -1;
 }
 
 .rule-form-column {
@@ -1212,28 +1431,21 @@ input:checked + .toggle-slider:before {
   gap: 20px;
 }
 
-.rule-form-basic {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.rule-form-template {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-/* Right column: Advanced filters */
+.rule-form-basic,
+.rule-form-template,
 .rule-form-advanced {
-  grid-column: 2;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Override advanced filters styling for simplicity */
+.rule-form-advanced {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 /* Full width sections that span all columns */
@@ -1246,7 +1458,7 @@ input:checked + .toggle-slider:before {
 
 /* Compact form styling */
 .rule-form-grid .form-group {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .rule-form-grid .form-group label {
@@ -1274,7 +1486,37 @@ input:checked + .toggle-slider:before {
   align-items: center;
 }
 
+/* Enhanced edit actions with better visibility */
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 16px;
+}
+
 /* Responsive: Single column on smaller screens */
+@media (max-width: 1024px) {
+  .rule-form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .rule-form-left {
+    grid-column: 1;
+    gap: 16px;
+  }
+  
+  .rule-form-basic,
+  .rule-form-template,
+  .rule-form-advanced {
+    grid-column: 1;
+    padding: 14px;
+  }
+}
+
 @media (max-width: 768px) {
   .modal-content {
     width: 98%;
@@ -1290,14 +1532,19 @@ input:checked + .toggle-slider:before {
     padding: 0 20px;
   }
   
+  .edit-form {
+    padding: 16px;
+    gap: 12px;
+  }
+  
   .rule-form-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
   }
   
   .rule-form-left {
     grid-column: 1;
-    gap: 16px;
+    gap: 12px;
   }
   
   .rule-form-basic,
@@ -1305,6 +1552,78 @@ input:checked + .toggle-slider:before {
   .rule-form-advanced {
     grid-column: 1;
     padding: 12px;
+  }
+  
+  .edit-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .save-button,
+  .cancel-button {
+    width: 100%;
+    padding: 12px;
+    text-align: center;
+    min-height: 44px; /* Touch-friendly minimum height */
+    font-size: 16px; /* Better mobile text size */
+  }
+
+  /* Better mobile button spacing */
+  .edit-button,
+  .delete-button,
+  .test-button {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin: 4px 2px;
+  }
+
+  /* Improve rule card spacing on mobile */
+  .rule-card {
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+
+  /* Simple mobile edit form */
+  .edit-form {
+    padding: 12px;
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .edit-form .form-group {
+    margin-bottom: 8px;
+  }
+
+  .edit-form .form-input,
+  .edit-form .form-select,
+  .edit-form .form-textarea {
+    padding: 10px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .rule-form-grid {
+    gap: 12px;
+  }
+
+  /* Stack form rows on mobile */
+  .form-row,
+  .form-row-thirds,
+  .form-row-auto {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Stack rule actions vertically on mobile */
+  .rule-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rule-actions button {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -1364,6 +1683,95 @@ input:checked + .toggle-slider:before {
 .cancel-button:hover {
   background: #e5e7eb;
   color: #374151;
+}
+
+/* Modern Form Fields */
+.edit-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-form .form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.edit-form .form-input,
+.edit-form .form-select,
+.edit-form .form-textarea {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.4;
+}
+
+/* Compact checkbox group */
+.edit-form .checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.edit-form .checkbox-inline input[type="checkbox"] {
+  margin: 0;
+}
+
+.edit-form .checkbox-inline label {
+  margin: 0;
+  font-size: 14px;
+}
+
+.edit-form .form-input:focus,
+.edit-form .form-select:focus,
+.edit-form .form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Simple checkbox styling */
+.edit-form .checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.edit-form .checkbox-group input[type="checkbox"] {
+  margin: 0;
+}
+
+.edit-form .checkbox-group label {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Simple section headers */
+.edit-form h3,
+.edit-form h4 {
+  font-size: 14px;
+  margin: 12px 0 6px 0;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Simple buttons in edit form */
+.edit-form .edit-actions {
+  margin-top: 16px;
+  gap: 8px;
+}
+
+.edit-form .save-button,
+.edit-form .cancel-button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
 }
 
 .edit-button:disabled {
@@ -2774,7 +3182,8 @@ select:focus,
 /* Rules List Container */
 .rules-list {
   display: grid;
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 20px;
   margin-top: 24px;
 }
 
@@ -2783,7 +3192,7 @@ select:focus,
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
