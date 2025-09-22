@@ -10,6 +10,7 @@ const { guaranteeDelivery } = require('./guaranteedDelivery');
 const { processBatchQueue } = require('./guaranteedDelivery');
 
 /**
+<<<<<<< HEAD
  * Utility functions for test data detection
  */
 function isTestWebhook(url) {
@@ -28,22 +29,30 @@ function isTestTenant(tenant) {
 }
 
 /**
+=======
+>>>>>>> origin/main
  * Self-healing system configuration
  */
 const HEALING_CONFIG = {
   // Interval between health checks (5 minutes)
   CHECK_INTERVAL_MS: 5 * 60 * 1000,
   
+<<<<<<< HEAD
   // Environment-aware settings
   ENABLED: process.env.ENABLE_SELF_HEALING !== 'false',
   IGNORE_TEST_DATA: process.env.NODE_ENV !== 'production',
   
+=======
+>>>>>>> origin/main
   // Auto-healing thresholds
   MAX_FAILED_QUEUE_ITEMS: 50,
   MAX_QUEUE_AGE_HOURS: 2,
   MAX_ORPHANED_TENANTS: 5,
   MAX_UNMAPPED_COMPANIES: 10,
+<<<<<<< HEAD
   MAX_DUPLICATE_MAPPINGS: 5, // Only critical if many duplicates
+=======
+>>>>>>> origin/main
   
   // Recovery limits
   MAX_AUTO_RETRIES: 3,
@@ -123,15 +132,19 @@ async function runSelfHealing() {
     
     if (result.manualActionRequired.length > 0) {
       console.log(`⚠️ Self-healing detected ${result.manualActionRequired.length} issues requiring manual intervention`);
+<<<<<<< HEAD
       result.manualActionRequired.forEach(action => {
         console.log(`   📋 Manual action: ${action.description}`);
       });
+=======
+>>>>>>> origin/main
     }
     
     if (result.healthy) {
       console.log('💚 System health check: HEALTHY');
     } else {
       console.log('🚨 System health check: DEGRADED');
+<<<<<<< HEAD
       const criticalIssues = result.issues.filter(i => i.severity === 'critical');
       if (criticalIssues.length > 0) {
         console.log(`   🔥 Critical issues found:`);
@@ -139,6 +152,8 @@ async function runSelfHealing() {
           console.log(`     • ${issue.description}`);
         });
       }
+=======
+>>>>>>> origin/main
     }
 
   } catch (error) {
@@ -296,6 +311,7 @@ async function checkTenantMappingHealth(result) {
     `);
 
     if (duplicateMappings.rows.length > 0) {
+<<<<<<< HEAD
       // Filter out test data if in development
       let filteredDuplicates = duplicateMappings.rows;
       if (HEALING_CONFIG.IGNORE_TEST_DATA) {
@@ -318,6 +334,15 @@ async function checkTenantMappingHealth(result) {
           duplicates: duplicateMappings.rows
         });
       }
+=======
+      result.addIssue('warning', `Found ${duplicateMappings.rows.length} duplicate Pipedrive company mappings`, {
+        duplicates: duplicateMappings.rows
+      });
+      
+      result.addManualAction('Review and resolve duplicate tenant mappings', {
+        duplicates: duplicateMappings.rows
+      });
+>>>>>>> origin/main
     }
 
   } catch (error) {
@@ -443,6 +468,7 @@ async function checkDatabaseCleanupNeeds(result) {
       }
     }
 
+<<<<<<< HEAD
     // Check for malformed webhook data (using correct column name)
     const malformedData = await pool.query(`
       SELECT COUNT(*) as count
@@ -450,12 +476,25 @@ async function checkDatabaseCleanupNeeds(result) {
       WHERE webhook_data IS NULL 
          OR webhook_data::text LIKE '%[object Object]%'
          OR NOT (webhook_data::jsonb ? 'webhook_url')
+=======
+    // Check for malformed notification data
+    const malformedData = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM notification_queue 
+      WHERE notification_data IS NULL 
+         OR notification_data::text LIKE '%[object Object]%'
+         OR (notification_data::jsonb ? 'webhook_url') = false
+>>>>>>> origin/main
     `);
 
     const malformedCount = parseInt(malformedData.rows[0].count);
     
     if (malformedCount > 0) {
+<<<<<<< HEAD
       result.addIssue('warning', `Found ${malformedCount} notifications with malformed webhook data`, {
+=======
+      result.addIssue('warning', `Found ${malformedCount} notifications with malformed data`, {
+>>>>>>> origin/main
         count: malformedCount
       });
 
@@ -463,10 +502,17 @@ async function checkDatabaseCleanupNeeds(result) {
       const cleanupMalformed = await pool.query(`
         UPDATE notification_queue 
         SET status = 'failed',
+<<<<<<< HEAD
             error_message = 'Malformed webhook data - auto-cleaned by self-healing'
         WHERE (webhook_data IS NULL 
                OR webhook_data::text LIKE '%[object Object]%'
                OR NOT (webhook_data::jsonb ? 'webhook_url'))
+=======
+            error_message = 'Malformed notification data - auto-cleaned by self-healing'
+        WHERE (notification_data IS NULL 
+               OR notification_data::text LIKE '%[object Object]%'
+               OR (notification_data::jsonb ? 'webhook_url') = false)
+>>>>>>> origin/main
           AND status = 'pending'
       `);
 
@@ -492,9 +538,15 @@ async function checkWebhookConnectivity(result) {
       SELECT DISTINCT cw.webhook_url
       FROM chat_webhooks cw
       JOIN rules r ON cw.id = r.target_webhook_id
+<<<<<<< HEAD
       WHERE cw.is_active = true 
         AND r.enabled = true
       LIMIT 10
+=======
+      WHERE cw.enabled = true 
+        AND r.enabled = true
+      LIMIT 3
+>>>>>>> origin/main
     `);
 
     if (sampleWebhooks.rows.length === 0) {
@@ -502,6 +554,7 @@ async function checkWebhookConnectivity(result) {
       return;
     }
 
+<<<<<<< HEAD
     // Filter out test webhooks if in development
     const testWebhooks = sampleWebhooks.rows.filter(row => isTestWebhook(row.webhook_url));
     const realWebhooks = sampleWebhooks.rows.filter(row => !isTestWebhook(row.webhook_url));
@@ -522,6 +575,13 @@ async function checkWebhookConnectivity(result) {
         testWebhookCount: testWebhooks.length
       });
     }
+=======
+    // Note: We don't actually test connectivity here to avoid spam
+    // This is a placeholder for future implementation
+    result.addIssue('info', `Found ${sampleWebhooks.rows.length} active webhooks for monitoring`, {
+      webhookCount: sampleWebhooks.rows.length
+    });
+>>>>>>> origin/main
 
   } catch (error) {
     result.addIssue('critical', 'Webhook connectivity health check failed', { error: error.message });
@@ -532,6 +592,7 @@ async function checkWebhookConnectivity(result) {
  * Start the self-healing monitoring system
  */
 function startSelfHealingMonitor() {
+<<<<<<< HEAD
   if (!HEALING_CONFIG.ENABLED) {
     console.log('⚠️ Self-healing monitoring system disabled (ENABLE_SELF_HEALING=false)');
     return;
@@ -543,6 +604,10 @@ function startSelfHealingMonitor() {
   if (HEALING_CONFIG.IGNORE_TEST_DATA) {
     console.log('🧪 Development mode: ignoring test data and reducing alert sensitivity');
   }
+=======
+  console.log('🚀 Starting self-healing monitoring system...');
+  console.log(`⏰ Health checks will run every ${HEALING_CONFIG.CHECK_INTERVAL_MS / 60000} minutes`);
+>>>>>>> origin/main
 
   // Run initial health check
   runSelfHealing().catch(error => {

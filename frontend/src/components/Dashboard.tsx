@@ -435,6 +435,12 @@ const Dashboard: React.FC = React.memo(() => {
         return;
       }
 
+      // Check rule limits before proceeding
+      if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length + missingRules.length > limits.rules) {
+        alert(`⚠️ Rule Limit Reached\n\nYour ${planTier || 'current'} plan allows ${limits.rules} rules maximum.\nYou currently have ${rules.length} rules.\nDelete some rules first or upgrade your plan.`);
+        return;
+      }
+
       // Use the first available webhook
       const primaryWebhook = availableWebhooks[0];
       

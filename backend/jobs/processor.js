@@ -530,6 +530,7 @@ async function alertSystemReliability(tenantId, rule, tier, webhookData) {
   try {
     console.log(`🚨 SYSTEM RELIABILITY ALERT: Tier ${tier} used for tenant ${tenantId}`);
     
+<<<<<<< HEAD
     // Track backup tier usage for monitoring
     const alertData = {
       timestamp: new Date().toISOString(),
@@ -552,6 +553,16 @@ async function alertSystemReliability(tenantId, rule, tier, webhookData) {
     return alertData;
   } catch (error) {
     console.error('Failed to send reliability alert:', error);
+=======
+    // Log to file for Claude autonomous monitoring (create directory if needed)
+    try {
+      require('fs').mkdirSync('./logs/claude-alerts', { recursive: true });
+      require('fs').appendFileSync('./logs/claude-alerts/redis-connection-error.txt', 
+        `${new Date().toISOString()}: Redis connection error: ${err.message}\n`);
+    } catch (logError) {
+      console.warn('Could not write to log file:', logError.message);
+    }
+>>>>>>> origin/main
   }
 }
 

@@ -11,24 +11,27 @@ if (process.env.REDIS_URL) {
   console.log('🔧 Configuring Redis for Railway deployment');
   console.log('🔗 Redis host:', url.hostname);
   
-  const connectionConfig = {
-    host: url.hostname,
-    port: parseInt(url.port),
-    password: url.password,
-    family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
-    connectTimeout: 15000, // Increased timeout for Railway
-    lazyConnect: true,
-    maxRetriesPerRequest: 3, // Enable retries
-    retryDelayOnFailover: 500,
-    enableOfflineQueue: false,
-    keepAlive: 30000,
-    retryDelayOnClusterDown: 300,
-    enableReadyCheck: true,
-    maxLoadingTimeout: 10000,
-    reconnectOnError: (err) => {
-      console.log('🔄 Redis reconnection check:', err.message);
-      const targetErrors = ['READONLY', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'];
-      return targetErrors.some(error => err.message.includes(error));
+  redisConfig = {
+    connection: {
+      host: url.hostname,
+      port: parseInt(url.port),
+      password: url.password,
+      family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
+      connectTimeout: 15000, // Increased timeout for Railway
+      lazyConnect: true,
+      maxRetriesPerRequest: 3, // Enable retries
+      retryDelayOnFailover: 500,
+      enableOfflineQueue: false,
+      keepAlive: 30000,
+      // Enhanced Railway networking support
+      retryDelayOnClusterDown: 300,
+      enableReadyCheck: true,
+      maxLoadingTimeout: 10000,
+      reconnectOnError: (err) => {
+        console.log('🔄 Redis reconnection check:', err.message);
+        const targetErrors = ['READONLY', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'];
+        return targetErrors.some(error => err.message.includes(error));
+      }
     }
   };
 
