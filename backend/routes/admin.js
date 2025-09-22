@@ -2494,6 +2494,15 @@ router.post('/provision-default-rules', authenticateToken, async (req, res) => {
   }
 });
 
+// OPTIONS /api/v1/admin/add-default-rules - Handle preflight request
+router.options('/add-default-rules', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
 // POST /api/v1/admin/add-default-rules - Simple default rules creation (force redeploy)
 router.post('/add-default-rules', authenticateToken, async (req, res) => {
   console.log('🎯 add-default-rules endpoint HIT');

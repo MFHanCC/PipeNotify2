@@ -125,7 +125,11 @@ app.use(express.urlencoded({ extended: true }));
 // Debug logging for add-default-rules requests
 app.use((req, res, next) => {
   if (req.path.includes('add-default-rules')) {
-    console.log(`🚨 DEBUG: ${req.method} ${req.path} - Headers:`, req.headers);
+    console.log(`🚨 DEBUG: ${req.method} ${req.originalUrl} ${req.path}`);
+    console.log(`🚨 DEBUG: Origin: ${req.headers.origin}`);
+    console.log(`🚨 DEBUG: Authorization: ${req.headers.authorization ? 'Present' : 'Missing'}`);
+    console.log(`🚨 DEBUG: Content-Type: ${req.headers['content-type']}`);
+    console.log(`🚨 DEBUG: Body:`, req.body);
   }
   next();
 });
@@ -1433,6 +1437,10 @@ app.use((error, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  console.log(`❌ 404 NOT FOUND: ${req.method} ${req.originalUrl}`);
+  console.log(`❌ Headers:`, req.headers);
+  console.log(`❌ Body:`, req.body);
+  
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.originalUrl} not found`,
