@@ -1748,21 +1748,6 @@ const Dashboard: React.FC = React.memo(() => {
             </>
           )}
           
-          {/* Connection Status Indicator */}
-          {!sidebarCollapsed && (
-            <div className={`connection-status ${isBackendConnected === null ? 'checking' : isBackendConnected ? 'connected' : 'disconnected'}`}>
-              <span className="status-dot"></span>
-              <span className="status-text">
-                {isBackendConnected === null ? 'Checking connection...' : 
-                 isBackendConnected ? 'Backend Connected' : 'Backend Offline'}
-              </span>
-              {connectionCheckTime && (
-                <span className="status-time">
-                  Last checked: {connectionCheckTime.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-          )}
         </div>
         
         <nav className="sidebar-nav" role="navigation" aria-label="Dashboard navigation">
