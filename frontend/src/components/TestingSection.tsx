@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './TestingSection.css';
+import { API_BASE_URL } from '../config/api';
 
 interface TestResult {
   id: number;
@@ -186,7 +187,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/health/notifications`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/health/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
