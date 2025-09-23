@@ -84,37 +84,7 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
     }
   };
 
-  const handleManageSubscription = () => {
-    if (planTier === 'free') {
-      // For free users, redirect to pricing section in dashboard
-      if (onNavigateToTab) {
-        onNavigateToTab('pricing');
-      } else {
-        // Fallback for when navigation function is not available
-        window.open('https://pipenotify.com/pricing', '_blank');
-      }
-    } else {
-      // For paid users, show subscription management info
-      alert('Subscription management portal coming soon. Contact support@pipenotify.com for billing changes.');
-    }
-  };
 
-  const handleViewUsageHistory = () => {
-    // Create a detailed usage breakdown modal/view
-    const usageDetails = `
-📊 Current Usage Breakdown:
-
-📧 Notifications: ${usageData.notifications.used}/${usageData.notifications.limit} (${usageData.notifications.percentage.toFixed(1)}%)
-🔗 Webhooks: ${usageData.webhooks.used}/${usageData.webhooks.limit} (${usageData.webhooks.percentage.toFixed(1)}%)
-📋 Rules: ${usageData.rules.used}/${usageData.rules.limit} (${usageData.rules.percentage.toFixed(1)}%)
-
-Plan: ${getPlanDisplayName(planTier || 'free')}
-
-${planTier === 'free' ? '💡 Upgrade to get higher limits and detailed analytics!' : '✅ You have access to premium features!'}
-    `.trim();
-    
-    alert(usageDetails);
-  };
 
   if (loading) {
     return (
@@ -553,45 +523,6 @@ ${planTier === 'free' ? '💡 Upgrade to get higher limits and detailed analytic
       </div>
 
       {/* Action Buttons */}
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        justifyContent: 'center',
-        marginBottom: '2rem',
-        flexWrap: 'wrap'
-      }}>
-        <button 
-          onClick={handleManageSubscription}
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-            color: 'white',
-            border: 'none',
-            padding: '0.875rem 2rem',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
-          }}>
-          💳 Manage Subscription
-        </button>
-        <button 
-          onClick={handleViewUsageHistory}
-          style={{
-            background: 'white',
-            color: '#6b7280',
-            border: '1px solid #e5e7eb',
-            padding: '0.875rem 2rem',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}>
-          📊 View Usage History
-        </button>
-      </div>
 
       {/* Help Section - Horizontal at Bottom */}
       <div style={{

@@ -155,6 +155,7 @@ const Dashboard: React.FC = React.memo(() => {
   
   // UI state
   const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     name: string; 
@@ -1646,7 +1647,7 @@ const Dashboard: React.FC = React.memo(() => {
   }
 
   return (
-    <div className="dashboard dashboard-with-sidebar">
+    <div className={`dashboard dashboard-with-sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       {/* Error Modal */}
       {showErrorModal && error && (
         <div className="error-modal-overlay" onClick={clearError}>
@@ -1695,24 +1696,38 @@ const Dashboard: React.FC = React.memo(() => {
         </div>
       )}
       
-      <aside className="dashboard-sidebar">
+      <aside className={`dashboard-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <h1>Pipedrive → Google Chat</h1>
-          <p>Monitor and manage your notification rules and delivery logs</p>
+          <button 
+            className="sidebar-toggle"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
+          >
+            {sidebarCollapsed ? '→' : '←'}
+          </button>
+          {!sidebarCollapsed && (
+            <>
+              <h1>Pipedrive → Google Chat</h1>
+              <p>Monitor and manage your notification rules and delivery logs</p>
+            </>
+          )}
           
           {/* Connection Status Indicator */}
-          <div className={`connection-status ${isBackendConnected === null ? 'checking' : isBackendConnected ? 'connected' : 'disconnected'}`}>
-            <span className="status-dot"></span>
-            <span className="status-text">
-              {isBackendConnected === null ? 'Checking connection...' : 
-               isBackendConnected ? 'Backend Connected' : 'Backend Offline'}
-            </span>
-            {connectionCheckTime && (
-              <span className="status-time">
-                Last checked: {connectionCheckTime.toLocaleTimeString()}
+          {!sidebarCollapsed && (
+            <div className={`connection-status ${isBackendConnected === null ? 'checking' : isBackendConnected ? 'connected' : 'disconnected'}`}>
+              <span className="status-dot"></span>
+              <span className="status-text">
+                {isBackendConnected === null ? 'Checking connection...' : 
+                 isBackendConnected ? 'Backend Connected' : 'Backend Offline'}
               </span>
-            )}
-          </div>
+              {connectionCheckTime && (
+                <span className="status-time">
+                  Last checked: {connectionCheckTime.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         
         <nav className="sidebar-nav" role="navigation" aria-label="Dashboard navigation">
@@ -1723,7 +1738,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'overview' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📊</span> Overview
+            <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Overview'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'rules' ? 'active' : ''}`}
@@ -1732,7 +1747,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'rules' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">⚙️</span> Rules ({rules.length})
+            <span aria-hidden="true">⚙️</span> {!sidebarCollapsed && `Rules (${rules.length})`}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`}
@@ -1741,7 +1756,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'logs' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📋</span> Logs
+            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Logs'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'webhooks' ? 'active' : ''}`}
@@ -1750,7 +1765,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'webhooks' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">🔗</span> Webhooks ({availableWebhooks.length})
+            <span aria-hidden="true">🔗</span> {!sidebarCollapsed && `Webhooks (${availableWebhooks.length})`}
           </button>
           <FeatureRestriction
             isAvailable={hasFeature('channel_routing')}
@@ -1767,7 +1782,7 @@ const Dashboard: React.FC = React.memo(() => {
               type="button"
               disabled={!hasFeature('channel_routing')}
             >
-              <span aria-hidden="true">🎯</span> Smart Routing
+              <span aria-hidden="true">🎯</span> {!sidebarCollapsed && 'Smart Routing'}
             </button>
           </FeatureRestriction>
           <FeatureRestriction
@@ -1785,7 +1800,7 @@ const Dashboard: React.FC = React.memo(() => {
               type="button"
               disabled={!hasFeature('quiet_hours')}
             >
-              <span aria-hidden="true">🔕</span> Quiet Hours
+              <span aria-hidden="true">🔕</span> {!sidebarCollapsed && 'Quiet Hours'}
             </button>
           </FeatureRestriction>
           <FeatureRestriction
@@ -1802,7 +1817,7 @@ const Dashboard: React.FC = React.memo(() => {
               aria-current={activeTab === 'stalled-deals' ? 'page' : undefined}
               type="button"
             >
-              <span aria-hidden="true">📊</span> Stalled Deals
+              <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Stalled Deals'}
             </button>
           </FeatureRestriction>
           <FeatureRestriction
@@ -1819,7 +1834,7 @@ const Dashboard: React.FC = React.memo(() => {
               aria-current={activeTab === 'analytics' ? 'page' : undefined}
               type="button"
             >
-              <span aria-hidden="true">📊</span> Analytics
+              <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Analytics'}
             </button>
           </FeatureRestriction>
           <button 
@@ -1829,7 +1844,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'testing' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">🧪</span> Testing
+            <span aria-hidden="true">🧪</span> {!sidebarCollapsed && 'Testing'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
@@ -1838,7 +1853,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'bulk-management' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📋</span> Bulk Management
+            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
@@ -1846,7 +1861,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-label="Billing and subscription management"
             type="button"
           >
-            <span aria-hidden="true">💳</span> Billing
+            <span aria-hidden="true">💳</span> {!sidebarCollapsed && 'Billing'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'pricing' ? 'active' : ''}`}
@@ -1854,7 +1869,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-label="View pricing plans"
             type="button"
           >
-            <span aria-hidden="true">💎</span> Pricing
+            <span aria-hidden="true">💎</span> {!sidebarCollapsed && 'Pricing'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -1863,7 +1878,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'settings' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">⚙️</span> Settings
+            <span aria-hidden="true">⚙️</span> {!sidebarCollapsed && 'Settings'}
           </button>
           
           {/* Dark Mode Toggle */}
