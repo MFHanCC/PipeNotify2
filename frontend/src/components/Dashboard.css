@@ -2535,7 +2535,7 @@ select:focus,
   }
   
   .pricing-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
   }
   
@@ -2549,6 +2549,13 @@ select:focus,
   
   .pricing-faq {
     padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .pricing-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 
