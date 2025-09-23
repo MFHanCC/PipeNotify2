@@ -276,6 +276,18 @@ const BulkRuleManager: React.FC<BulkRuleManagerProps> = ({ onRefresh, onNavigate
         </div>
       )}
 
+      {/* Mobile Select All Toggle */}
+      <div className="mobile-select-all">
+        <label className="mobile-select-label">
+          <input
+            type="checkbox"
+            checked={filteredRules.length > 0 && selectedRules.size === filteredRules.length}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+          />
+          Select All Rules ({filteredRules.length} total)
+        </label>
+      </div>
+
       {/* Rules Table */}
       <div className="rules-table-container">
         <table className="rules-table">

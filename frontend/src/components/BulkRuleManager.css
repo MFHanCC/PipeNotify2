@@ -597,6 +597,32 @@
   font-weight: 600;
 }
 
+/* Mobile Select All - only visible on small screens */
+.mobile-select-all {
+  display: none;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.mobile-select-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.mobile-select-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .bulk-rule-manager {
@@ -643,7 +669,12 @@
 }
 
 /* Switch to card layout when table doesn't fit */
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
+  /* Show mobile select all */
+  .mobile-select-all {
+    display: block;
+  }
+  
   .rules-table,
   .rules-table thead,
   .rules-table tbody,
@@ -731,9 +762,37 @@
     position: absolute;
     top: 12px;
     right: 12px;
+    z-index: 1;
   }
   
   .checkbox-column:before {
     display: none;
+  }
+  
+  .checkbox-column input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+  
+  /* Add more spacing to accommodate larger checkboxes */
+  .rules-table tr {
+    padding: 16px 50px 16px 16px;
+  }
+  
+  /* Improve mobile text sizing */
+  .rules-table td {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  
+  .rules-table td:before {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+  
+  .name-cell strong {
+    font-size: 1rem;
+    margin-bottom: 6px;
   }
 }

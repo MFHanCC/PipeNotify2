@@ -171,13 +171,28 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
             }
           });
 
-          const result = await response.json();
-          const duration = Date.now() - startTime;
+          let result: any = {};
+          let message = '';
           
+          // Handle JSON parsing safely
+          try {
+            const responseText = await response.text();
+            if (responseText.trim()) {
+              result = JSON.parse(responseText);
+            }
+          } catch (jsonError) {
+            console.warn('Failed to parse response as JSON:', jsonError);
+            result = { error: 'Invalid response format' };
+          }
+          
+          const duration = Date.now() - startTime;
           const success = response.ok && !result.error;
-          const message = success 
-            ? `Test notification sent successfully!`
-            : `Test failed: ${result.error || 'Unknown error'}`;
+          
+          if (success) {
+            message = result.message || 'Test notification sent successfully!';
+          } else {
+            message = `Test failed: ${result.error || response.statusText || 'Unknown error'}`;
+          }
           
           results.push({
             webhookId: webhook.id,
