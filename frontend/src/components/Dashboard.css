@@ -540,7 +540,12 @@
 
 /* Rules Section */
 .rules-section {
-  space-y: 20px;
+  padding: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .section-header {
@@ -573,21 +578,22 @@
 
 .rules-list {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .rule-card {
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
   border-left: 4px solid #3b82f6;
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: visible; /* Allow edit form to extend beyond card */
+  min-height: fit-content;
 }
 
 /* Enhanced rule card when editing */
@@ -656,8 +662,10 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   padding-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -1244,8 +1252,18 @@ input:checked + .toggle-slider:before {
   }
   
   /* Enhanced mobile rule card layout */
+  .rules-section {
+    padding: 16px;
+  }
+  
+  .rules-list {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
   .rule-card {
     padding: 16px;
+    margin: 0;
   }
   
   .rule-header {
@@ -1397,12 +1415,28 @@ input:checked + .toggle-slider:before {
     font-size: 12px;
   }
   
+  .rules-section {
+    padding: 12px;
+  }
+  
+  .rules-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
   .rule-card {
     padding: 12px;
+    border-width: 1px;
+    border-left-width: 3px;
   }
   
   .rule-info h4 {
     font-size: 14px;
+  }
+  
+  .rule-header {
+    flex-direction: column;
+    gap: 8px;
   }
   
   .rule-actions {
@@ -1617,6 +1651,15 @@ input:checked + .toggle-slider:before {
 
 /* Responsive: Single column on smaller screens */
 @media (max-width: 1024px) {
+  .rules-section {
+    padding: 16px;
+  }
+  
+  .rules-list {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  
   .rule-form-grid {
     grid-template-columns: 1fr;
     gap: 16px;
