@@ -898,6 +898,66 @@ const Dashboard: React.FC = React.memo(() => {
     return 'error';
   };
 
+  // Function to make technical log messages human-readable
+  const makeMessageReadable = (message: string): string => {
+    try {
+      // Handle JSON-like messages
+      if (message.includes('"success":true') || message.includes('"success": true')) {
+        if (message.includes('messageId')) {
+          return 'Message sent successfully to Google Chat';
+        }
+        return 'Notification delivered successfully';
+      }
+      
+      if (message.includes('"success":false') || message.includes('"success": false')) {
+        return 'Notification delivery failed';
+      }
+
+      // Handle specific patterns
+      if (message.includes('spaces/') && message.includes('messages/')) {
+        return 'Google Chat message posted successfully';
+      }
+
+      if (message.includes('Deal Won') || message.includes('deal.won')) {
+        return 'Deal Won notification sent';
+      }
+
+      if (message.includes('Deal Lost') || message.includes('deal.lost')) {
+        return 'Deal Lost alert sent';
+      }
+
+      if (message.includes('New Deal') || message.includes('deal.created')) {
+        return 'New Deal notification sent';
+      }
+
+      // Handle test notifications
+      if (message.includes('Test Notification') || message.includes('**Test')) {
+        return 'Test notification sent successfully';
+      }
+
+      // Handle error patterns
+      if (message.includes('error') || message.includes('Error')) {
+        return 'Notification failed - see details in logs';
+      }
+
+      // If message is too long, truncate and clean it
+      if (message.length > 100) {
+        const cleaned = message
+          .replace(/[{}]/g, '')
+          .replace(/"/g, '')
+          .replace(/timestamp.*?Z/g, '')
+          .replace(/messageId.*?,/g, '')
+          .split(',')[0];
+        
+        return cleaned.length > 80 ? cleaned.substring(0, 80) + '...' : cleaned;
+      }
+
+      return message;
+    } catch (error) {
+      return message;
+    }
+  };
+
   const renderOverview = () => (
     <div className="overview-section">
       {/* Enhanced Stats Grid with Animations */}
@@ -1033,7 +1093,7 @@ const Dashboard: React.FC = React.memo(() => {
                 </div>
                 <div className="activity-content">
                   <div className="activity-title">{log.ruleName}</div>
-                  <div className="activity-message">{log.message}</div>
+                  <div className="activity-message">{makeMessageReadable(log.message)}</div>
                   <div className="activity-subtitle">
                     <span className="activity-target">{log.targetSpace}</span>
                     <span className="activity-separator">•</span>
