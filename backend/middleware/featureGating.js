@@ -155,11 +155,21 @@ function checkResourceLimit(resourceType) {
         });
       }
       
-      const { getSubscription } = require('../services/stripe');
       const { pool } = require('../services/database');
       
-      const subscription = await getSubscription(tenantId);
-      const limits = PLAN_LIMITS[subscription.plan_tier] || PLAN_LIMITS.free;
+      // Get plan tier (handle case where Stripe is not configured)
+      let planTier = 'free'; // Default to free plan
+      let limits = PLAN_LIMITS.free;
+      
+      try {
+        const { getSubscription } = require('../services/stripe');
+        const subscription = await getSubscription(tenantId);
+        planTier = subscription.plan_tier || 'free';
+        limits = PLAN_LIMITS[planTier] || PLAN_LIMITS.free;
+      } catch (stripeError) {
+        console.log(`⚠️ Stripe not configured or subscription lookup failed for tenant ${tenantId}, using free plan limits`);
+        // Keep default free plan limits
+      }
       
       let currentCount = 0;
       
