@@ -305,7 +305,7 @@ async function getDeliveryStats(hours = 24) {
         tier,
         status,
         COUNT(*) as count,
-        AVG(EXTRACT(EPOCH FROM (processed_at - created_at))) as avg_processing_time
+        AVG(processing_time_ms) as avg_processing_time
       FROM delivery_log
       WHERE created_at > NOW() - INTERVAL '${hours} hours'
       GROUP BY tier, status

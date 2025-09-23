@@ -176,14 +176,14 @@ const Dashboard: React.FC = React.memo(() => {
     name: string; 
     enabled: boolean;
     event_type: string;
-    template_mode: 'compact' | 'detailed';
+    template_mode: 'simple' | 'compact' | 'detailed' | 'custom';
     target_webhook_id?: string; // Optional for compatibility
     filters: any;
   }>({
     name: '', 
     enabled: true,
     event_type: 'deal.updated',
-    template_mode: 'compact',
+    template_mode: 'simple',
     target_webhook_id: '',
     filters: {}
   });
@@ -610,7 +610,7 @@ const Dashboard: React.FC = React.memo(() => {
                 name: editFormData.name, 
                 enabled: editFormData.enabled,
                 eventType: editFormData.event_type,
-                templateMode: editFormData.template_mode as 'compact' | 'detailed',
+                templateMode: editFormData.template_mode,
                 targetSpace: availableWebhooks.find(w => w.id === editFormData.target_webhook_id)?.name || 'Unknown', // SECURITY FIX: Update display name from webhook list
                 // targetWebhookId property not needed - using targetSpace
                 filters: editFormData.filters
@@ -1424,7 +1424,7 @@ const Dashboard: React.FC = React.memo(() => {
                           }}
                           onChange={(templateData) => setEditFormData({
                             ...editFormData,
-                            template_mode: templateData.template_mode as 'compact' | 'detailed'
+                            template_mode: templateData.template_mode
                           })}
                           eventType={editFormData.event_type}
                         />
