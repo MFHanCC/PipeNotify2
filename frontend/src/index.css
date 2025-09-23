@@ -1,3 +1,37 @@
+/* Global CSS Custom Properties for Responsive Design */
+:root {
+  /* Breakpoints */
+  --breakpoint-tablet: 1024px;
+  --breakpoint-mobile: 768px;
+  --breakpoint-small: 480px;
+  
+  /* Responsive Containers */
+  --container-max-width: 1200px;
+  --container-padding-desktop: 12px;
+  --container-padding-tablet: 16px;
+  --container-padding-mobile: 12px;
+  --container-padding-small: 8px;
+  
+  /* Responsive Grid */
+  --grid-gap-desktop: 16px;
+  --grid-gap-tablet: 16px;
+  --grid-gap-mobile: 12px;
+  --grid-gap-small: 8px;
+  
+  /* Typography Scaling */
+  --font-size-h1-desktop: 24px;
+  --font-size-h1-mobile: 20px;
+  --font-size-h1-small: 18px;
+  
+  --font-size-h2-desktop: 20px;
+  --font-size-h2-mobile: 18px;
+  --font-size-h2-small: 16px;
+  
+  /* Box Shadows */
+  --shadow-card: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -10,4 +44,87 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Global Responsive Utilities */
+.responsive-container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: var(--container-padding-desktop);
+}
+
+.responsive-grid {
+  display: grid;
+  gap: var(--grid-gap-desktop);
+}
+
+.responsive-grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.responsive-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--grid-gap-desktop);
+}
+
+/* Hide/Show utilities for responsive design */
+.hide-mobile {
+  display: block;
+}
+
+.show-mobile {
+  display: none;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1024px) {
+  .responsive-container {
+    padding: var(--container-padding-tablet);
+  }
+  
+  .responsive-grid {
+    gap: var(--grid-gap-tablet);
+  }
+  
+  .responsive-flex {
+    gap: var(--grid-gap-tablet);
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-container {
+    padding: var(--container-padding-mobile);
+  }
+  
+  .responsive-grid {
+    gap: var(--grid-gap-mobile);
+  }
+  
+  .responsive-flex {
+    gap: var(--grid-gap-mobile);
+    flex-direction: column;
+  }
+  
+  .hide-mobile {
+    display: none;
+  }
+  
+  .show-mobile {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-container {
+    padding: var(--container-padding-small);
+  }
+  
+  .responsive-grid {
+    gap: var(--grid-gap-small);
+  }
+  
+  .responsive-flex {
+    gap: var(--grid-gap-small);
+  }
 }
