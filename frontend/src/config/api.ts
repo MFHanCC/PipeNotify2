@@ -3,11 +3,17 @@
 
 // API URL with proper fallback and error handling
 export const API_BASE_URL = process.env.REACT_APP_API_URL || (() => {
-  // Only fallback to localhost in development
-  if (process.env.NODE_ENV === 'development') {
-    // Try multiple common backend ports
+  // Check if we're in local development
+  if (process.env.NODE_ENV === 'development' && window.location.hostname === 'localhost') {
+    // Try multiple common backend ports for local development
     const fallbackUrls = ['http://localhost:3002', 'http://localhost:3001', 'http://localhost:5000'];
     return fallbackUrls[0]; // Default to 3002 which seems to be expected
+  }
+  
+  // For deployed development environment (Vercel), use Railway dev backend
+  if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('pipenotify-frontend')) {
+    console.log('🔧 Using Railway development backend as fallback');
+    return 'https://dev-backend.up.railway.app';
   }
   
   // In production without REACT_APP_API_URL set, this is an error
