@@ -381,8 +381,8 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          // target_webhook_id will be handled by backend based on targetSpace
           template_mode: rule.templateMode,
+          target_webhook_id: rule.targetWebhookId || 1,
           enabled: !rule.enabled,
           filters: rule.filters || {}
         }),
@@ -403,10 +403,12 @@ const Dashboard: React.FC = React.memo(() => {
         }));
       } else {
         const errorData = await response.json().catch(() => ({}));
-        showError(`Failed to toggle rule: ${errorData.message || 'Unknown error'}`);
+        console.error('Toggle rule error:', { status: response.status, errorData });
+        showError(`Failed to toggle rule: ${errorData.message || errorData.error || `Server returned ${response.status}`}`);
       }
     } catch (err) {
-      showError('Failed to toggle rule');
+      console.error('Toggle rule network error:', err);
+      showError(`Failed to toggle rule: ${err instanceof Error ? err.message : 'Network error'}`);
     }
   };
 
