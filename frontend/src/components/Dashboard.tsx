@@ -645,6 +645,12 @@ const Dashboard: React.FC = React.memo(() => {
   };
 
   const openCreateModal = () => {
+    // Check rule limits before opening modal
+    if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules) {
+      showError(`${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.`);
+      return;
+    }
+    
     // Set default event type based on plan tier
     const defaultEventType = planTier === 'free' ? 'deal.won' : 'deal.updated';
     
@@ -1546,7 +1552,10 @@ const Dashboard: React.FC = React.memo(() => {
               aria-label="Create custom notification rule"
               type="button"
               style={{ background: 'white', color: '#374151', border: '1px solid #d1d5db' }}
-              disabled={planTier === 'free' && rules.length >= (limits?.rules || 3)}
+              disabled={Boolean(limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules)}
+              title={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules 
+                ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
+                : 'Create custom notification rule'}
             >
               + Create Custom Rule
             </button>
