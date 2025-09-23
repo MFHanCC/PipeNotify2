@@ -622,6 +622,15 @@
 }
 
 /* Desktop Responsive - 768px+ */
+/* Medium screens - 2 columns to start showing more plans */
+@media (min-width: 640px) {
+  .plans-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+/* Tablet screens - 3 columns to show all plans */
 @media (min-width: 768px) {
   .pricing-header {
     padding: 4rem 2rem 3rem;
@@ -632,8 +641,8 @@
   }
   
   .plans-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
   }
   
   .plan-card {
@@ -670,7 +679,10 @@
 /* Large Desktop - 1024px+ */
 @media (min-width: 1024px) {
   .plans-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto 2rem auto;
   }
   
   .trust-grid {
