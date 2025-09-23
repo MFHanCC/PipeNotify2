@@ -64,7 +64,9 @@ const allowedOrigins = [
   ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []), // Development only
   // Specific Vercel deployment URLs only
   'https://pipenotify-frontend.vercel.app',
-  'https://pipenotify-frontend-git-development-mfhanccs.vercel.app'
+  'https://pipenotify-frontend-git-development-mfhanccs.vercel.app',
+  // Temporary: Allow requests expecting old Railway URL (will be removed)
+  'https://pipenotify.up.railway.app'
 ].filter(Boolean); // Remove any undefined values
 
 app.use(cors({
