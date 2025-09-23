@@ -931,6 +931,79 @@ router.get('/debug/schema', async (req, res) => {
       }
     }
     
+    // SPECIAL: If pipeline_check=true, check pipeline health
+    if (req.query.pipeline_check === 'true') {
+      console.log('🔍 SPECIAL: Checking pipeline health via debug endpoint...');
+      
+      try {
+        const diagnosis = {
+          timestamp: new Date().toISOString(),
+          steps: []
+        };
+        
+        // Check rules
+        const rulesResult = await pool.query(`
+          SELECT id, name, event_type, enabled, target_webhook_id, tenant_id
+          FROM rules 
+          ORDER BY tenant_id, id
+        `);
+        
+        diagnosis.rules = rulesResult.rows;
+        diagnosis.enabledRules = rulesResult.rows.filter(r => r.enabled);
+        
+        // Check webhooks
+        const webhooksResult = await pool.query(`
+          SELECT id, name, tenant_id, is_active, webhook_url
+          FROM chat_webhooks
+          ORDER BY tenant_id, id
+        `);
+        
+        diagnosis.webhooks = webhooksResult.rows.map(w => ({
+          ...w,
+          webhook_url: w.webhook_url ? w.webhook_url.substring(0, 50) + '...' : null
+        }));
+        
+        // Check recent logs
+        const logsResult = await pool.query(`
+          SELECT id, tenant_id, rule_id, webhook_id, status, event_type, created_at, error_message
+          FROM logs 
+          ORDER BY created_at DESC 
+          LIMIT 10
+        `);
+        
+        diagnosis.recentLogs = logsResult.rows;
+        
+        // Check tenants
+        const tenantsResult = await pool.query(`
+          SELECT id, company_name, pipedrive_company_id, created_at
+          FROM tenants
+          ORDER BY id
+        `);
+        
+        diagnosis.tenants = tenantsResult.rows;
+        
+        return res.json({
+          success: true,
+          message: 'Pipeline health check completed',
+          diagnosis,
+          summary: {
+            totalRules: rulesResult.rows.length,
+            enabledRules: diagnosis.enabledRules.length,
+            totalWebhooks: webhooksResult.rows.length,
+            recentLogs: logsResult.rows.length,
+            tenants: tenantsResult.rows.length
+          }
+        });
+      } catch (diagnosisError) {
+        console.error('❌ Pipeline diagnosis failed:', diagnosisError);
+        return res.status(500).json({
+          success: false,
+          error: 'Pipeline diagnosis failed',
+          details: diagnosisError.message
+        });
+      }
+    }
+    
     // Check if is_default column exists in rules table
     const columnsResult = await pool.query(`
       SELECT column_name, data_type, is_nullable, column_default
