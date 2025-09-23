@@ -51,6 +51,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_quiet_hours_updated_at ON quiet_hours;
 CREATE TRIGGER update_quiet_hours_updated_at
   BEFORE UPDATE ON quiet_hours
   FOR EACH ROW

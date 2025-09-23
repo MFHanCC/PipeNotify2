@@ -1,19 +1,21 @@
 -- Migration: Add custom template support to notification rules
 -- Allows users to create personalized notification templates with variables
 
--- Add template columns to notification_rules table
-ALTER TABLE notification_rules 
+-- Add template columns to rules table
+ALTER TABLE rules 
 ADD COLUMN IF NOT EXISTS template_mode VARCHAR(20) DEFAULT 'simple',
 ADD COLUMN IF NOT EXISTS custom_template TEXT,
 ADD COLUMN IF NOT EXISTS template_format VARCHAR(10) DEFAULT 'text';
 
--- Add constraint for template_mode
-ALTER TABLE notification_rules 
+-- Add constraint for template_mode (drop if exists to avoid conflicts)
+ALTER TABLE rules DROP CONSTRAINT IF EXISTS valid_template_mode;
+ALTER TABLE rules 
 ADD CONSTRAINT valid_template_mode 
 CHECK (template_mode IN ('simple', 'card', 'custom'));
 
--- Add constraint for template_format  
-ALTER TABLE notification_rules
+-- Add constraint for template_format (drop if exists to avoid conflicts)
+ALTER TABLE rules DROP CONSTRAINT IF EXISTS valid_template_format;
+ALTER TABLE rules
 ADD CONSTRAINT valid_template_format
 CHECK (template_format IN ('text', 'markdown', 'html'));
 
@@ -50,6 +52,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_template_presets_updated_at ON template_presets;
 CREATE TRIGGER update_template_presets_updated_at
   BEFORE UPDATE ON template_presets
   FOR EACH ROW
@@ -125,9 +128,9 @@ COMMENT ON COLUMN template_presets.event_types IS 'Array of Pipedrive event type
 COMMENT ON COLUMN template_presets.template_content IS 'Template content with variable placeholders';
 COMMENT ON COLUMN template_presets.template_format IS 'Output format: text, markdown, or html';
 
-COMMENT ON COLUMN notification_rules.template_mode IS 'Template mode: simple (auto-generated), card (rich format), or custom (user-defined)';
-COMMENT ON COLUMN notification_rules.custom_template IS 'Custom template content with variable substitution';
-COMMENT ON COLUMN notification_rules.template_format IS 'Template output format for rendering';
+COMMENT ON COLUMN rules.template_mode IS 'Template mode: simple (auto-generated), card (rich format), or custom (user-defined)';
+COMMENT ON COLUMN rules.custom_template IS 'Custom template content with variable substitution';
+COMMENT ON COLUMN rules.template_format IS 'Template output format for rendering';
 
 -- Template variable examples for documentation:
 /*

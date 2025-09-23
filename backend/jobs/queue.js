@@ -19,7 +19,7 @@ if (process.env.REDIS_URL) {
       family: 0, // Allow both IPv4 and IPv6 (Railway compatibility)
       connectTimeout: 15000, // Increased timeout for Railway
       lazyConnect: true,
-      maxRetriesPerRequest: 3, // Enable retries
+      maxRetriesPerRequest: null, // Required by BullMQ (overrides Redis setting)
       retryDelayOnFailover: 500,
       enableOfflineQueue: true,
       keepAlive: 30000,
