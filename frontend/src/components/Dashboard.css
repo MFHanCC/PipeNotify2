@@ -2272,25 +2272,28 @@ select:focus,
 
 /* Compact Pricing Section */
 .pricing-dashboard-compact {
-  padding: 20px 0;
+  padding: 20px 12px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .pricing-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .pricing-card {
   background: white;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   position: relative;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
 
 .pricing-card:hover {
@@ -2462,22 +2465,104 @@ select:focus,
 
 /* Compact Billing Dashboard */
 .billing-dashboard-compact {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-@media (max-width: 768px) {
+/* Enhanced responsive design for billing section */
+@media (max-width: 1024px) {
+  .pricing-dashboard-compact {
+    padding: 16px;
+  }
+  
+  .billing-dashboard-compact {
+    padding: 16px;
+  }
+  
   .pricing-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 16px;
   }
   
   .pricing-card {
-    padding: 20px;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pricing-dashboard-compact {
+    padding: 12px;
+  }
+  
+  .billing-dashboard-compact {
+    padding: 12px;
+    gap: 16px;
+  }
+  
+  .pricing-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .pricing-card {
+    padding: 16px;
   }
   
   .price {
     font-size: 28px;
+  }
+  
+  .pricing-faq {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing-dashboard-compact {
+    padding: 8px;
+  }
+  
+  .billing-dashboard-compact {
+    padding: 8px;
+    gap: 12px;
+  }
+  
+  .pricing-cards {
+    gap: 8px;
+  }
+  
+  .pricing-card {
+    padding: 12px;
+  }
+  
+  .price {
+    font-size: 24px;
+  }
+  
+  .pricing-faq {
+    padding: 12px;
+  }
+  
+  .pricing-faq h4 {
+    font-size: 16px;
+  }
+  
+  .billing-section {
+    padding: 8px;
+    gap: 12px;
+  }
+  
+  .billing-section h3 {
+    font-size: 18px;
+  }
+  
+  .current-badge {
+    font-size: 10px;
+    padding: 3px 6px;
   }
 }
 
