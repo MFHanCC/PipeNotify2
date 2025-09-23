@@ -62,7 +62,7 @@ CREATE TRIGGER update_template_presets_updated_at
   FOR EACH ROW
   EXECUTE PROCEDURE update_template_presets_updated_at();
 
--- Insert default template presets for common use cases
+-- Insert default template presets for common use cases (ignore duplicates)
 INSERT INTO template_presets (tenant_id, name, description, event_types, template_content, template_format) VALUES 
 (1, 'Deal Won Celebration', 'Celebratory template for won deals', ARRAY['deal.won'], 
 '🎉 **Deal Won!** 🏆
@@ -121,7 +121,8 @@ Let''s make a great first impression!
 👤 Owner: {deal.owner_name}
 📅 Days in stage: {deal.days_in_stage}
 
-[View Deal]({deal.url})', 'markdown');
+[View Deal]({deal.url})', 'markdown')
+ON CONFLICT (tenant_id, name) DO NOTHING;
 
 -- Add comments for documentation
 COMMENT ON TABLE template_presets IS 'Stores reusable notification templates for different event types';
