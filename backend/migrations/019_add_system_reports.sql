@@ -255,7 +255,8 @@ BEGIN
       false
     FROM jsonb_array_elements_text(report_data->'highlights'->'achievements') AS achievement;
     
-    GET DIAGNOSTICS insight_count = ROW_COUNT;
+    -- Get row count instead of using GET DIAGNOSTICS
+    SELECT COUNT(*) INTO insight_count FROM report_insights WHERE report_id = p_report_id;
   END IF;
   
   -- Extract concerns
@@ -275,7 +276,8 @@ BEGIN
       true
     FROM jsonb_array_elements_text(report_data->'highlights'->'concerns') AS concern;
     
-    GET DIAGNOSTICS insight_count = insight_count + ROW_COUNT;
+    -- Update row count
+    SELECT COUNT(*) INTO insight_count FROM report_insights WHERE report_id = p_report_id;
   END IF;
   
   -- Extract recommendations
@@ -299,7 +301,8 @@ BEGIN
       COALESCE(rec->>'priority', 'medium') IN ('immediate', 'high')
     FROM jsonb_array_elements(report_data->'recommendations') AS rec;
     
-    GET DIAGNOSTICS insight_count = insight_count + ROW_COUNT;
+    -- Update row count
+    SELECT COUNT(*) INTO insight_count FROM report_insights WHERE report_id = p_report_id;
   END IF;
   
   RETURN insight_count;

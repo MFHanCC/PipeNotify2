@@ -123,6 +123,7 @@ BEGIN
       ELSIF p_database_latency > 500 THEN score := score - 8;
       END IF;
     WHEN 'error' THEN score := score - 30;
+    ELSE NULL; -- Handle unknown status
   END CASE;
   
   -- Queue health (25% weight)  
@@ -133,12 +134,14 @@ BEGIN
       END IF;
     WHEN 'degraded' THEN score := score - 15;
     WHEN 'error' THEN score := score - 25;
+    ELSE NULL; -- Handle unknown status
   END CASE;
   
   -- Self-healing health (20% weight)
   CASE p_self_healing_status  
     WHEN 'inactive' THEN score := score - 10;
     WHEN 'error' THEN score := score - 20;
+    ELSE NULL; -- Handle unknown status
   END CASE;
   
   -- Delivery success rate (25% weight)

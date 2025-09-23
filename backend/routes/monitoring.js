@@ -13,7 +13,7 @@ const {
 const { getRoutingStats, getRoutingSuggestions } = require('../services/channelRouter');
 const { getFilterStats } = require('../services/ruleFilters');
 const { pool, getWebhooks } = require('../services/database');
-const { getDeliveryStats, getSystemHealth, processManualRecovery } = require('../services/guaranteedDelivery');
+const { getDeliveryStats, processManualRecovery } = require('../services/guaranteedDelivery');
 const { runSelfHealing, runEmergencyHealing } = require('../services/selfHealing');
 const { 
   getHealthHistory, 
@@ -250,12 +250,14 @@ router.get('/dashboard/:tenantId', async (req, res) => {
 // GET /api/v1/monitoring/delivery/health - System health check
 router.get('/delivery/health', async (req, res) => {
   try {
-    const health = await getSystemHealth();
+    // Use database health check instead
+    const { healthCheck } = require('../services/database');
+    const dbHealth = await healthCheck();
     
     res.json({
-      status: health.healthy ? 'healthy' : 'degraded',
+      status: dbHealth.healthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
-      ...health
+      database: dbHealth
     });
   } catch (error) {
     console.error('❌ Delivery health check failed:', error);
@@ -943,7 +945,7 @@ router.get('/comprehensive-dashboard', async (req, res) => {
       tenantOverview
     ] = await Promise.all([
       // System health from guaranteed delivery
-      getSystemHealth().catch(error => ({ 
+      (() => { try { const { healthCheck } = require('../services/database'); return healthCheck(); } catch (error) { return { healthy: false, error: error.message }; } })().catch(error => ({ 
         healthy: false, 
         error: error.message,
         timestamp: new Date().toISOString() 
