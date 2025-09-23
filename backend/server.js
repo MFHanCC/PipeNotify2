@@ -40,7 +40,14 @@ const PORT = process.env.PORT || 8080;
 
 // Configure trust proxy for Railway deployment
 // Railway uses reverse proxies, so we need to trust the X-Forwarded-For headers
-app.set('trust proxy', true);
+// Use specific trust proxy settings for Railway to satisfy express-rate-limit security requirements
+if (process.env.RAILWAY_ENVIRONMENT) {
+  // Railway-specific trust proxy configuration
+  app.set('trust proxy', 1); // Trust first proxy (Railway's load balancer)
+} else {
+  // For other platforms or development, use more permissive setting
+  app.set('trust proxy', true);
+}
 
 // Sentry middleware (if properly configured)
 // Note: Sentry handlers will be enabled when a valid SENTRY_DSN is provided
@@ -103,6 +110,8 @@ const limiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Trust proxy configuration for Railway
+  trustProxy: process.env.RAILWAY_ENVIRONMENT ? 1 : true,
 });
 
 // Apply rate limiting to all routes
@@ -115,7 +124,9 @@ const adminLimiter = rateLimit({
   message: {
     error: 'Too many admin requests from this IP, please try again later.',
     retryAfter: '15 minutes'
-  }
+  },
+  // Trust proxy configuration for Railway
+  trustProxy: process.env.RAILWAY_ENVIRONMENT ? 1 : true,
 });
 
 app.use('/api/v1/admin', adminLimiter);
