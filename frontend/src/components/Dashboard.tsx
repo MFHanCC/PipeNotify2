@@ -381,7 +381,7 @@ const Dashboard: React.FC = React.memo(() => {
         body: JSON.stringify({ 
           name: rule.name,
           event_type: rule.eventType,
-          template_mode: rule.templateMode,
+          template_mode: rule.templateMode || 'simple', // Ensure valid template_mode
           target_webhook_id: rule.targetWebhookId || 1,
           enabled: !rule.enabled,
           filters: rule.filters || {}
