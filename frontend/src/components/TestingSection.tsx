@@ -191,7 +191,9 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
           if (success) {
             message = result.message || 'Test notification sent successfully!';
           } else {
-            message = `Test failed: ${result.error || response.statusText || 'Unknown error'}`;
+            // Provide more detailed error information
+            const errorDetails = result.details || result.error || response.statusText || 'Unknown error';
+            message = `Test failed: ${errorDetails}`;
           }
           
           results.push({
