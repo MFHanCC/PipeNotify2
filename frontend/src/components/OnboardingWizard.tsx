@@ -122,11 +122,25 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
       setIsCheckingWebhooks(true);
       const apiUrl = API_BASE_URL;
       
-      // Add minimum delay to ensure loading state is visible
-      const [response] = await Promise.all([
-        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`),
-        new Promise(resolve => setTimeout(resolve, 800)) // Minimum 800ms delay
-      ]);
+      console.log('🔍 Checking setup status - fetching webhooks...');
+      
+      // Add timeout to prevent infinite hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Webhook fetch timeout after 10 seconds');
+        controller.abort();
+      }, 10000);
+
+      try {
+        const [response] = await Promise.all([
+          authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
+            signal: controller.signal
+          }),
+          new Promise(resolve => setTimeout(resolve, 800)) // Minimum 800ms delay
+        ]);
+        
+        clearTimeout(timeoutId);
+        console.log('✅ Webhook fetch completed:', response.status);
 
       if (response.ok) {
         const data = await response.json();
