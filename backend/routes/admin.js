@@ -902,6 +902,35 @@ router.get('/debug/schema', async (req, res) => {
   try {
     console.log('🔍 Debug: Checking database schema...');
     
+    // SPECIAL: If run_migration_012=true, run migration 012
+    if (req.query.run_migration_012 === 'true') {
+      console.log('🔧 SPECIAL: Running migration 012 via debug endpoint...');
+      
+      try {
+        // Simple ALTER TABLE to add is_default column
+        await pool.query('ALTER TABLE rules ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false');
+        await pool.query('ALTER TABLE rules ADD COLUMN IF NOT EXISTS rule_template_id VARCHAR(100)');
+        await pool.query('ALTER TABLE rules ADD COLUMN IF NOT EXISTS auto_created_at TIMESTAMP WITH TIME ZONE');
+        await pool.query('ALTER TABLE rules ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(20)');
+        
+        console.log('✅ Migration 012 basic columns added successfully');
+        
+        return res.json({
+          success: true,
+          message: 'Migration 012 executed successfully via debug endpoint',
+          columns_added: ['is_default', 'rule_template_id', 'auto_created_at', 'plan_tier'],
+          timestamp: new Date().toISOString()
+        });
+      } catch (migrationError) {
+        console.error('❌ Migration 012 failed:', migrationError);
+        return res.status(500).json({
+          success: false,
+          error: 'Migration 012 failed',
+          details: migrationError.message
+        });
+      }
+    }
+    
     // Check if is_default column exists in rules table
     const columnsResult = await pool.query(`
       SELECT column_name, data_type, is_nullable, column_default
