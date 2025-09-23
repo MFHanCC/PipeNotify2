@@ -61,23 +61,40 @@ const AdaptiveBillingDashboard: React.FC = () => {
   };
 
   const handleUpgrade = () => {
-    // TODO: Implement upgrade functionality
-    alert('Upgrade functionality would be implemented here');
+    // Navigate to pricing page for upgrade selection
+    window.open('https://pipenotify.com/pricing', '_blank');
   };
 
   const handleViewPlans = () => {
-    // TODO: Implement view plans functionality
-    alert('View plans functionality would be implemented here');
+    // Navigate to pricing page to view all available plans
+    window.open('https://pipenotify.com/pricing', '_blank');
   };
 
   const handleManageSubscription = () => {
-    // TODO: Implement manage subscription functionality
-    alert('Manage subscription functionality would be implemented here');
+    if (planTier === 'free') {
+      // For free users, redirect to upgrade options
+      window.open('https://pipenotify.com/pricing', '_blank');
+    } else {
+      // For paid users, open customer portal (would integrate with Stripe in production)
+      alert('Subscription management portal coming soon. Contact support@pipenotify.com for billing changes.');
+    }
   };
 
   const handleViewUsageHistory = () => {
-    // TODO: Implement view usage history functionality
-    alert('View usage history functionality would be implemented here');
+    // Create a detailed usage breakdown modal/view
+    const usageDetails = `
+📊 Current Usage Breakdown:
+
+📧 Notifications: ${usageData.notifications.used}/${usageData.notifications.limit} (${usageData.notifications.percentage.toFixed(1)}%)
+🔗 Webhooks: ${usageData.webhooks.used}/${usageData.webhooks.limit} (${usageData.webhooks.percentage.toFixed(1)}%)
+📋 Rules: ${usageData.rules.used}/${usageData.rules.limit} (${usageData.rules.percentage.toFixed(1)}%)
+
+Plan: ${getPlanDisplayName(planTier || 'free')}
+
+${planTier === 'free' ? '💡 Upgrade to get higher limits and detailed analytics!' : '✅ You have access to premium features!'}
+    `.trim();
+    
+    alert(usageDetails);
   };
 
   if (loading) {
