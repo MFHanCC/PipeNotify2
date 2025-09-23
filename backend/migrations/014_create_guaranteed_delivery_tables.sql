@@ -78,6 +78,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_notification_queue_status ON notification_queue;
 CREATE TRIGGER update_notification_queue_status
   BEFORE UPDATE ON notification_queue
   FOR EACH ROW

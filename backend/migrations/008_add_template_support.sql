@@ -9,6 +9,10 @@ ADD COLUMN IF NOT EXISTS template_format VARCHAR(10) DEFAULT 'text';
 
 -- Add constraint for template_mode (drop if exists to avoid conflicts)
 ALTER TABLE rules DROP CONSTRAINT IF EXISTS valid_template_mode;
+
+-- Update any existing rows that might violate the new constraint
+UPDATE rules SET template_mode = 'simple' WHERE template_mode IS NULL OR template_mode NOT IN ('simple', 'card', 'custom');
+
 ALTER TABLE rules 
 ADD CONSTRAINT valid_template_mode 
 CHECK (template_mode IN ('simple', 'card', 'custom'));

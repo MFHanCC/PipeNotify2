@@ -63,6 +63,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create migration_log table if it doesn't exist
+CREATE TABLE IF NOT EXISTS migration_log (
+    id SERIAL PRIMARY KEY,
+    migration_name VARCHAR(255) UNIQUE NOT NULL,
+    executed_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Log completion
 INSERT INTO migration_log (migration_name, executed_at) 
 VALUES ('012_add_default_rules_support', NOW())

@@ -20,6 +20,13 @@ UPDATE rules SET filters = '{}' WHERE filters IS NULL;
 -- Ensure all rules have proper target webhook references
 UPDATE rules SET target_webhook_id = 1 WHERE target_webhook_id IS NULL AND EXISTS (SELECT 1 FROM chat_webhooks LIMIT 1);
 
+-- Create migration_log table if it doesn't exist
+CREATE TABLE IF NOT EXISTS migration_log (
+    id SERIAL PRIMARY KEY,
+    migration_name VARCHAR(255) UNIQUE NOT NULL,
+    executed_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Log completion
 INSERT INTO migration_log (migration_name, executed_at) 
 VALUES ('011_fix_missing_columns', NOW())
