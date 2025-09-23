@@ -7,7 +7,11 @@ interface UsageData {
   rules: { used: number; limit: number; percentage: number };
 }
 
-const AdaptiveBillingDashboard: React.FC = () => {
+interface AdaptiveBillingDashboardProps {
+  onNavigateToTab?: (tab: 'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings') => void;
+}
+
+const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onNavigateToTab }) => {
   const { planTier, limits, canUpgrade } = usePlanFeatures();
   const [loading, setLoading] = useState(true);
   const [usageData, setUsageData] = useState<UsageData>({
@@ -61,21 +65,36 @@ const AdaptiveBillingDashboard: React.FC = () => {
   };
 
   const handleUpgrade = () => {
-    // Navigate to pricing page for upgrade selection
-    window.open('https://pipenotify.com/pricing', '_blank');
+    // Navigate to pricing section in dashboard
+    if (onNavigateToTab) {
+      onNavigateToTab('pricing');
+    } else {
+      // Fallback for when navigation function is not available
+      window.open('https://pipenotify.com/pricing', '_blank');
+    }
   };
 
   const handleViewPlans = () => {
-    // Navigate to pricing page to view all available plans
-    window.open('https://pipenotify.com/pricing', '_blank');
+    // Navigate to pricing section in dashboard
+    if (onNavigateToTab) {
+      onNavigateToTab('pricing');
+    } else {
+      // Fallback for when navigation function is not available  
+      window.open('https://pipenotify.com/pricing', '_blank');
+    }
   };
 
   const handleManageSubscription = () => {
     if (planTier === 'free') {
-      // For free users, redirect to upgrade options
-      window.open('https://pipenotify.com/pricing', '_blank');
+      // For free users, redirect to pricing section in dashboard
+      if (onNavigateToTab) {
+        onNavigateToTab('pricing');
+      } else {
+        // Fallback for when navigation function is not available
+        window.open('https://pipenotify.com/pricing', '_blank');
+      }
     } else {
-      // For paid users, open customer portal (would integrate with Stripe in production)
+      // For paid users, show subscription management info
       alert('Subscription management portal coming soon. Contact support@pipenotify.com for billing changes.');
     }
   };

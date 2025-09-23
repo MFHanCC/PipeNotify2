@@ -1900,7 +1900,7 @@ const Dashboard: React.FC = React.memo(() => {
               
               <Suspense fallback={<ComponentLoader />}>
                 <div className="billing-dashboard-compact">
-                  <BillingDashboard />
+                  <BillingDashboard onNavigateToTab={setActiveTab} />
                 </div>
               </Suspense>
             </div>
