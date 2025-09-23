@@ -954,6 +954,53 @@ router.get('/debug/schema', async (req, res) => {
   }
 });
 
+// POST /api/v1/admin/run-migration-012 - Run specific migration 012 to add is_default column (no auth for system fix)
+router.post('/run-migration-012', async (req, res) => {
+  try {
+    console.log('🔧 Running migration 012 to add is_default column...');
+    
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Read migration 012 file
+    const migrationPath = path.join(__dirname, '../migrations/012_add_default_rules_support.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    
+    console.log('📄 Executing migration 012...');
+    
+    // Execute the migration
+    await pool.query(migrationSQL);
+    
+    console.log('✅ Migration 012 completed successfully');
+    
+    // Verify the column was added
+    const checkResult = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'rules' AND column_name = 'is_default'
+    `);
+    
+    const columnExists = checkResult.rows.length > 0;
+    
+    res.json({
+      success: true,
+      message: 'Migration 012 completed successfully',
+      columnAdded: columnExists,
+      columnDetails: columnExists ? checkResult.rows[0] : null,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Migration 012 failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: 'Failed to run migration 012 - is_default column addition',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // SECURITY FIX: Apply authentication to ALL production admin routes (moved from below)
 router.use(authenticateToken);
 
