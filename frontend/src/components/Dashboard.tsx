@@ -113,6 +113,21 @@ const Dashboard: React.FC = React.memo(() => {
     loading: featuresLoading 
   } = usePlanFeatures();
 
+  // Helper to check if rule limit is unlimited or within bounds
+  const isWithinRuleLimit = (currentCount: number) => {
+    const ruleLimit = limits?.rules || 3;
+    // -1 means unlimited, 999+ means unlimited (treat as unlimited)
+    return ruleLimit === -1 || ruleLimit >= 999 || currentCount < ruleLimit;
+  };
+
+  const getRuleLimitMessage = () => {
+    const ruleLimit = limits?.rules || 3;
+    if (ruleLimit === -1 || ruleLimit >= 999) {
+      return 'unlimited';
+    }
+    return ruleLimit.toString();
+  };
+
   // State management
   const [stats, setStats] = useState<DashboardStats>({
     totalNotifications: 0,
@@ -646,8 +661,10 @@ const Dashboard: React.FC = React.memo(() => {
 
   const openCreateModal = () => {
     // Check rule limits before opening modal
-    if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules) {
-      showError(`${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.`);
+    if (!isWithinRuleLimit(rules.length)) {
+      const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
+      const ruleLimit = limits?.rules || 3;
+      showError(`${planName} plan allows maximum ${ruleLimit} rule${ruleLimit > 1 ? 's' : ''}. Upgrade your plan to create more rules.`);
       return;
     }
     
@@ -830,8 +847,10 @@ const Dashboard: React.FC = React.memo(() => {
     }
 
     // Check plan limits
-    if (limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules) {
-      errors.limit = `Your ${planTier || 'current'} plan is limited to ${limits.rules} rules. Upgrade to create more rules.`;
+    if (!isWithinRuleLimit(rules.length)) {
+      const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
+      const ruleLimit = limits?.rules || 3;
+      errors.limit = `Your ${planName} plan is limited to ${ruleLimit} rule${ruleLimit > 1 ? 's' : ''}. Upgrade to create more rules.`;
     }
 
     // Check if Deal Updated is restricted for free tier
@@ -1209,17 +1228,22 @@ const Dashboard: React.FC = React.memo(() => {
           </button>
           <button 
             className="create-rule-button"
-            onClick={openCreateModal}
+            onClick={() => {
+              if (!isWithinRuleLimit(rules.length)) {
+                return; // Don't open modal if at limit
+              }
+              openCreateModal();
+            }}
             aria-label="Create new notification rule"
             type="button"
-            disabled={Boolean(limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules)}
-            title={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules 
-              ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
+            disabled={featuresLoading || !isWithinRuleLimit(rules.length)}
+            title={!isWithinRuleLimit(rules.length)
+              ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getRuleLimitMessage()} rule${getRuleLimitMessage() === '1' ? '' : 's'} max). Upgrade to create more rules.`
               : 'Create new notification rule'}
           >
             + Create Rule
-            {limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules && (
-              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{limits.rules})</span>
+            {!isWithinRuleLimit(rules.length) && (
+              <span style={{marginLeft: '4px', opacity: 0.7}}>({rules.length}/{getRuleLimitMessage()})</span>
             )}
           </button>
         </div>
@@ -1552,9 +1576,9 @@ const Dashboard: React.FC = React.memo(() => {
               aria-label="Create custom notification rule"
               type="button"
               style={{ background: 'white', color: '#374151', border: '1px solid #d1d5db' }}
-              disabled={Boolean(limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules)}
-              title={limits?.rules && limits.rules > 0 && limits.rules < 999 && rules.length >= limits.rules 
-                ? `${planTier || 'Current'} plan limit reached (${limits.rules} rules). Upgrade to create more rules.` 
+              disabled={featuresLoading || !isWithinRuleLimit(rules.length)}
+              title={!isWithinRuleLimit(rules.length)
+                ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getRuleLimitMessage()} rule${getRuleLimitMessage() === '1' ? '' : 's'} max). Upgrade to create more rules.`
                 : 'Create custom notification rule'}
             >
               + Create Custom Rule
