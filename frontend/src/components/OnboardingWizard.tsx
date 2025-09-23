@@ -131,16 +131,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onSkip 
         controller.abort();
       }, 10000);
 
-      try {
-        const [response] = await Promise.all([
-          authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
-            signal: controller.signal
-          }),
-          new Promise(resolve => setTimeout(resolve, 800)) // Minimum 800ms delay
-        ]);
-        
-        clearTimeout(timeoutId);
-        console.log('✅ Webhook fetch completed:', response.status);
+      const [response] = await Promise.all([
+        authenticatedFetch(`${apiUrl}/api/v1/admin/webhooks`, {
+          signal: controller.signal
+        }),
+        new Promise(resolve => setTimeout(resolve, 800)) // Minimum 800ms delay
+      ]);
+      
+      clearTimeout(timeoutId);
+      console.log('✅ Webhook fetch completed:', response.status);
 
       if (response.ok) {
         const data = await response.json();
