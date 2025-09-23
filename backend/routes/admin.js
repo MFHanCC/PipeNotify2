@@ -931,6 +931,51 @@ router.get('/debug/schema', async (req, res) => {
       }
     }
     
+    // SPECIAL: If check_rule_limits=true, check rule limits for debugging
+    if (req.query.check_rule_limits === 'true') {
+      console.log('🔍 SPECIAL: Checking rule limits via debug endpoint...');
+      
+      try {
+        const tenantId = req.query.tenant_id ? parseInt(req.query.tenant_id) : 2; // Default to tenant 2
+        console.log(`📊 Checking rule limits for tenant ${tenantId}`);
+        
+        // Get tenant's subscription/plan
+        const { getSubscription } = require('../services/stripe');
+        const subscription = await getSubscription(tenantId);
+        
+        // Check current rules count
+        const rulesResult = await pool.query(
+          'SELECT COUNT(*) as count FROM rules WHERE tenant_id = $1 AND enabled = true',
+          [tenantId]
+        );
+        const currentCount = parseInt(rulesResult.rows[0].count);
+        
+        // Get plan limits
+        const { PLAN_LIMITS } = require('../middleware/featureGating');
+        const limits = PLAN_LIMITS[subscription.plan_tier] || PLAN_LIMITS.free;
+        const limit = limits.rules || 3;
+        
+        return res.json({
+          success: true,
+          message: 'Rule limits check completed',
+          tenant_id: tenantId,
+          plan_tier: subscription.plan_tier,
+          current_rules: currentCount,
+          rules_limit: limit,
+          can_create_more: currentCount < limit,
+          would_block: currentCount >= limit,
+          all_rules: (await pool.query('SELECT id, name, enabled, tenant_id FROM rules WHERE tenant_id = $1 ORDER BY id', [tenantId])).rows
+        });
+      } catch (diagnosisError) {
+        console.error('❌ Rule limits check failed:', diagnosisError);
+        return res.status(500).json({
+          success: false,
+          error: 'Rule limits check failed',
+          details: diagnosisError.message
+        });
+      }
+    }
+    
     // SPECIAL: If pipeline_check=true, check pipeline health
     if (req.query.pipeline_check === 'true') {
       console.log('🔍 SPECIAL: Checking pipeline health via debug endpoint...');
