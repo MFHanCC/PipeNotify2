@@ -183,6 +183,12 @@ async function updateRule(tenantId, ruleId, updates) {
       }
     }
     
+    // Ensure template_mode has a valid value - using schema.sql values
+    if (updates.hasOwnProperty('template_mode') && (!updates.template_mode || !['simple', 'compact', 'detailed', 'custom'].includes(updates.template_mode))) {
+      console.log('🔧 DB: Invalid template_mode value, defaulting to "simple"');
+      updates.template_mode = 'simple';
+    }
+    
     // Remove any keys with undefined values and filter by allowed columns
     const cleanUpdates = Object.fromEntries(
       Object.entries(updates).filter(([key, value]) => value !== undefined && allowedColumns.has(key))

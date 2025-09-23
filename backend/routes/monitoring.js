@@ -14,7 +14,12 @@ const { getRoutingStats, getRoutingSuggestions } = require('../services/channelR
 const { getFilterStats } = require('../services/ruleFilters');
 const { pool, getWebhooks } = require('../services/database');
 const { getDeliveryStats, getSystemHealth, processManualRecovery } = require('../services/guaranteedDelivery');
-// const { runSelfHealing, runEmergencyHealing } = require('../services/selfHealing'); // Disabled for testing
+const { runSelfHealing, runEmergencyHealing } = require('../services/selfHealing');
+const { 
+  getHealthHistory, 
+  getPerformanceTrends, 
+  getHealthAlerts 
+} = require('../services/healthTracker');
 
 // Create queue for stalled deal monitoring jobs
 const stalledDealQueue = new Queue('stalled-deals', redisConfig);
@@ -473,15 +478,14 @@ router.post('/delivery/retry-failed', async (req, res) => {
  * Automatic system health monitoring and repair
  */
 
-// POST /api/v1/monitoring/self-healing/run - Run health check and auto-fixes (DISABLED)
+// POST /api/v1/monitoring/self-healing/run - Run health check and auto-fixes
 router.post('/self-healing/run', async (req, res) => {
   try {
-    res.status(503).json({ message: 'Self-healing system temporarily disabled' });
-    return;
-    // const result = await runSelfHealing();
+    const result = await runSelfHealing();
     
     res.json({
       message: 'Self-healing health check completed',
+      timestamp: new Date().toISOString(),
       ...result
     });
   } catch (error) {
@@ -493,19 +497,423 @@ router.post('/self-healing/run', async (req, res) => {
   }
 });
 
-// POST /api/v1/monitoring/self-healing/emergency - Run emergency healing (DISABLED)
+// POST /api/v1/monitoring/self-healing/emergency - Run emergency healing
 router.post('/self-healing/emergency', async (req, res) => {
   try {
-    res.status(503).json({ message: 'Emergency self-healing system temporarily disabled' });
-    return;
-    // const result = await runEmergencyHealing();
+    const result = await runEmergencyHealing();
     
     res.json({
       message: 'Emergency self-healing completed',
+      timestamp: new Date().toISOString(),
       ...result
     });
   } catch (error) {
     console.error('❌ Emergency self-healing failed:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * DETAILED CONNECTION DIAGNOSTICS
+ * System component analysis for troubleshooting
+ */
+
+// GET /api/v1/health/diagnostics - Detailed connection diagnostics
+router.get('/health/diagnostics', async (req, res) => {
+  try {
+    console.log('🔧 Running detailed connection diagnostics...');
+    
+    // Run diagnostics in parallel for efficiency
+    const [
+      databaseDiagnostics,
+      queueDiagnostics,
+      selfHealingDiagnostics
+    ] = await Promise.all([
+      // Database connection diagnostics
+      (async () => {
+        try {
+          const startTime = Date.now();
+          const result = await pool.query('SELECT NOW() as current_time');
+          const latency = Date.now() - startTime;
+          
+          return {
+            status: 'connected',
+            latency: latency,
+            lastChecked: new Date().toISOString()
+          };
+        } catch (error) {
+          return {
+            status: 'error',
+            error: error.message,
+            lastChecked: new Date().toISOString()
+          };
+        }
+      })(),
+      
+      // Queue system diagnostics
+      (async () => {
+        try {
+          const queueStats = await pool.query(`
+            SELECT 
+              status,
+              COUNT(*) as count
+            FROM notification_queue 
+            WHERE created_at > NOW() - INTERVAL '1 hour'
+            GROUP BY status
+          `);
+          
+          const processingRate = await pool.query(`
+            SELECT 
+              COUNT(*) as processed_last_hour
+            FROM delivery_log 
+            WHERE created_at > NOW() - INTERVAL '1 hour'
+              AND status = 'success'
+          `);
+          
+          const backlogSize = queueStats.rows.find(r => r.status === 'pending')?.count || 0;
+          const failedCount = queueStats.rows.find(r => r.status === 'failed')?.count || 0;
+          const processedCount = parseInt(processingRate.rows[0]?.processed_last_hour || 0);
+          
+          let status = 'healthy';
+          if (failedCount > 10 || backlogSize > 50) {
+            status = 'degraded';
+          }
+          if (failedCount > 50 || backlogSize > 200) {
+            status = 'error';
+          }
+          
+          return {
+            status: status,
+            backlogSize: parseInt(backlogSize),
+            processingRate: processedCount,
+            failedCount: parseInt(failedCount),
+            lastChecked: new Date().toISOString()
+          };
+        } catch (error) {
+          return {
+            status: 'error',
+            error: error.message,
+            lastChecked: new Date().toISOString()
+          };
+        }
+      })(),
+      
+      // Self-healing system diagnostics
+      (async () => {
+        try {
+          const result = await runSelfHealing();
+          
+          return {
+            status: result.healthy ? 'active' : 'inactive',
+            lastRun: result.timestamp,
+            issuesFound: result.issues?.length || 0,
+            autoFixesApplied: result.autoFixes?.length || 0,
+            criticalIssues: result.issues?.filter(i => i.severity === 'critical').length || 0,
+            warningIssues: result.issues?.filter(i => i.severity === 'warning').length || 0
+          };
+        } catch (error) {
+          return {
+            status: 'error',
+            error: error.message,
+            lastRun: new Date().toISOString(),
+            issuesFound: 0,
+            autoFixesApplied: 0
+          };
+        }
+      })()
+    ]);
+    
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      database: databaseDiagnostics,
+      queue: queueDiagnostics,
+      selfHealing: selfHealingDiagnostics
+    };
+    
+    console.log('✅ Connection diagnostics completed successfully');
+    
+    res.json(diagnostics);
+    
+  } catch (error) {
+    console.error('❌ Connection diagnostics failed:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * HISTORICAL HEALTH TRENDS AND ANALYTICS
+ * Phase 2: Trend analysis and predictive monitoring
+ */
+
+// GET /api/v1/health/history - Historical health data
+router.get('/health/history', async (req, res) => {
+  try {
+    const hours = parseInt(req.query.hours) || 24;
+    const limit = parseInt(req.query.limit) || 100;
+    
+    console.log(`📊 Fetching health history for last ${hours} hours (limit: ${limit})`);
+    
+    const healthHistory = await getHealthHistory(hours, limit);
+    
+    // Calculate summary statistics
+    const healthScores = healthHistory.map(h => h.health_score).filter(s => s !== null);
+    const avgHealthScore = healthScores.length > 0 
+      ? Math.round(healthScores.reduce((sum, score) => sum + score, 0) / healthScores.length)
+      : null;
+    
+    const minHealthScore = healthScores.length > 0 ? Math.min(...healthScores) : null;
+    const maxHealthScore = healthScores.length > 0 ? Math.max(...healthScores) : null;
+    
+    // Count status occurrences
+    const statusCounts = healthHistory.reduce((counts, record) => {
+      counts[record.overall_status] = (counts[record.overall_status] || 0) + 1;
+      return counts;
+    }, {});
+    
+    res.json({
+      timeRange: `${hours} hours`,
+      totalRecords: healthHistory.length,
+      summary: {
+        averageHealthScore: avgHealthScore,
+        minimumHealthScore: minHealthScore,
+        maximumHealthScore: maxHealthScore,
+        statusBreakdown: statusCounts
+      },
+      history: healthHistory,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to fetch health history:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/v1/health/trends - Performance trends analysis
+router.get('/health/trends', async (req, res) => {
+  try {
+    const category = req.query.category; // 'database', 'queue', 'delivery', 'system'
+    const hours = parseInt(req.query.hours) || 24;
+    const limit = parseInt(req.query.limit) || 500;
+    
+    console.log(`📈 Fetching performance trends${category ? ` for ${category}` : ''} (${hours}h, limit: ${limit})`);
+    
+    const trends = await getPerformanceTrends(category, hours, limit);
+    
+    // Group trends by metric for easier analysis
+    const trendsByMetric = trends.reduce((grouped, trend) => {
+      const key = `${trend.metric_category}.${trend.metric_name}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          category: trend.metric_category,
+          metricName: trend.metric_name,
+          unit: trend.metric_unit,
+          dataPoints: []
+        };
+      }
+      
+      grouped[key].dataPoints.push({
+        value: parseFloat(trend.metric_value),
+        baselineValue: parseFloat(trend.baseline_value),
+        trendDirection: trend.trend_direction,
+        severityLevel: trend.severity_level,
+        timestamp: trend.timestamp
+      });
+      
+      return grouped;
+    }, {});
+    
+    // Calculate trend summaries
+    const trendSummaries = Object.entries(trendsByMetric).map(([key, data]) => {
+      const values = data.dataPoints.map(dp => dp.value);
+      const recent = values.slice(0, 5); // Last 5 data points
+      const older = values.slice(-5); // First 5 data points
+      
+      const recentAvg = recent.reduce((sum, val) => sum + val, 0) / recent.length;
+      const olderAvg = older.reduce((sum, val) => sum + val, 0) / older.length;
+      
+      let overallTrend = 'stable';
+      if (recent.length > 0 && older.length > 0) {
+        const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+        if (Math.abs(percentChange) > 10) {
+          overallTrend = percentChange > 0 ? 'increasing' : 'decreasing';
+        }
+      }
+      
+      return {
+        metric: key,
+        category: data.category,
+        metricName: data.metricName,
+        unit: data.unit,
+        overallTrend,
+        currentValue: values[0] || null,
+        averageValue: values.reduce((sum, val) => sum + val, 0) / values.length,
+        dataPointsCount: data.dataPoints.length,
+        latestTimestamp: data.dataPoints[0]?.timestamp
+      };
+    });
+    
+    res.json({
+      timeRange: `${hours} hours`,
+      category: category || 'all',
+      totalTrends: Object.keys(trendsByMetric).length,
+      summaries: trendSummaries,
+      detailedTrends: trendsByMetric,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to fetch performance trends:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/v1/health/alerts - Health alerts and notifications
+router.get('/health/alerts', async (req, res) => {
+  try {
+    const acknowledged = req.query.acknowledged === 'true' ? true : 
+                       req.query.acknowledged === 'false' ? false : null;
+    const resolved = req.query.resolved === 'true' ? true : 
+                    req.query.resolved === 'false' ? false : null;
+    const limit = parseInt(req.query.limit) || 50;
+    
+    console.log(`🚨 Fetching health alerts (ack: ${acknowledged}, resolved: ${resolved}, limit: ${limit})`);
+    
+    const alerts = await getHealthAlerts(acknowledged, resolved, limit);
+    
+    // Calculate alert statistics
+    const alertStats = {
+      total: alerts.length,
+      bySeverity: alerts.reduce((counts, alert) => {
+        counts[alert.severity] = (counts[alert.severity] || 0) + 1;
+        return counts;
+      }, {}),
+      byComponent: alerts.reduce((counts, alert) => {
+        if (alert.component) {
+          counts[alert.component] = (counts[alert.component] || 0) + 1;
+        }
+        return counts;
+      }, {}),
+      unacknowledged: alerts.filter(a => !a.acknowledged).length,
+      unresolved: alerts.filter(a => !a.resolved).length
+    };
+    
+    res.json({
+      filters: { acknowledged, resolved, limit },
+      statistics: alertStats,
+      alerts: alerts,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to fetch health alerts:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/v1/health/alerts/:id/acknowledge - Acknowledge an alert
+router.post('/health/alerts/:id/acknowledge', async (req, res) => {
+  try {
+    const alertId = parseInt(req.params.id);
+    const { acknowledgedBy = 'system' } = req.body;
+    
+    if (isNaN(alertId)) {
+      return res.status(400).json({ error: 'Invalid alert ID' });
+    }
+    
+    const result = await pool.query(`
+      UPDATE health_alerts 
+      SET acknowledged = true,
+          acknowledged_by = $1,
+          acknowledged_at = NOW()
+      WHERE id = $2
+        AND acknowledged = false
+      RETURNING id, title, acknowledged_at
+    `, [acknowledgedBy, alertId]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        error: 'Alert not found or already acknowledged' 
+      });
+    }
+    
+    const alert = result.rows[0];
+    console.log(`✅ Alert acknowledged: ${alert.title} by ${acknowledgedBy}`);
+    
+    res.json({
+      message: 'Alert acknowledged successfully',
+      alert: {
+        id: alert.id,
+        title: alert.title,
+        acknowledgedAt: alert.acknowledged_at,
+        acknowledgedBy: acknowledgedBy
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to acknowledge alert:', error);
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/v1/health/alerts/:id/resolve - Mark an alert as resolved
+router.post('/health/alerts/:id/resolve', async (req, res) => {
+  try {
+    const alertId = parseInt(req.params.id);
+    
+    if (isNaN(alertId)) {
+      return res.status(400).json({ error: 'Invalid alert ID' });
+    }
+    
+    const result = await pool.query(`
+      UPDATE health_alerts 
+      SET resolved = true,
+          resolved_at = NOW()
+      WHERE id = $1
+        AND resolved = false
+      RETURNING id, title, resolved_at
+    `, [alertId]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ 
+        error: 'Alert not found or already resolved' 
+      });
+    }
+    
+    const alert = result.rows[0];
+    console.log(`✅ Alert resolved: ${alert.title}`);
+    
+    res.json({
+      message: 'Alert resolved successfully',
+      alert: {
+        id: alert.id,
+        title: alert.title,
+        resolvedAt: alert.resolved_at
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to resolve alert:', error);
     res.status(500).json({
       error: error.message,
       timestamp: new Date().toISOString()
@@ -567,7 +975,7 @@ router.get('/comprehensive-dashboard', async (req, res) => {
       })),
       
       // Self-healing status
-      Promise.resolve({ healthy: false, error: 'Self-healing disabled' }).catch(error => ({
+      runSelfHealing().catch(error => ({
         healthy: false,
         error: error.message,
         issues: [],
@@ -737,7 +1145,7 @@ router.get('/comprehensive-dashboard', async (req, res) => {
       // Quick actions available
       actions: {
         retryFailed: failedQueueItems > 0,
-        runEmergencyHealing: false, // Disabled
+        runEmergencyHealing: !selfHealingCheck.healthy || criticalIssues.length > 0,
         manualRecovery: selfHealingCheck.manualActionRequired?.length > 0
       },
       

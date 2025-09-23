@@ -1907,14 +1907,14 @@ router.post('/rules/bulk', authenticateToken, async (req, res) => {
     switch (type) {
       case 'activate':
         result = await pool.query(
-          'UPDATE rules SET enabled = true, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
+          'UPDATE rules SET enabled = true, updated_at = NOW(), template_mode = COALESCE(template_mode, \'simple\') WHERE id = ANY($1) AND tenant_id = $2',
           [rule_ids, tenantId]
         );
         break;
         
       case 'deactivate':
         result = await pool.query(
-          'UPDATE rules SET enabled = false, updated_at = NOW() WHERE id = ANY($1) AND tenant_id = $2',
+          'UPDATE rules SET enabled = false, updated_at = NOW(), template_mode = COALESCE(template_mode, \'simple\') WHERE id = ANY($1) AND tenant_id = $2',
           [rule_ids, tenantId]
         );
         break;

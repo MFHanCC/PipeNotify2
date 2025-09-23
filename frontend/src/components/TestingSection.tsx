@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './TestingSection.css';
 import { API_BASE_URL } from '../config/api';
+import { authenticatedFetch } from '../utils/auth';
 
 interface TestResult {
   id: number;
@@ -148,7 +149,6 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     setWebhookTestResults([]);
     
     try {
-      const token = localStorage.getItem('auth_token');
       const webhooksToTest = testAllWebhooks ? webhooks : webhooks.filter(w => selectedWebhooks.includes(w.id));
       
       if (webhooksToTest.length === 0) {
@@ -163,12 +163,8 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
       for (const webhook of webhooksToTest) {
         const startTime = Date.now();
         try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/admin/webhooks/${webhook.id}/test`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            }
+          const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/admin/webhooks/${webhook.id}/test`, {
+            method: 'POST'
           });
 
           let result: any = {};
@@ -257,15 +253,10 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     setIsTestingSystem(true);
     
     try {
-      const token = localStorage.getItem('auth_token');
       const startTime = Date.now();
       
       // Get basic health status
-      const response = await fetch(`${API_BASE_URL}/api/v1/health/notifications`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/health/notifications`);
 
       const result = await response.json();
       const responseTime = Date.now() - startTime;
@@ -273,11 +264,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
       // Get additional metrics from delivery health endpoint
       let deliveryHealth = null;
       try {
-        const deliveryResponse = await fetch(`${API_BASE_URL}/api/v1/monitoring/delivery/health`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const deliveryResponse = await authenticatedFetch(`${API_BASE_URL}/api/v1/monitoring/delivery/health`);
         if (deliveryResponse.ok) {
           deliveryHealth = await deliveryResponse.json();
         }
@@ -400,12 +387,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     setIsRunningDiagnostics(true);
     
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/api/v1/health/diagnostics`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/health/diagnostics`);
 
       if (response.ok) {
         const diagnostics = await response.json();
@@ -450,12 +432,7 @@ const TestingSection: React.FC<TestingSectionProps> = ({ onTestComplete }) => {
     setIsLoadingTrends(true);
     
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch(`${API_BASE_URL}/api/v1/health/history?hours=${trendsTimeRange}&limit=50`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/health/history?hours=${trendsTimeRange}&limit=50`);
 
       if (response.ok) {
         const trends = await response.json();

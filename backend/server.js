@@ -246,9 +246,8 @@ try {
   });
 }
 
-// Start self-healing monitoring system (disabled for testing)
-console.log('🔧 SELF-HEALING SYSTEM DISABLED FOR TESTING');
-/* try {
+// Start self-healing monitoring system
+try {
   const { startSelfHealingMonitor } = require('./services/selfHealing');
   startSelfHealingMonitor();
   console.log('✅ SELF-HEALING SYSTEM STARTED - will monitor and fix issues automatically');
@@ -259,7 +258,72 @@ console.log('🔧 SELF-HEALING SYSTEM DISABLED FOR TESTING');
     code: healingError.code,
     stack: healingError.stack
   });
-} */
+}
+
+// Start health tracking system (Phase 2)
+try {
+  const { startHealthTracking } = require('./services/healthTracker');
+  startHealthTracking();
+  console.log('✅ HEALTH TRACKING SYSTEM STARTED - recording metrics every 15 minutes');
+} catch (trackingError) {
+  console.error('❌ FAILED TO START HEALTH TRACKING SYSTEM:', trackingError);
+  console.error('Health tracking system error details:', {
+    message: trackingError.message,
+    code: trackingError.code,
+    stack: trackingError.stack
+  });
+}
+
+// Start Phase 3: Advanced Tools
+// Performance Analyzer
+try {
+  const { PerformanceAnalyzer } = require('./services/performanceAnalyzer');
+  global.performanceAnalyzer = new PerformanceAnalyzer();
+  global.performanceAnalyzer.start();
+  console.log('✅ PERFORMANCE ANALYZER STARTED - collecting metrics every 5 minutes');
+} catch (performanceError) {
+  console.error('❌ FAILED TO START PERFORMANCE ANALYZER:', performanceError.message);
+}
+
+// Auto-Remediation System
+try {
+  const { AutoRemediationSystem } = require('./services/autoRemediation');
+  global.autoRemediation = new AutoRemediationSystem();
+  global.autoRemediation.start();
+  console.log('✅ AUTO-REMEDIATION SYSTEM STARTED - monitoring every 10 minutes');
+} catch (remediationError) {
+  console.error('❌ FAILED TO START AUTO-REMEDIATION:', remediationError.message);
+}
+
+// Health Predictor
+try {
+  const { HealthPredictor } = require('./services/healthPredictor');
+  global.healthPredictor = new HealthPredictor();
+  global.healthPredictor.start();
+  console.log('✅ HEALTH PREDICTOR STARTED - forecasting every 12 hours');
+} catch (predictorError) {
+  console.error('❌ FAILED TO START HEALTH PREDICTOR:', predictorError.message);
+}
+
+// System Reporter
+try {
+  const { SystemReporter } = require('./services/systemReporter');
+  global.systemReporter = new SystemReporter();
+  global.systemReporter.start();
+  console.log('✅ SYSTEM REPORTER STARTED - generating automated reports');
+} catch (reporterError) {
+  console.error('❌ FAILED TO START SYSTEM REPORTER:', reporterError.message);
+}
+
+// Advanced Debugger
+try {
+  const { AdvancedDebugger } = require('./services/advancedDebugger');
+  global.advancedDebugger = new AdvancedDebugger();
+  global.advancedDebugger.start();
+  console.log('✅ ADVANCED DEBUGGER STARTED - comprehensive debugging active');
+} catch (debuggerError) {
+  console.error('❌ FAILED TO START ADVANCED DEBUGGER:', debuggerError.message);
+}
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);

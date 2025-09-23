@@ -15,7 +15,7 @@ interface NotificationRule {
   id: string;
   name: string;
   eventType: string;
-  templateMode: 'compact' | 'detailed';
+  templateMode: 'simple' | 'compact' | 'detailed' | 'custom';
   targetSpace: string;
   targetWebhookId?: number; // Preserve webhook ID for API calls
   filters: {
@@ -299,7 +299,7 @@ class ApiService {
       id: rule.id.toString(),
       name: rule.name,
       eventType: rule.event_type || rule.eventType,
-      templateMode: (rule.template_mode || rule.templateMode) === 'detailed' ? 'detailed' : 'compact',
+      templateMode: rule.template_mode || rule.templateMode || 'simple',
       targetSpace: rule.webhook_name || rule.targetSpace || `Webhook ${rule.target_webhook_id}`,
       targetWebhookId: rule.target_webhook_id, // Preserve the webhook ID for API calls
       filters: typeof rule.filters === 'string' ? JSON.parse(rule.filters) : rule.filters,
