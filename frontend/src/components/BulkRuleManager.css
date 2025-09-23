@@ -642,32 +642,8 @@
   }
 }
 
-@media (max-width: 768px) {
-  .search-controls {
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .action-button {
-    width: 100%;
-  }
-  
-  .import-summary {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .modal-content {
-    padding: 16px;
-  }
-}
-
-@media (max-width: 640px) {
-  /* Stack table for mobile */
+/* Switch to card layout when table doesn't fit */
+@media (max-width: 1200px) {
   .rules-table,
   .rules-table thead,
   .rules-table tbody,
@@ -715,6 +691,41 @@
     font-size: 0.8rem;
   }
   
+  .rules-table td:last-child {
+    border-bottom: none;
+  }
+  
+  .checkbox-column {
+    width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .search-controls {
+    flex-direction: column;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-button {
+    width: 100%;
+  }
+  
+  .import-summary {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .modal-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile-specific adjustments for the card layout */
   .checkbox-column {
     padding: 0 !important;
     position: absolute;
