@@ -397,6 +397,17 @@
   .webhook-card {
     padding: 16px;
   }
+  
+  .webhook-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .webhook-actions {
+    margin-left: 0;
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 768px) {
