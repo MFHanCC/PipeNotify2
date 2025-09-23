@@ -38,6 +38,10 @@ if (process.env.SENTRY_DSN) {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Configure trust proxy for Railway deployment
+// Railway uses reverse proxies, so we need to trust the X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Sentry middleware (if properly configured)
 // Note: Sentry handlers will be enabled when a valid SENTRY_DSN is provided
 

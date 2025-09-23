@@ -22,8 +22,17 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Verify JWT token with better error handling
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      console.error('Auth middleware error:', jwtError);
+      return res.status(401).json({
+        error: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
     
     // Extract tenant information from token
     const { tenant_id, user_id, company_id } = decoded;
