@@ -53,7 +53,13 @@ if (!API_BASE_URL) {
   throw new Error('API_BASE_URL could not be determined');
 }
 
+// Make API URL globally accessible for debugging
+(window as any).API_BASE_URL = API_BASE_URL;
+
 // Log configuration in development only
 if (process.env.NODE_ENV === 'development') {
   console.log(`🔗 API Base URL: ${API_BASE_URL}`);
 }
+
+// Always log in browser console for debugging
+console.log(`🔗 API Base URL: ${API_BASE_URL}`);

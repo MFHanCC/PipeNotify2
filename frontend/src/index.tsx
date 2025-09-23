@@ -4,6 +4,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Import API configuration to initialize it early
+import './config/api';
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
