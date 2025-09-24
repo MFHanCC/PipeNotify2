@@ -21,13 +21,18 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
   // Helper to check if webhook limit is unlimited or within bounds
   const isWithinWebhookLimit = (currentCount: number) => {
     const webhookLimit = limits?.webhooks || 1;
-    // -1 means unlimited, 999+ means unlimited (treat as unlimited)
-    return webhookLimit === -1 || webhookLimit >= 999 || currentCount < webhookLimit;
+    // -1 means unlimited for Team plan
+    if (webhookLimit === -1) {
+      console.log('🔄 Team plan detected: Unlimited webhooks allowed');
+      return true;
+    }
+    // Otherwise check normal limits
+    return currentCount < webhookLimit;
   };
   
   const getWebhookLimitMessage = () => {
     const webhookLimit = limits?.webhooks || 1;
-    if (webhookLimit === -1 || webhookLimit >= 999) {
+    if (webhookLimit === -1) {
       return 'unlimited';
     }
     return webhookLimit.toString();
@@ -158,11 +163,17 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
       setDeletingId(webhookId);
       setError(null);
       
+      console.log('🗑️ Deleting webhook:', webhookId, webhookName);
       const result = await apiService.deleteWebhook(webhookId);
+      console.log('🗑️ Delete result:', result);
       
       if (result.success) {
-        // Update local state immediately for demo mode
-        setWebhooks(prevWebhooks => prevWebhooks.filter(w => w.id !== webhookId));
+        // Update local state immediately
+        setWebhooks(prevWebhooks => {
+          const updated = prevWebhooks.filter(w => w.id !== webhookId);
+          console.log('🗑️ Updated webhooks after delete:', updated);
+          return updated;
+        });
         
         // Also notify parent component of the change
         if (onWebhooksChange) {
@@ -170,12 +181,16 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
           onWebhooksChange(updatedWebhooks);
         }
         
+        // Reload webhooks to ensure consistency
+        await loadWebhooks();
+        
         alert('✅ Webhook deleted successfully!');
       } else {
         setError('Delete failed: ' + result.message);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete webhook';
+      console.error('🗑️ Delete error:', err);
       setError(errorMessage);
       
       // Show more user-friendly error messages

@@ -32,9 +32,9 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           percentage: limits?.notifications === -1 ? 5 : Math.min((240 / (limits?.notifications || 100)) * 100, 100)
         },
         webhooks: {
-          used: 2,
-          limit: limits?.webhooks === -1 ? 10 : (limits?.webhooks || 1),
-          percentage: limits?.webhooks === -1 ? 20 : Math.min((2 / (limits?.webhooks || 1)) * 100, 100)
+          used: 1, // Actual webhook count for screenshots
+          limit: limits?.webhooks === -1 ? -1 : (limits?.webhooks || 1),
+          percentage: limits?.webhooks === -1 ? 10 : Math.min((1 / (limits?.webhooks || 1)) * 100, 100)
         },
         rules: {
           used: 7,
@@ -61,7 +61,7 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
   };
 
   const formatLimit = (limit: number) => {
-    return limit === -1 ? 'Unlimited' : limit.toString();
+    return limit === -1 ? '∞' : limit.toString();
   };
 
   const handleUpgrade = () => {
