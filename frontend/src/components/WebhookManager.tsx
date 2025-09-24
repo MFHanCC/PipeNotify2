@@ -139,13 +139,18 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
       featuresLoading
     });
     
-    // Check webhook limit based on plan
-    if (!isWithinWebhookLimit(webhooks.length)) {
-      const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
-      const webhookLimit = limits?.webhooks || 1;
-      const limitMessage = webhookLimit === -1 ? 'unlimited' : webhookLimit.toString();
-      setError(`${planName} plan allows maximum ${limitMessage} webhook${webhookLimit > 1 || webhookLimit === -1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
-      return;
+    // TEMPORARY: Skip limit check for Team plan screenshots
+    if (planTier === 'team') {
+      console.log('🎯 Team plan detected - bypassing limit check for screenshots');
+    } else {
+      // Check webhook limit based on plan for non-Team plans
+      if (!isWithinWebhookLimit(webhooks.length)) {
+        const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
+        const webhookLimit = limits?.webhooks || 1;
+        const limitMessage = webhookLimit === -1 ? 'unlimited' : webhookLimit.toString();
+        setError(`${planName} plan allows maximum ${limitMessage} webhook${webhookLimit > 1 || webhookLimit === -1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
+        return;
+      }
     }
     
     if (!newWebhook.name.trim() || !newWebhook.webhook_url.trim()) {
@@ -278,7 +283,7 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
               }
               setShowAddForm(!showAddForm);
             }}
-            disabled={featuresLoading || !limits || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
+            disabled={featuresLoading || !limits || (!showAddForm && planTier !== 'team' && !isWithinWebhookLimit(webhooks.length))}
             title={!isWithinWebhookLimit(webhooks.length)
               ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getWebhookLimitMessage()} webhook${getWebhookLimitMessage() === '1' ? '' : 's'} max). Upgrade to add more webhooks.`
               : 'Add a new Google Chat webhook'
