@@ -1613,15 +1613,90 @@ router.post('/rules/:id/test', authenticateToken, async (req, res) => {
     
     const rule = ruleResult.rows[0];
     
-    // Send test notification to Google Chat
+    // Send test notification to Google Chat using card format
     const axios = require('axios');
-    const testMessage = `🧪 **Test Notification**\n\n**Rule:** ${rule.name}\n**Event Type:** ${rule.event_type}\n**Template Mode:** ${rule.template_mode}\n\n*This is a test message from Pipenotify*`;
-    
     const startTime = Date.now();
     
-    const response = await axios.post(rule.webhook_url, {
-      text: testMessage
-    }, {
+    // Create a clean, professional card message that matches Google Chat design standards
+    const cardMessage = {
+      cards: [
+        {
+          header: {
+            title: "Test Notification",
+            subtitle: "Pipenotify"
+          },
+          sections: [
+            {
+              header: "Deal Update: Sample Deal - ACME Corp Integration",
+              widgets: [
+                {
+                  keyValue: {
+                    topLabel: "Value",
+                    content: "$25,000",
+                    icon: "DOLLAR"
+                  }
+                },
+                {
+                  keyValue: {
+                    topLabel: "Stage",
+                    content: "Proposal Made",
+                    icon: "STAR"
+                  }
+                },
+                {
+                  keyValue: {
+                    topLabel: "Probability",
+                    content: "75%",
+                    icon: "DESCRIPTION"
+                  }
+                },
+                {
+                  keyValue: {
+                    topLabel: "Owner",
+                    content: "John Smith",
+                    icon: "PERSON"
+                  }
+                },
+                {
+                  keyValue: {
+                    topLabel: "Updated",
+                    content: new Date().toLocaleDateString('en-US', { 
+                      month: 'numeric', 
+                      day: 'numeric', 
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true 
+                    }),
+                    icon: "CLOCK"
+                  }
+                }
+              ]
+            },
+            {
+              widgets: [
+                {
+                  buttons: [
+                    {
+                      textButton: {
+                        text: "View Deal",
+                        onClick: {
+                          openLink: {
+                            url: "https://your-company.pipedrive.com/deal/123"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+    
+    const response = await axios.post(rule.webhook_url, cardMessage, {
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json'
@@ -1641,7 +1716,7 @@ router.post('/rules/:id/test', authenticateToken, async (req, res) => {
       JSON.stringify({ test: true, rule: rule.name, event_type: rule.event_type }),
       'test.notification',
       'success',
-      JSON.stringify({ text: testMessage }),
+      JSON.stringify(cardMessage),
       responseTime
     ]);
     
