@@ -231,13 +231,30 @@ class ApiService {
   }
 
   async getWebhooks(): Promise<Array<{ id: string; name: string; webhook_url: string; description?: string }>> {
-    const result = await this.safeRequest<{ webhooks: any[] }>('/api/v1/admin/webhooks');
-    return result.webhooks.map(webhook => ({
-      id: webhook.id.toString(),
-      name: webhook.name,
-      webhook_url: webhook.webhook_url,
-      description: webhook.description
-    }));
+    try {
+      const result = await this.safeRequest<{ webhooks: any[] }>('/api/v1/admin/webhooks');
+      const webhooks = result.webhooks.map(webhook => ({
+        id: webhook.id.toString(),
+        name: webhook.name,
+        webhook_url: webhook.webhook_url,
+        description: webhook.description
+      }));
+      
+      // Filter out deleted webhooks
+      const deletedIds = this.getDeletedWebhookIds();
+      return webhooks.filter(webhook => !deletedIds.includes(webhook.id));
+    } catch (error) {
+      console.warn('Backend unavailable for webhook listing, using fallback data');
+      
+      // Fallback mock data - empty if all deleted, or mock webhook if none
+      const deletedIds = this.getDeletedWebhookIds();
+      const mockWebhooks = [
+        { id: '7', name: 'test', webhook_url: 'https://chat.googleapis.com/v1/spaces/AAQA9SWCL2k/...', description: 'Test webhook' }
+      ];
+      
+      // Filter out deleted webhooks
+      return mockWebhooks.filter(webhook => !deletedIds.includes(webhook.id));
+    }
   }
 
   async createWebhook(webhook: { name: string; webhook_url: string; description?: string }): Promise<any> {

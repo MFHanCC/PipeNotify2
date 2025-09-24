@@ -22,7 +22,7 @@ const LimitWarning: React.FC<LimitWarningProps> = ({
   if (!limits) return null;
 
   const limit = limits[resourceType];
-  if (!limit || limit >= 999) return null; // No limit or unlimited
+  if (!limit || limit === -1 || limit >= 999) return null; // No limit or unlimited
 
   const percentage = (currentUsage / limit) * 100;
   const isAtLimit = currentUsage >= limit;
