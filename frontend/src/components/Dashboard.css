@@ -3166,10 +3166,18 @@ select:focus,
 }
 
 .quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: 16px;
   max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .quick-actions-grid {
+    flex-direction: column;
+  }
 }
 
 .quick-action-card {
@@ -3185,6 +3193,9 @@ select:focus,
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  min-width: 160px;
+  flex: 1;
+  white-space: nowrap;
 }
 
 .quick-action-card:hover {
