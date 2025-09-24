@@ -36,6 +36,20 @@ function BillingRoute() {
   );
 }
 
+// Static page components for legal pages
+function StaticPage({ htmlFile }: { htmlFile: string }) {
+  React.useEffect(() => {
+    // Redirect to the static HTML file
+    window.location.href = `/${htmlFile}`;
+  }, [htmlFile]);
+  
+  return (
+    <div style={{ padding: '50px', textAlign: 'center' }}>
+      <p>Redirecting to {htmlFile}...</p>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
@@ -46,6 +60,10 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/billing" element={<BillingRoute />} />
+          <Route path="/terms" element={<StaticPage htmlFile="terms.html" />} />
+          <Route path="/privacy" element={<StaticPage htmlFile="privacy.html" />} />
+          <Route path="/support" element={<StaticPage htmlFile="support.html" />} />
+          <Route path="/docs" element={<StaticPage htmlFile="docs.html" />} />
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         </Routes>
       </div>
