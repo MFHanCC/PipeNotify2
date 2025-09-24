@@ -32,9 +32,9 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           percentage: limits?.notifications === -1 ? 5 : Math.min((240 / (limits?.notifications || 100)) * 100, 100)
         },
         webhooks: {
-          used: 1, // Actual webhook count for screenshots
+          used: 0, // No webhooks for clean screenshots
           limit: limits?.webhooks === -1 ? -1 : (limits?.webhooks || 1),
-          percentage: limits?.webhooks === -1 ? 10 : Math.min((1 / (limits?.webhooks || 1)) * 100, 100)
+          percentage: 0 // Empty state for professional screenshots
         },
         rules: {
           used: 7,
