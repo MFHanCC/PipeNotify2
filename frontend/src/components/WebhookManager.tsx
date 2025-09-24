@@ -123,12 +123,20 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
   const handleAddWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Wait for plan features to load
+    if (featuresLoading || !limits) {
+      console.log('⏳ Plan features still loading, please wait...');
+      setError('Loading plan features, please try again in a moment...');
+      return;
+    }
+    
     console.log('🚀 Adding webhook - Debug info:', {
       planTier,
       webhooksLength: webhooks.length,
       webhookLimit: limits?.webhooks,
       isWithinLimit: isWithinWebhookLimit(webhooks.length),
-      limits
+      limits,
+      featuresLoading
     });
     
     // Check webhook limit based on plan
@@ -270,7 +278,7 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
               }
               setShowAddForm(!showAddForm);
             }}
-            disabled={featuresLoading || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
+            disabled={featuresLoading || !limits || (!showAddForm && !isWithinWebhookLimit(webhooks.length))}
             title={!isWithinWebhookLimit(webhooks.length)
               ? `${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getWebhookLimitMessage()} webhook${getWebhookLimitMessage() === '1' ? '' : 's'} max). Upgrade to add more webhooks.`
               : 'Add a new Google Chat webhook'
