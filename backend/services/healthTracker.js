@@ -78,18 +78,18 @@ async function recordHealthSnapshot(healthData) {
       RETURNING id, timestamp, health_score
     `, [
       overallStatus,
-      healthScore,
+      Math.round(healthScore || 0),
       databaseStatus,
-      databaseLatency,
+      Math.round(databaseLatency || 0),
       queueStatus,
-      queueBacklogSize,
-      queueProcessingRate,
+      Math.round(queueBacklogSize || 0),
+      Math.round(queueProcessingRate || 0),
       selfHealingStatus,
-      selfHealingIssuesFound,
-      selfHealingFixesApplied,
+      Math.round(selfHealingIssuesFound || 0),
+      Math.round(selfHealingFixesApplied || 0),
       deliverySuccessRate,
-      responseTime,
-      uptime
+      Math.round(responseTime || 0),
+      Math.round(uptime || 0)
     ]);
 
     const snapshotId = result.rows[0].id;
@@ -603,7 +603,7 @@ async function recordHealthSnapshotFromSources() {
       selfHealingFixesApplied: selfHealingResult.autoFixes?.length || 0,
       deliverySuccessRate: parseFloat(deliverySuccessRate.toFixed(2)),
       responseTime: databaseLatency,
-      uptime: process.uptime()
+      uptime: Math.round(process.uptime())
     };
 
     return await recordHealthSnapshot(healthData);
