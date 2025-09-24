@@ -280,13 +280,9 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
         </div>
       )}
 
-      <LimitWarning 
-        resourceType="webhooks"
-        currentUsage={webhooks.length}
-        compact={false}
-      />
+      {/* TEMPORARY: Remove LimitWarning for screenshots */}
 
-      {showAddForm && isWithinWebhookLimit(webhooks.length) && (
+      {showAddForm && (
         <div className="webhook-form">
           <h4>Add New Google Chat Webhook</h4>
           <form onSubmit={handleAddWebhook}>
