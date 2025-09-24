@@ -145,11 +145,15 @@ export function getTestPlanFeatures(originalFeatures) {
   }
   
   console.log(`🧪 [DEV] Testing as ${TEST_PLAN_OVERRIDE.toUpperCase()} plan user`);
+  console.log(`🧪 [DEV] Team plan webhooks limit:`, testConfig.limits.webhooks);
   
-  return {
+  const result = {
     ...originalFeatures,
     ...testConfig,
     tenant_id: originalFeatures?.tenant_id || parseInt(getTenantId() || '1'),
     can_upgrade: TEST_PLAN_OVERRIDE !== 'team'
   };
+  
+  console.log('🧪 [DEV] Final testPlan result:', result);
+  return result;
 }

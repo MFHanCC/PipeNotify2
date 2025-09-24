@@ -18,6 +18,16 @@ interface WebhookManagerProps {
 const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => {
   const { planTier, limits, loading: featuresLoading } = usePlanFeatures();
   
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 WebhookManager Debug:', {
+      planTier,
+      limits,
+      webhookLimit: limits?.webhooks,
+      isUnlimited: limits?.webhooks === -1
+    });
+  }, [planTier, limits]);
+  
   // Helper to check if webhook limit is unlimited or within bounds
   const isWithinWebhookLimit = (currentCount: number) => {
     const webhookLimit = limits?.webhooks || 1;
