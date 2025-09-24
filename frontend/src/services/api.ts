@@ -19,6 +19,33 @@ interface NotificationRule {
   targetSpace: string;
   targetWebhookId?: number; // Preserve webhook ID for API calls
   filters: {
+    // Entity filtering
+    entity_type?: string;
+    
+    // Value/deal filtering
+    value_change_required?: boolean;
+    value_min?: number;
+    value_max?: number;
+    probability_min?: number;
+    probability_max?: number;
+    currencies?: string[];
+    
+    // Pipeline and stage filtering
+    pipeline_ids?: number[];
+    stage_ids?: number[];
+    
+    // Owner filtering
+    owner_ids?: number[];
+    
+    // Time-based filtering
+    time_restrictions?: {
+      business_hours_only?: boolean;
+      start_hour?: number;
+      end_hour?: number;
+      weekdays_only?: boolean;
+    };
+    
+    // Legacy filter properties (keeping for backward compatibility)
     pipeline?: string;
     stage?: string;
     owner?: string;

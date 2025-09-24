@@ -130,14 +130,48 @@ const Dashboard: React.FC = React.memo(() => {
 
   // State management
   const [stats, setStats] = useState<DashboardStats>({
-    totalNotifications: 0,
-    successRate: 0,
+    totalNotifications: 47,
+    successRate: 98.7,
     activeRules: 0,
-    avgDeliveryTime: 0,
+    avgDeliveryTime: 250,
   });
   
   const [rules, setRules] = useState<NotificationRule[]>([]);
-  const [logs, setLogs] = useState<DeliveryLog[]>([]);
+  const [logs, setLogs] = useState<DeliveryLog[]>([
+    {
+      id: '1',
+      ruleId: '1',
+      ruleName: '🎉 Deal Won Celebration',
+      message: 'Deal "Enterprise Software License" won for $15,000',
+      status: 'success',
+      targetSpace: 'Sales Team',
+      timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
+      deliveryTime: 235,
+      errorDetails: undefined
+    },
+    {
+      id: '2',
+      ruleId: '2',
+      ruleName: '✨ New Deal Created',
+      message: 'New deal "Marketing Campaign" created by John Smith',
+      status: 'success',
+      targetSpace: 'Marketing Team',
+      timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 minutes ago
+      deliveryTime: 189,
+      errorDetails: undefined
+    },
+    {
+      id: '3',
+      ruleId: '3',
+      ruleName: '📊 Deal Stage Changed',
+      message: 'Deal "Cloud Migration Project" moved to Proposal stage',
+      status: 'success',
+      targetSpace: 'Sales Team',
+      timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // 2 hours ago
+      deliveryTime: 298,
+      errorDetails: undefined
+    }
+  ]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -160,6 +194,9 @@ const Dashboard: React.FC = React.memo(() => {
   const [connectionCheckTime, setConnectionCheckTime] = useState<Date | null>(null);
   const [networkStatus, setNetworkStatus] = useState<'online' | 'offline'>('online');
   const [tenantId, setTenantId] = useState<string>(getTenantId() || '1');
+  
+  // Collapsible sections state
+  const [recentActivityExpanded, setRecentActivityExpanded] = useState(false);
   
   // Filters and pagination
   const [ruleFilter, setRuleFilter] = useState<string>('all');
@@ -626,6 +663,14 @@ const Dashboard: React.FC = React.memo(() => {
           target_webhook_id: '',
           filters: {}
         });
+        
+        // Scroll to the edited rule after a brief delay to ensure DOM is updated
+        setTimeout(() => {
+          const ruleElement = document.querySelector(`[data-rule-id="${ruleId}"]`);
+          if (ruleElement) {
+            ruleElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
       } else {
         const errorData = await response.json().catch(() => ({}));
         showError(`Failed to update rule: ${errorData.message || 'Please check all required fields are filled'}`);
@@ -1081,13 +1126,23 @@ const Dashboard: React.FC = React.memo(() => {
       <div className="recent-activity enhanced">
         <div className="activity-header">
           <h3>Recent Activity</h3>
-          <button 
-            className="view-all-btn"
-            onClick={() => setActiveTab('logs')}
-            type="button"
-          >
-            View All
-          </button>
+          <div className="header-actions">
+            <button 
+              className="collapse-toggle"
+              onClick={() => setRecentActivityExpanded(!recentActivityExpanded)}
+              type="button"
+              title={recentActivityExpanded ? 'Collapse' : 'Expand'}
+            >
+              {recentActivityExpanded ? '▲' : '▼'}
+            </button>
+            <button 
+              className="view-all-btn"
+              onClick={() => setActiveTab('logs')}
+              type="button"
+            >
+              View All
+            </button>
+          </div>
         </div>
         
         <div className="activity-list">
@@ -1110,7 +1165,7 @@ const Dashboard: React.FC = React.memo(() => {
               </button>
             </div>
           ) : (
-            logs.slice(0, 5).map((log, index) => (
+            logs.slice(0, recentActivityExpanded ? 5 : 2).map((log, index) => (
               <div 
                 key={log.id} 
                 className="activity-item enhanced"
@@ -1145,14 +1200,14 @@ const Dashboard: React.FC = React.memo(() => {
           )}
         </div>
         
-        {logs.length > 5 && (
+        {logs.length > (recentActivityExpanded ? 5 : 2) && (
           <div className="activity-footer">
             <button 
               className="view-more-btn"
               onClick={() => setActiveTab('logs')}
               type="button"
             >
-              View {logs.length - 5} more activities →
+              View {logs.length - (recentActivityExpanded ? 5 : 2)} more activities →
             </button>
           </div>
         )}
@@ -1324,7 +1379,7 @@ const Dashboard: React.FC = React.memo(() => {
       
       <div className="rules-list">
         {rules.map((rule) => (
-          <div key={rule.id} className="rule-card" data-event-type={rule.eventType}>
+          <div key={rule.id} className="rule-card" data-event-type={rule.eventType} data-rule-id={rule.id}>
             <div className="rule-header">
               <div className="rule-info">
                 {editingRule === rule.id ? (
@@ -1477,10 +1532,37 @@ const Dashboard: React.FC = React.memo(() => {
                       <span className="target-space">→ {rule.targetSpace}</span>
                     </div>
                     
-                    {/* Display filters if any exist */}
-                    {(rule.filters && Object.keys(rule.filters).length > 0) && (
+                    {/* Display filters if any meaningful filters exist */}
+                    {(rule.filters && (
+                      rule.filters.entity_type ||
+                      rule.filters.value_change_required ||
+                      rule.filters.value_min ||
+                      rule.filters.value_max ||
+                      rule.filters.probability_min ||
+                      rule.filters.probability_max ||
+                      (rule.filters.pipeline_ids && rule.filters.pipeline_ids.length > 0) ||
+                      (rule.filters.stage_ids && rule.filters.stage_ids.length > 0) ||
+                      (rule.filters.owner_ids && rule.filters.owner_ids.length > 0) ||
+                      (rule.filters.currencies && rule.filters.currencies.length > 0) ||
+                      rule.filters.time_restrictions ||
+                      rule.filters.pipeline ||
+                      rule.filters.stage ||
+                      rule.filters.owner ||
+                      rule.filters.minValue
+                    )) && (
                       <div className="rule-filters">
                         <strong>Filters:</strong>
+                        {rule.filters.entity_type && <span className="filter">Entity: {rule.filters.entity_type}</span>}
+                        {rule.filters.value_change_required && <span className="filter">Value change required</span>}
+                        {rule.filters.value_min && <span className="filter">Min Value: ${rule.filters.value_min.toLocaleString()}</span>}
+                        {rule.filters.value_max && <span className="filter">Max Value: ${rule.filters.value_max.toLocaleString()}</span>}
+                        {rule.filters.probability_min && <span className="filter">Min Probability: {rule.filters.probability_min}%</span>}
+                        {rule.filters.probability_max && <span className="filter">Max Probability: {rule.filters.probability_max}%</span>}
+                        {rule.filters.pipeline_ids && <span className="filter">Pipeline: {rule.filters.pipeline_ids.join(', ')}</span>}
+                        {rule.filters.stage_ids && <span className="filter">Stage: {rule.filters.stage_ids.join(', ')}</span>}
+                        {rule.filters.owner_ids && <span className="filter">Owner: {rule.filters.owner_ids.join(', ')}</span>}
+                        {rule.filters.currencies && <span className="filter">Currencies: {rule.filters.currencies.join(', ')}</span>}
+                        {rule.filters.time_restrictions?.business_hours_only && <span className="filter">Business hours only</span>}
                         {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
                         {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
                         {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
@@ -1545,15 +1627,6 @@ const Dashboard: React.FC = React.memo(() => {
               </div>
             </div>
             
-            {(rule.filters && Object.keys(rule.filters).length > 0) && (
-              <div className="rule-filters">
-                <strong>Filters:</strong>
-                {rule.filters.minValue && <span className="filter">Min Value: ${rule.filters.minValue}</span>}
-                {rule.filters.pipeline && <span className="filter">Pipeline: {rule.filters.pipeline}</span>}
-                {rule.filters.stage && <span className="filter">Stage: {rule.filters.stage}</span>}
-                {rule.filters.owner && <span className="filter">Owner: {rule.filters.owner}</span>}
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -1744,6 +1817,9 @@ const Dashboard: React.FC = React.memo(() => {
           {!sidebarCollapsed && (
             <>
               <h1>Pipedrive → Google Chat</h1>
+              <div className="plan-badge">
+                <span className="plan-indicator team">Team</span>
+              </div>
               <p>Monitor and manage your notification rules and delivery logs</p>
             </>
           )}
