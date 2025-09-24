@@ -31,6 +31,14 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
   // Helper to check if webhook limit is unlimited or within bounds
   const isWithinWebhookLimit = (currentCount: number) => {
     const webhookLimit = limits?.webhooks || 1;
+    console.log('🔍 isWithinWebhookLimit check:', {
+      currentCount,
+      webhookLimit,
+      planTier,
+      isUnlimited: webhookLimit === -1,
+      result: webhookLimit === -1 || currentCount < webhookLimit
+    });
+    
     // -1 means unlimited for Team plan
     if (webhookLimit === -1) {
       console.log('🔄 Team plan detected: Unlimited webhooks allowed');
@@ -115,11 +123,20 @@ const WebhookManager: React.FC<WebhookManagerProps> = ({ onWebhooksChange }) => 
   const handleAddWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🚀 Adding webhook - Debug info:', {
+      planTier,
+      webhooksLength: webhooks.length,
+      webhookLimit: limits?.webhooks,
+      isWithinLimit: isWithinWebhookLimit(webhooks.length),
+      limits
+    });
+    
     // Check webhook limit based on plan
     if (!isWithinWebhookLimit(webhooks.length)) {
       const planName = planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team';
       const webhookLimit = limits?.webhooks || 1;
-      setError(`${planName} plan allows maximum ${webhookLimit} webhook${webhookLimit > 1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
+      const limitMessage = webhookLimit === -1 ? 'unlimited' : webhookLimit.toString();
+      setError(`${planName} plan allows maximum ${limitMessage} webhook${webhookLimit > 1 || webhookLimit === -1 ? 's' : ''}. ${webhookLimit === 1 ? 'Delete the existing webhook first or ' : ''}Upgrade your plan to add more webhooks.`);
       return;
     }
     
