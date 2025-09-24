@@ -5,6 +5,25 @@ const { pool } = require('../services/database');
 const { generateToken } = require('../middleware/auth');
 const router = express.Router();
 
+// OAuth scope documentation for Pipedrive Marketplace submission
+const REQUIRED_PIPEDRIVE_SCOPES = [
+  'users:read',     // Read user profile for authentication and company identification
+  'webhooks:write', // Create and manage webhooks for automatic notifications
+  'webhooks:read',  // List and manage existing webhooks
+  'deals:read',     // Read deal data to process deal-related notifications
+  'persons:read',   // Read contact data to include contact details in notifications
+  'activities:read' // Read activity data to send activity-related notifications
+];
+
+const OAUTH_SCOPE_EXPLANATIONS = {
+  'users:read': 'Identify your Pipedrive account and company for secure multi-tenant isolation',
+  'webhooks:write': 'Set up automatic notifications by registering webhooks with Pipedrive',
+  'webhooks:read': 'Manage and monitor existing notification settings and webhook configurations',
+  'deals:read': 'Process and send notifications when deals are created, updated, won, or lost',
+  'persons:read': 'Include contact names and details in deal and activity notifications',
+  'activities:read': 'Send notifications about scheduled activities, calls, and meetings'
+};
+
 // OAuth 2.0 callback endpoint - exchanges authorization code for access token
 router.post('/callback', async (req, res) => {
   try {
@@ -361,6 +380,17 @@ router.get('/status', async (req, res) => {
       message: error.message,
     });
   }
+});
+
+// GET /api/v1/oauth/scopes - Return OAuth scope information for marketplace documentation
+router.get('/scopes', (req, res) => {
+  res.json({
+    required_scopes: REQUIRED_PIPEDRIVE_SCOPES,
+    scope_explanations: OAUTH_SCOPE_EXPLANATIONS,
+    why_we_need_these: "PipeNotify requires these permissions to securely connect your Pipedrive account with Google Chat notifications. We only access the minimum data necessary to deliver your configured notifications.",
+    data_usage: "We never store your Pipedrive data permanently. We only process webhook events in real-time to format and deliver notifications to your Google Chat channels.",
+    security: "All API calls use OAuth 2.0 tokens with automatic refresh. No passwords or API keys are stored."
+  });
 });
 
 module.exports = router;
