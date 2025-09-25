@@ -135,12 +135,12 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           fontWeight: '700',
           color: '#1f2937',
           margin: '0 0 0.5rem 0'
-        }}>💳 Billing & Subscription</h1>
+        }}>💳 Billing Dashboard</h1>
         <p style={{
           fontSize: '1.125rem',
           color: '#6b7280',
           margin: '0'
-        }}>Manage your subscription and monitor usage across all features</p>
+        }}>Monitor your usage and plan features</p>
       </div>
 
       {/* Current Plan Card */}
@@ -268,184 +268,6 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
         </div>
       </div>
 
-      {/* Usage Details Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        {/* Monthly Notifications */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: '0 0 1rem 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            📧 Monthly Notifications
-          </h3>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '0.75rem'
-          }}>
-            <span style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937' }}>
-              {usageData.notifications.used}
-            </span>
-            <span style={{ fontSize: '1rem', color: '#6b7280' }}>
-              / {formatLimit(usageData.notifications.limit)}
-            </span>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: '#10b981',
-              background: '#dcfce7',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '4px'
-            }}>
-              {Math.round(usageData.notifications.percentage)}%
-            </span>
-          </div>
-          <div style={{
-            height: '8px',
-            background: '#f3f4f6',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${usageData.notifications.percentage}%`,
-              background: '#10b981',
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }} />
-          </div>
-        </div>
-
-        {/* Active Webhooks */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: '0 0 1rem 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            🔗 Active Webhooks
-          </h3>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '0.75rem'
-          }}>
-            <span style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937' }}>
-              {usageData.webhooks.used}
-            </span>
-            <span style={{ fontSize: '1rem', color: '#6b7280' }}>
-              / {formatLimit(usageData.webhooks.limit)}
-            </span>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: '#10b981',
-              background: '#dcfce7',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '4px'
-            }}>
-              {Math.round(usageData.webhooks.percentage)}%
-            </span>
-          </div>
-          <div style={{
-            height: '8px',
-            background: '#f3f4f6',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${usageData.webhooks.percentage}%`,
-              background: '#10b981',
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }} />
-          </div>
-        </div>
-
-        {/* Notification Rules */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '1.125rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            margin: '0 0 1rem 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            ⚙️ Notification Rules
-          </h3>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '0.75rem'
-          }}>
-            <span style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937' }}>
-              {usageData.rules.used}
-            </span>
-            <span style={{ fontSize: '1rem', color: '#6b7280' }}>
-              / {formatLimit(usageData.rules.limit)}
-            </span>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: '#10b981',
-              background: '#dcfce7',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '4px'
-            }}>
-              {Math.round(usageData.rules.percentage)}%
-            </span>
-          </div>
-          <div style={{
-            height: '8px',
-            background: '#f3f4f6',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${usageData.rules.percentage}%`,
-              background: '#10b981',
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }} />
-          </div>
-        </div>
-      </div>
 
       {/* Feature Access */}
       <div style={{
@@ -472,9 +294,14 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           gap: '1rem'
         }}>
           {[
-            { name: 'Advanced Routing', enabled: planTier !== 'free', required: 'Starter+' },
-            { name: 'Custom Templates', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
-            { name: 'Team Analytics', enabled: planTier === 'team', required: 'Team' }
+            { name: 'Rule Templates', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
+            { name: 'Smart Channel Routing', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
+            { name: 'Custom Message Templates', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
+            { name: 'Quiet Hours Scheduling', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
+            { name: 'Stalled Deal Alerts', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' },
+            { name: 'Bulk Rule Management', enabled: planTier === 'team', required: 'Team' },
+            { name: 'Team Analytics', enabled: planTier === 'team', required: 'Team' },
+            { name: 'Priority Support', enabled: planTier === 'pro' || planTier === 'team', required: 'Pro+' }
           ].map((feature, index) => (
             <div key={index} style={{
               display: 'flex',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './RuleTemplateLibrary.css';
 import { API_BASE_URL } from '../config/api';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
 
 interface RuleTemplate {
   id: string;
@@ -30,6 +31,7 @@ interface RuleTemplateLibraryProps {
 }
 
 const RuleTemplateLibrary: React.FC<RuleTemplateLibraryProps> = ({ onApplyTemplate, planTier = 'free' }) => {
+  const { hasFeature } = usePlanFeatures();
   const [templates, setTemplates] = useState<RuleTemplate[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -217,8 +219,11 @@ const RuleTemplateLibrary: React.FC<RuleTemplateLibraryProps> = ({ onApplyTempla
       </div>
 
       <div className="templates-grid">
-        {templates.map((template) => (
-          <div key={template.id} className={`template-card ${!template.available ? 'locked' : ''}`}>
+        {templates.map((template) => {
+          const canUseTemplate = hasFeature('rule_templates');
+          const isLocked = !template.available || !canUseTemplate;
+          return (
+          <div key={template.id} className={`template-card ${isLocked ? 'locked' : ''}`}>
             <div className="template-header">
               <div className="template-category">
                 {getCategoryIcon(template.category)} {template.category}
@@ -235,10 +240,10 @@ const RuleTemplateLibrary: React.FC<RuleTemplateLibraryProps> = ({ onApplyTempla
               <div className="event-type">Event: <code>{template.event_type}</code></div>
             </div>
 
-            {template.requirements && !template.available && (
+            {isLocked && (
               <div className="template-requirements">
                 <span className="lock-icon">🔒</span>
-                Requires: {template.requirements.join(', ')} plan
+                {!hasFeature('rule_templates') ? 'Requires Pro+ plan' : `Requires: ${template.requirements?.join(', ')} plan`}
               </div>
             )}
             
@@ -246,13 +251,14 @@ const RuleTemplateLibrary: React.FC<RuleTemplateLibraryProps> = ({ onApplyTempla
               <button
                 className="template-btn preview-btn"
                 onClick={() => handleTemplateSelect(template)}
-                disabled={!template.available}
+                disabled={isLocked}
               >
-                {template.available ? 'Customize & Apply' : 'Locked'}
+                {!isLocked ? 'Customize & Apply' : 'Locked'}
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {templates.length === 0 && (

@@ -46,7 +46,9 @@ export function getTestPlanFeatures(originalFeatures) {
         advanced_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         probability_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         owner_filtering: { available: false, available_in_plans: ['pro', 'team'] },
-        time_filtering: { available: false, available_in_plans: ['pro', 'team'] }
+        time_filtering: { available: false, available_in_plans: ['pro', 'team'] },
+        rule_templates: { available: false, available_in_plans: ['pro', 'team'] },
+        bulk_management: { available: false, available_in_plans: ['team'] }
       }
     },
     
@@ -75,7 +77,9 @@ export function getTestPlanFeatures(originalFeatures) {
         advanced_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         probability_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         owner_filtering: { available: false, available_in_plans: ['pro', 'team'] },
-        time_filtering: { available: false, available_in_plans: ['pro', 'team'] }
+        time_filtering: { available: false, available_in_plans: ['pro', 'team'] },
+        rule_templates: { available: false, available_in_plans: ['pro', 'team'] },
+        bulk_management: { available: false, available_in_plans: ['team'] }
       }
     },
     
@@ -104,7 +108,9 @@ export function getTestPlanFeatures(originalFeatures) {
         advanced_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         probability_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         owner_filtering: { available: true, available_in_plans: ['pro', 'team'] },
-        time_filtering: { available: true, available_in_plans: ['pro', 'team'] }
+        time_filtering: { available: true, available_in_plans: ['pro', 'team'] },
+        rule_templates: { available: true, available_in_plans: ['pro', 'team'] },
+        bulk_management: { available: false, available_in_plans: ['team'] }
       }
     },
     
@@ -133,7 +139,9 @@ export function getTestPlanFeatures(originalFeatures) {
         advanced_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         probability_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         owner_filtering: { available: true, available_in_plans: ['pro', 'team'] },
-        time_filtering: { available: true, available_in_plans: ['pro', 'team'] }
+        time_filtering: { available: true, available_in_plans: ['pro', 'team'] },
+        rule_templates: { available: true, available_in_plans: ['pro', 'team'] },
+        bulk_management: { available: true, available_in_plans: ['team'] }
       }
     }
   };

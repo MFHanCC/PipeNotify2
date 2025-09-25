@@ -595,7 +595,7 @@ const Dashboard: React.FC = React.memo(() => {
       const webhookId = availableWebhooks[0].id;
 
       // Apply the template
-      const response = await fetch(`/api/v1/templates/library/${templateId}/apply`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/templates/library/${templateId}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2035,15 +2035,17 @@ const Dashboard: React.FC = React.memo(() => {
           >
             <span aria-hidden="true">🧪</span> {!sidebarCollapsed && 'Testing'}
           </button>
-          <button 
-            className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
-            onClick={() => setActiveTab('bulk-management')}
-            aria-label="Bulk rule management"
-            aria-current={activeTab === 'bulk-management' ? 'page' : undefined}
-            type="button"
-          >
-            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
-          </button>
+          {hasFeature('bulk_management') && (
+            <button 
+              className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
+              onClick={() => setActiveTab('bulk-management')}
+              aria-label="Bulk rule management"
+              aria-current={activeTab === 'bulk-management' ? 'page' : undefined}
+              type="button"
+            >
+              <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
+            </button>
+          )}
           <button 
             className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
             onClick={() => setActiveTab('billing')}
@@ -2155,13 +2157,20 @@ const Dashboard: React.FC = React.memo(() => {
               }} />
             </Suspense>
           )}
-          {activeTab === 'bulk-management' && (
+          {activeTab === 'bulk-management' && hasFeature('bulk_management') && (
             <Suspense fallback={<ComponentLoader />}>
               <BulkRuleManager 
                 onRefresh={loadDashboardData}
                 onNavigateToRules={() => setActiveTab('rules')}
               />
             </Suspense>
+          )}
+          {activeTab === 'bulk-management' && !hasFeature('bulk_management') && (
+            <FeatureRestriction 
+              featureName="Bulk Management"
+              requiredPlan={getFeatureRequiredPlan('bulk_management')}
+              description="Manage multiple rules at once with bulk operations, batch editing, and advanced filtering."
+            />
           )}
           {activeTab === 'billing' && (
             <div className="billing-section">
