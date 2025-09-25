@@ -195,25 +195,55 @@ function PrivacyPage() {
       <h2>2. Information We Collect</h2>
       
       <h3>2.1 Information You Provide Directly</h3>
-      <ul>
-        <li><strong>Account Information:</strong> Email address, company name, user preferences</li>
-        <li><strong>Authentication Credentials:</strong> Pipedrive OAuth tokens (encrypted), API keys</li>
-        <li><strong>Configuration Data:</strong> Google Chat webhook URLs, notification rules, filters, templates</li>
-        <li><strong>Support Communications:</strong> Messages, attachments, and metadata from support interactions</li>
+      <ul style={{ listStyle: 'none', paddingLeft: '0' }}>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Account Information:</strong> Email address, company name, user preferences
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Authentication Credentials:</strong> Pipedrive OAuth tokens (encrypted), API keys
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Configuration Data:</strong> Google Chat webhook URLs, notification rules, filters, templates
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Support Communications:</strong> Messages, attachments, and metadata from support interactions
+        </li>
       </ul>
 
       <h3>2.2 Information We Collect Automatically</h3>
-      <ul>
-        <li><strong>Usage Data:</strong> Features accessed, time stamps, notification delivery logs</li>
-        <li><strong>Technical Data:</strong> IP addresses, browser type, device information, operating system</li>
-        <li><strong>Performance Data:</strong> Response times, error rates, system health metrics</li>
-        <li><strong>Analytics Data:</strong> User interactions, feature usage patterns (anonymized)</li>
+      <ul style={{ listStyle: 'none', paddingLeft: '0' }}>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Usage Data:</strong> Features accessed, time stamps, notification delivery logs
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Technical Data:</strong> IP addresses, browser type, device information, operating system
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Performance Data:</strong> Response times, error rates, system health metrics
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Analytics Data:</strong> User interactions, feature usage patterns (anonymized)
+        </li>
       </ul>
 
       <h3>2.3 Information from Third-Party Services</h3>
-      <ul>
-        <li><strong>Pipedrive Data:</strong> Deal information, contact details, pipeline data as configured in your notification rules</li>
-        <li><strong>Google Chat Data:</strong> Webhook delivery confirmations, message status</li>
+      <ul style={{ listStyle: 'none', paddingLeft: '0' }}>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Pipedrive Data:</strong> Deal information, contact details, pipeline data as configured in your notification rules
+        </li>
+        <li style={{ marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: '0', color: '#2563eb', fontWeight: 'bold' }}>•</span>
+          <strong>Google Chat Data:</strong> Webhook delivery confirmations, message status
+        </li>
       </ul>
 
       <h2>3. Legal Basis for Processing (GDPR)</h2>
