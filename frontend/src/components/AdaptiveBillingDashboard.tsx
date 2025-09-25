@@ -130,11 +130,6 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           textAlign: 'center',
           marginBottom: '2rem'
         }}>
-        <p style={{
-          fontSize: '1.125rem',
-          color: '#6b7280',
-          margin: '0'
-        }}>Monitor your usage and plan features</p>
       </div>
 
       {/* Current Plan Card */}
@@ -211,53 +206,6 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
               }}>
               View Plans
             </button>
-          </div>
-        </div>
-        
-        {/* Usage Stats in Plan Card */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '1rem'
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '1rem',
-            borderRadius: '8px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '0.875rem', opacity: 0.8, marginBottom: '0.5rem' }}>
-              Notifications
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-              {usageData.notifications.used}/{formatLimit(usageData.notifications.limit)}
-            </div>
-          </div>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '1rem',
-            borderRadius: '8px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '0.875rem', opacity: 0.8, marginBottom: '0.5rem' }}>
-              Webhooks
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-              {usageData.webhooks.used}/{formatLimit(usageData.webhooks.limit)}
-            </div>
-          </div>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '1rem',
-            borderRadius: '8px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '0.875rem', opacity: 0.8, marginBottom: '0.5rem' }}>
-              Rules
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-              {usageData.rules.used}/{formatLimit(usageData.rules.limit)}
-            </div>
           </div>
         </div>
       </div>

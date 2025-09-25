@@ -1902,7 +1902,7 @@ const Dashboard: React.FC = React.memo(() => {
             <>
               <h1>Pipedrive → Google Chat</h1>
               <div className="plan-badge">
-                <span className="plan-indicator team">Team</span>
+                <span className={`plan-indicator ${planTier}`}>{planTier === 'free' ? 'Free' : planTier === 'starter' ? 'Starter' : planTier === 'pro' ? 'Pro' : 'Team'}</span>
               </div>
               <p>Monitor and manage your notification rules and delivery logs</p>
             </>
@@ -2026,15 +2026,6 @@ const Dashboard: React.FC = React.memo(() => {
               <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Analytics'}
             </button>
           </FeatureRestriction>
-          <button 
-            className={`nav-tab ${activeTab === 'testing' ? 'active' : ''}`}
-            onClick={() => setActiveTab('testing')}
-            aria-label="Notification testing"
-            aria-current={activeTab === 'testing' ? 'page' : undefined}
-            type="button"
-          >
-            <span aria-hidden="true">🧪</span> {!sidebarCollapsed && 'Testing'}
-          </button>
           <FeatureRestriction
             isAvailable={hasFeature('bulk_management')}
             featureName="Bulk Management"
@@ -2052,6 +2043,15 @@ const Dashboard: React.FC = React.memo(() => {
               <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
             </button>
           </FeatureRestriction>
+          <button 
+            className={`nav-tab ${activeTab === 'testing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('testing')}
+            aria-label="Notification testing"
+            aria-current={activeTab === 'testing' ? 'page' : undefined}
+            type="button"
+          >
+            <span aria-hidden="true">🧪</span> {!sidebarCollapsed && 'Testing'}
+          </button>
           <button 
             className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
             onClick={() => setActiveTab('billing')}
@@ -2230,7 +2230,7 @@ const Dashboard: React.FC = React.memo(() => {
                   <div className={`pricing-card starter ${planTier === 'starter' ? 'current' : ''}`}>
                     <div className="plan-header">
                       <h4>Starter</h4>
-                      <div className="price">$9<span>/month</span></div>
+                      <div className="price">$19<span>/month</span></div>
                     </div>
                     <ul className="features">
                       <li>✅ 1,000 notifications/month</li>
@@ -2249,7 +2249,7 @@ const Dashboard: React.FC = React.memo(() => {
                     <div className="plan-badge">Most Popular</div>
                     <div className="plan-header">
                       <h4>Pro</h4>
-                      <div className="price">$29<span>/month</span></div>
+                      <div className="price">$49<span>/month</span></div>
                     </div>
                     <ul className="features">
                       <li>✅ 10,000 notifications/month</li>
@@ -2269,7 +2269,7 @@ const Dashboard: React.FC = React.memo(() => {
                     {planTier === 'team' && <div className="current-badge">Current Plan</div>}
                     <div className="plan-header">
                       <h4>Team</h4>
-                      <div className="price">$79<span>/month</span></div>
+                      <div className="price">$99<span>/month</span></div>
                     </div>
                     <ul className="features">
                       <li>✅ Unlimited notifications & rules</li>
