@@ -2252,13 +2252,13 @@ const Dashboard: React.FC = React.memo(() => {
                       <div className="price">$49<span>/month</span></div>
                     </div>
                     <ul className="features">
-                      <li>✅ 10,000 notifications/month</li>
-                      <li>✅ Unlimited webhooks & rules</li>
+                      <li>✅ 5,000 notifications/month</li>
+                      <li>✅ 10 webhooks, 50 rules maximum</li>
                       <li>✅ Smart channel routing</li>
                       <li>✅ Quiet hours scheduling</li>
-                      <li>✅ Custom message templates</li>
-                      <li>✅ Advanced probability filtering</li>
-                      <li>✅ 90-day logs</li>
+                      <li>✅ Rule templates library</li>
+                      <li>✅ Advanced filtering & probability</li>
+                      <li>✅ 90-day log retention</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'pro' ? 'current' : ['free', 'starter'].includes(planTier) ? 'upgrade' : 'downgrade'}`}>
                       {planTier === 'pro' ? 'Current Plan' : ['free', 'starter'].includes(planTier) ? 'Upgrade' : 'Downgrade'}
@@ -2273,11 +2273,11 @@ const Dashboard: React.FC = React.memo(() => {
                     </div>
                     <ul className="features">
                       <li>✅ Unlimited notifications & rules</li>
+                      <li>✅ Rule templates library</li>
+                      <li>✅ Bulk rule management</li>
                       <li>✅ Team analytics dashboard</li>
-                      <li>✅ Full API access</li>
                       <li>✅ Priority support</li>
-                      <li>✅ Advanced team features</li>
-                      <li>✅ 1-year log retention</li>
+                      <li>✅ 365-day log retention</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'team' ? 'current' : 'upgrade'}`}>
                       {planTier === 'team' ? 'Current Plan' : 'Upgrade'}
