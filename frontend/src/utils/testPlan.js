@@ -6,7 +6,7 @@
 import { getTenantId } from './auth';
 
 // Set this to test different plans: 'free', 'starter', 'pro', 'team'
-const TEST_PLAN_OVERRIDE = 'team'; // Change this to test different plans
+const TEST_PLAN_OVERRIDE = 'free'; // Change this to test different plans
 
 export function getTestPlanFeatures(originalFeatures) {
   // Only allow plan override in development environment
