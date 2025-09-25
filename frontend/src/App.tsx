@@ -53,106 +53,146 @@ function TermsPage() {
 
       <h2>2. Description of Service</h2>
       <p>PipeNotify is a premium notification integration service that connects your Pipedrive CRM with Google Chat, enabling:</p>
-      <ul>
-        <li><strong>Real-time Notifications:</strong> Instant alerts for deal updates, stage changes, and won/lost deals</li>
-        <li><strong>Advanced Filtering:</strong> Sophisticated rule-based notification system with value, stage, owner, and probability filtering</li>
-        <li><strong>Multi-Channel Support:</strong> Route notifications to different Google Chat channels based on criteria</li>
-        <li><strong>Custom Templates:</strong> Personalized notification formats with rich card layouts</li>
-        <li><strong>Usage Analytics:</strong> Comprehensive tracking and reporting of notification delivery</li>
-        <li><strong>Enterprise Features:</strong> Team collaboration, quiet hours, and priority support</li>
-      </ul>
+      <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '8px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '12px' }}><strong>Real-time Notifications:</strong> Instant alerts for deal updates, stage changes, and won/lost deals</div>
+        <div style={{ marginBottom: '12px' }}><strong>Advanced Filtering:</strong> Sophisticated rule-based notification system with value, stage, owner, and probability filtering</div>
+        <div style={{ marginBottom: '12px' }}><strong>Multi-Channel Support:</strong> Route notifications to different Google Chat channels based on criteria</div>
+        <div style={{ marginBottom: '12px' }}><strong>Custom Templates:</strong> Personalized notification formats with rich card layouts</div>
+        <div style={{ marginBottom: '12px' }}><strong>Usage Analytics:</strong> Comprehensive tracking and reporting of notification delivery</div>
+        <div><strong>Enterprise Features:</strong> Team collaboration, quiet hours, and priority support</div>
+      </div>
 
       <h2>3. User Accounts and Registration</h2>
-      <p>To use PipeNotify, you must:</p>
-      <ul>
-        <li>Have a valid Pipedrive account with administrator or appropriate permissions</li>
-        <li>Have access to Google Chat channels where notifications will be delivered</li>
-        <li>Provide accurate, complete, and up-to-date information during the setup process</li>
-        <li>Maintain the security and confidentiality of your integration credentials</li>
-        <li>Be responsible for all activities that occur under your account</li>
-        <li>Notify us immediately of any unauthorized use of your account</li>
-      </ul>
+      <p>To use PipeNotify, you must meet the following requirements:</p>
+      <div style={{ background: '#fef7f0', border: '1px solid #fed7aa', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fed7aa' }}>Have a valid Pipedrive account with administrator or appropriate permissions</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fed7aa' }}>Have access to Google Chat channels where notifications will be delivered</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fed7aa' }}>Provide accurate, complete, and up-to-date information during the setup process</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fed7aa' }}>Maintain the security and confidentiality of your integration credentials</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fed7aa' }}>Be responsible for all activities that occur under your account</div>
+        <div>Notify us immediately of any unauthorized use of your account</div>
+      </div>
 
       <h2>4. Subscription Plans and Billing</h2>
-      <div style={{ background: '#f0f9ff', padding: '15px', borderRadius: '5px', margin: '15px 0' }}>
-        <h3>Plan Tiers:</h3>
-        <ul>
-          <li><strong>Free Plan:</strong> Up to 100 notifications/month, 1 webhook, 3 rules</li>
-          <li><strong>Starter Plan ($19/month):</strong> Up to 1,000 notifications/month, 3 webhooks, 10 rules</li>
-          <li><strong>Pro Plan ($49/month):</strong> Up to 5,000 notifications/month, 10 webhooks, 50 rules</li>
-          <li><strong>Team Plan ($99/month):</strong> Unlimited notifications, webhooks, and rules</li>
-        </ul>
+      <div style={{ background: '#f0f9ff', padding: '20px', borderRadius: '8px', margin: '15px 0' }}>
+        <h3>Plan Tiers</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
+          <div style={{ background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #e1e5e9' }}>
+            <strong>Free Plan</strong><br/>
+            Up to 100 notifications/month, 1 webhook, 3 rules
+          </div>
+          <div style={{ background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #e1e5e9' }}>
+            <strong>Starter Plan ($19/month)</strong><br/>
+            Up to 1,000 notifications/month, 3 webhooks, 10 rules
+          </div>
+          <div style={{ background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #e1e5e9' }}>
+            <strong>Pro Plan ($49/month)</strong><br/>
+            Up to 5,000 notifications/month, 10 webhooks, 50 rules
+          </div>
+          <div style={{ background: 'white', padding: '15px', borderRadius: '6px', border: '1px solid #e1e5e9' }}>
+            <strong>Team Plan ($99/month)</strong><br/>
+            Unlimited notifications, webhooks, and rules
+          </div>
+        </div>
       </div>
       <p>Billing occurs monthly in advance. You may upgrade, downgrade, or cancel your subscription at any time. Refunds are not provided for partial months, but you retain access until the end of your billing cycle.</p>
 
       <h2>5. Acceptable Use Policy</h2>
-      <p>You agree not to use PipeNotify to:</p>
-      <ul>
-        <li>Send spam, unsolicited, or bulk messages</li>
-        <li>Transmit any illegal, harmful, threatening, abusive, or offensive content</li>
-        <li>Attempt to gain unauthorized access to our systems or other users' accounts</li>
-        <li>Reverse engineer, decompile, or attempt to extract the source code</li>
-        <li>Use the service to compete with us or develop competing products</li>
-        <li>Violate any applicable laws, regulations, or third-party rights</li>
-        <li>Exceed rate limits or attempt to circumvent usage restrictions</li>
-      </ul>
+      <p>You agree not to use PipeNotify for the following prohibited activities:</p>
+      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Send spam, unsolicited, or bulk messages</div>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Transmit any illegal, harmful, threatening, abusive, or offensive content</div>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Attempt to gain unauthorized access to our systems or other users' accounts</div>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Reverse engineer, decompile, or attempt to extract the source code</div>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Use the service to compete with us or develop competing products</div>
+        <div style={{ marginBottom: '8px', color: '#dc2626' }}>❌ Violate any applicable laws, regulations, or third-party rights</div>
+        <div style={{ color: '#dc2626' }}>❌ Exceed rate limits or attempt to circumvent usage restrictions</div>
+      </div>
 
       <h2>6. Data Processing and Privacy</h2>
-      <p>We process your data in accordance with our Privacy Policy, which is incorporated by reference. Key points:</p>
-      <ul>
-        <li>We only process Pipedrive data necessary for notification delivery</li>
-        <li>All authentication tokens are encrypted and stored securely</li>
-        <li>We comply with GDPR, CCPA, and other applicable data protection laws</li>
-        <li>You retain full ownership of your business data</li>
-        <li>We implement industry-standard security measures</li>
-      </ul>
+      <p>We process your data in accordance with our Privacy Policy, which is incorporated by reference.</p>
+      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '12px', color: '#166534' }}>🔒 We only process Pipedrive data necessary for notification delivery</div>
+        <div style={{ marginBottom: '12px', color: '#166534' }}>🔐 All authentication tokens are encrypted and stored securely</div>
+        <div style={{ marginBottom: '12px', color: '#166534' }}>📋 We comply with GDPR, CCPA, and other applicable data protection laws</div>
+        <div style={{ marginBottom: '12px', color: '#166534' }}>👤 You retain full ownership of your business data</div>
+        <div style={{ color: '#166534' }}>🛡️ We implement industry-standard security measures</div>
+      </div>
 
       <h2>7. Service Availability and Support</h2>
-      <p>We strive to maintain 99.9% uptime but cannot guarantee uninterrupted service. We provide:</p>
-      <ul>
-        <li><strong>24/7 System Monitoring:</strong> Automated health checks and alerts</li>
-        <li><strong>Email Support:</strong> Response within 24 hours (business days)</li>
-        <li><strong>Priority Support:</strong> For Pro and Team plan subscribers</li>
-        <li><strong>Status Page:</strong> Real-time service status and incident updates</li>
-        <li><strong>Scheduled Maintenance:</strong> Advance notification for planned downtime</li>
-      </ul>
+      <p>We strive to maintain 99.9% uptime but cannot guarantee uninterrupted service. Our support offerings include:</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px', margin: '15px 0' }}>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '15px', borderLeft: '4px solid #3b82f6' }}>
+          <strong>24/7 System Monitoring:</strong> Automated health checks and alerts
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '15px', borderLeft: '4px solid #10b981' }}>
+          <strong>Email Support:</strong> Response within 24 hours (business days)
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '15px', borderLeft: '4px solid #f59e0b' }}>
+          <strong>Priority Support:</strong> For Pro and Team plan subscribers
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '15px', borderLeft: '4px solid #8b5cf6' }}>
+          <strong>Status Page:</strong> Real-time service status and incident updates
+        </div>
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '15px', borderLeft: '4px solid #ef4444' }}>
+          <strong>Scheduled Maintenance:</strong> Advance notification for planned downtime
+        </div>
+      </div>
 
       <h2>8. Limitation of Liability</h2>
       <p><strong>TO THE MAXIMUM EXTENT PERMITTED BY LAW:</strong> PipeNotify is provided "AS IS" without warranties of any kind. We shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to:</p>
-      <ul>
-        <li>Business interruption or loss of profits</li>
-        <li>Data loss or corruption</li>
-        <li>Third-party service outages (Pipedrive or Google Chat)</li>
-        <li>Missed notifications due to technical issues</li>
-        <li>Unauthorized access to your data</li>
-      </ul>
+      <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fde68a' }}>Business interruption or loss of profits</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fde68a' }}>Data loss or corruption</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fde68a' }}>Third-party service outages (Pipedrive or Google Chat)</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #fde68a' }}>Missed notifications due to technical issues</div>
+        <div>Unauthorized access to your data</div>
+      </div>
       <p>Our total liability shall not exceed the amount paid by you for the service in the 12 months preceding the claim.</p>
 
       <h2>9. Intellectual Property</h2>
-      <p>PipeNotify, including its source code, design, functionality, and content, is owned by Prime Dev Labs and protected by intellectual property laws. You may not:</p>
-      <ul>
-        <li>Copy, modify, or create derivative works of our service</li>
-        <li>Remove or alter any proprietary notices</li>
-        <li>Use our trademarks or branding without written permission</li>
-        <li>Claim ownership of any part of the service</li>
-      </ul>
+      <p>PipeNotify, including its source code, design, functionality, and content, is owned by Prime Dev Labs and protected by intellectual property laws. The following activities are prohibited:</p>
+      <div style={{ background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #d1d5db', color: '#374151' }}>⛔ Copy, modify, or create derivative works of our service</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #d1d5db', color: '#374151' }}>⛔ Remove or alter any proprietary notices</div>
+        <div style={{ marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid #d1d5db', color: '#374151' }}>⛔ Use our trademarks or branding without written permission</div>
+        <div style={{ color: '#374151' }}>⛔ Claim ownership of any part of the service</div>
+      </div>
 
       <h2>10. Termination</h2>
-      <p>Either party may terminate this agreement at any time:</p>
-      <ul>
-        <li><strong>By You:</strong> Cancel your subscription or disconnect the integration</li>
-        <li><strong>By Us:</strong> For violations of these terms, non-payment, or at our discretion</li>
-        <li><strong>Effect of Termination:</strong> Access ends immediately, data may be retained for 30 days</li>
-        <li><strong>Survival:</strong> Privacy, liability, and intellectual property provisions survive termination</li>
-      </ul>
+      <p>Either party may terminate this agreement under the following circumstances:</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', margin: '15px 0' }}>
+        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '15px', borderLeft: '4px solid #10b981' }}>
+          <strong>By You:</strong><br/>
+          Cancel your subscription or disconnect the integration
+        </div>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '15px', borderLeft: '4px solid #ef4444' }}>
+          <strong>By Us:</strong><br/>
+          For violations of these terms, non-payment, or at our discretion
+        </div>
+        <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', padding: '15px', borderLeft: '4px solid #f59e0b' }}>
+          <strong>Effect of Termination:</strong><br/>
+          Access ends immediately, data may be retained for 30 days
+        </div>
+        <div style={{ background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: '8px', padding: '15px', borderLeft: '4px solid #8b5cf6' }}>
+          <strong>Survival:</strong><br/>
+          Privacy, liability, and intellectual property provisions survive termination
+        </div>
+      </div>
 
       <h2>11. Changes to Terms</h2>
-      <p>We reserve the right to update these terms at any time. Material changes will be communicated via:</p>
-      <ul>
-        <li>Email notification to your registered address</li>
-        <li>In-app notifications within the dashboard</li>
-        <li>Updates to this page with revision date</li>
-      </ul>
+      <p>We reserve the right to update these terms at any time. Material changes will be communicated through multiple channels:</p>
+      <div style={{ background: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '20px', margin: '15px 0' }}>
+        <div style={{ marginBottom: '12px', color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          📧 Email notification to your registered address
+        </div>
+        <div style={{ marginBottom: '12px', color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          🔔 In-app notifications within the dashboard
+        </div>
+        <div style={{ color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          📄 Updates to this page with revision date
+        </div>
+      </div>
       <p>Continued use after changes constitutes acceptance of the revised terms.</p>
 
       <h2>12. Governing Law and Disputes</h2>
