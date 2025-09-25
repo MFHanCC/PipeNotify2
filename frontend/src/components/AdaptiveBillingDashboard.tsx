@@ -130,12 +130,6 @@ const AdaptiveBillingDashboard: React.FC<AdaptiveBillingDashboardProps> = ({ onN
           textAlign: 'center',
           marginBottom: '2rem'
         }}>
-        <h1 style={{
-          fontSize: '2.5rem',
-          fontWeight: '700',
-          color: '#1f2937',
-          margin: '0 0 0.5rem 0'
-        }}>💳 Billing Dashboard</h1>
         <p style={{
           fontSize: '1.125rem',
           color: '#6b7280',

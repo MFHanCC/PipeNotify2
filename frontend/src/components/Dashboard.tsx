@@ -2035,17 +2035,23 @@ const Dashboard: React.FC = React.memo(() => {
           >
             <span aria-hidden="true">🧪</span> {!sidebarCollapsed && 'Testing'}
           </button>
-          {hasFeature('bulk_management') && (
+          <FeatureRestriction
+            isAvailable={hasFeature('bulk_management')}
+            featureName="Bulk Management"
+            requiredPlan={getFeatureRequiredPlan('bulk_management')}
+            currentPlan={planTier}
+          >
             <button 
-              className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''}`}
-              onClick={() => setActiveTab('bulk-management')}
+              className={`nav-tab ${activeTab === 'bulk-management' ? 'active' : ''} ${!hasFeature('bulk_management') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('bulk_management') && setActiveTab('bulk-management')}
               aria-label="Bulk rule management"
               aria-current={activeTab === 'bulk-management' ? 'page' : undefined}
               type="button"
+              disabled={!hasFeature('bulk_management')}
             >
               <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
             </button>
-          )}
+          </FeatureRestriction>
           <button 
             className={`nav-tab ${activeTab === 'billing' ? 'active' : ''}`}
             onClick={() => setActiveTab('billing')}
