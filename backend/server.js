@@ -246,6 +246,20 @@ try {
   });
 }
 
+// Start log cleanup service (daily cron job)
+console.log('🔄 STARTING LOG CLEANUP SERVICE...');
+try {
+  require('./jobs/logCleanup');
+  console.log('✅ LOG CLEANUP SERVICE STARTED - will run daily at 2 AM UTC');
+} catch (cleanupError) {
+  console.error('❌ FAILED TO START LOG CLEANUP SERVICE:', cleanupError);
+  console.error('Log cleanup error details:', {
+    message: cleanupError.message,
+    code: cleanupError.code,
+    stack: cleanupError.stack
+  });
+}
+
 // Start self-healing monitoring system
 try {
   const { startSelfHealingMonitor } = require('./services/selfHealing');

@@ -20,6 +20,7 @@ const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
 const BillingDashboard = lazy(() => import('./AdaptiveBillingDashboard'));
 const TestingSection = lazy(() => import('./TestingSection'));
+const RuleTemplateLibrary = lazy(() => import('./RuleTemplateLibrary'));
 
 // Loading component for Suspense fallback
 const ComponentLoader: React.FC = () => (
@@ -206,7 +207,7 @@ const Dashboard: React.FC = React.memo(() => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'templates' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
@@ -558,6 +559,89 @@ const Dashboard: React.FC = React.memo(() => {
         alert('🌐 Network Error\n\nUnable to connect to the server. Please check your internet connection and try again.');
       } else {
         alert('❌ Unexpected Error\n\nSomething went wrong while adding default rules. Please try again or contact support if the problem persists.');
+      }
+    }
+  };
+
+  const handleApplyTemplate = async (templateId: string, customization: Record<string, any>) => {
+    try {
+      console.log('🎨 Applying template:', templateId, 'with customization:', customization);
+      
+      // Check authentication
+      const authToken = getAuthToken();
+      if (!authToken) {
+        throw new Error('Authentication failed');
+      }
+
+      // Get tenant ID
+      const tenantId = getTenantId();
+      if (!tenantId) {
+        throw new Error('No tenant ID found');
+      }
+
+      // Check if user has available webhooks
+      if (availableWebhooks.length === 0) {
+        alert('🔗 Google Chat Setup Required\n\nNo Google Chat webhooks found. Please complete onboarding first to set up your Google Chat integration.\n\nGo to Onboarding → Google Chat Setup to add your webhook.');
+        return;
+      }
+
+      // Check rule limits
+      if (!isWithinRuleLimit(rules.length)) {
+        alert(`🔒 Rule Limit Reached\n\n${planTier === 'free' ? 'Free' : planTier} plan limit reached (${getRuleLimitMessage()} rule${getRuleLimitMessage() === '1' ? '' : 's'} max).\n\nUpgrade to create more rules.`);
+        return;
+      }
+
+      // Use the first available webhook
+      const webhookId = availableWebhooks[0].id;
+
+      // Apply the template
+      const response = await fetch(`/api/v1/templates/library/${templateId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        } as HeadersInit,
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          webhook_id: webhookId,
+          customization
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Template applied successfully:', result);
+        
+        // Refresh the rules list
+        await loadDashboardData();
+        
+        // Switch to rules tab to show the new rule
+        setActiveTab('rules');
+        
+        // Show success message
+        alert(`✅ Template Applied Successfully!\n\nRule "${result.rule.name}" has been created and is ready to send notifications.\n\nYou can now see it in the Rules section and customize it further if needed.`);
+        
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `HTTP ${response.status} error`;
+        
+        if (response.status === 401) {
+          alert('🔐 Authentication Failed\n\nYour session has expired. Please refresh the page and reconnect to Pipedrive.');
+        } else {
+          alert(`❌ Failed to Apply Template\n\n${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error applying template:', err);
+      
+      if (err instanceof Error && err.message === 'Authentication failed') {
+        alert('🔐 Authentication Required\n\nYour session has expired. The page will reload to reconnect.');
+        setTimeout(() => window.location.reload(), 2000);
+      } else if (err instanceof TypeError && err.message.includes('fetch')) {
+        alert('🌐 Network Error\n\nUnable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        alert('❌ Unexpected Error\n\nSomething went wrong while applying the template. Please try again or contact support if the problem persists.');
       }
     }
   };
@@ -1846,6 +1930,15 @@ const Dashboard: React.FC = React.memo(() => {
             <span aria-hidden="true">⚙️</span> {!sidebarCollapsed && `Rules (${rules.length})`}
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'templates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('templates')}
+            aria-label="Template library for easy rule creation"
+            aria-current={activeTab === 'templates' ? 'page' : undefined}
+            type="button"
+          >
+            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Templates'}
+          </button>
+          <button 
             className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('logs')}
             aria-label="View notification logs"
@@ -2004,6 +2097,14 @@ const Dashboard: React.FC = React.memo(() => {
         <div className="dashboard-content">
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'rules' && renderRules()}
+          {activeTab === 'templates' && (
+            <Suspense fallback={<ComponentLoader />}>
+              <RuleTemplateLibrary
+                onApplyTemplate={handleApplyTemplate}
+                planTier={planTier}
+              />
+            </Suspense>
+          )}
           {activeTab === 'logs' && renderLogs()}
           {activeTab === 'webhooks' && (
             <Suspense fallback={<ComponentLoader />}>

@@ -3,6 +3,13 @@ const router = express.Router();
 const { pool } = require('../services/database');
 const { validateTemplate, getAvailableVariables, DEFAULT_TEMPLATES } = require('../services/templateEngine');
 const { requireFeature } = require('../middleware/featureGating');
+const { 
+  getRuleTemplates, 
+  getRuleTemplate, 
+  applyTemplateCustomization, 
+  getTemplatesByCategory,
+  getTemplateCategories 
+} = require('../config/ruleTemplates');
 
 /**
  * GET /api/v1/templates/variables
@@ -94,6 +101,171 @@ router.post('/validate', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to validate template'
+    });
+  }
+});
+
+/**
+ * GET /api/v1/templates/library
+ * Get all rule templates from library (filtered by plan tier)
+ */
+router.get('/library', async (req, res) => {
+  try {
+    const { plan_tier = 'free', category } = req.query;
+    
+    let templates;
+    if (category) {
+      templates = getTemplatesByCategory(category, plan_tier);
+    } else {
+      templates = getRuleTemplates(plan_tier);
+    }
+    
+    res.json({
+      success: true,
+      templates,
+      total: templates.length,
+      plan_tier,
+      ...(category && { category })
+    });
+    
+  } catch (error) {
+    console.error('Error getting rule templates library:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get rule templates library'
+    });
+  }
+});
+
+/**
+ * GET /api/v1/templates/library/categories
+ * Get all template categories with counts
+ */
+router.get('/library/categories', async (req, res) => {
+  try {
+    const { plan_tier = 'free' } = req.query;
+    
+    const categories = getTemplateCategories(plan_tier);
+    
+    res.json({
+      success: true,
+      categories,
+      total: categories.length,
+      plan_tier
+    });
+    
+  } catch (error) {
+    console.error('Error getting template categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get template categories'
+    });
+  }
+});
+
+/**
+ * GET /api/v1/templates/library/:templateId
+ * Get specific template from library
+ */
+router.get('/library/:templateId', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    
+    const template = getRuleTemplate(templateId);
+    
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+        template_id: templateId
+      });
+    }
+    
+    res.json({
+      success: true,
+      template
+    });
+    
+  } catch (error) {
+    console.error('Error getting rule template:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get rule template'
+    });
+  }
+});
+
+/**
+ * POST /api/v1/templates/library/:templateId/apply
+ * Apply template with customization to create a rule
+ */
+router.post('/library/:templateId/apply', async (req, res) => {
+  try {
+    const { templateId } = req.params;
+    const { customization = {}, tenant_id, webhook_id } = req.body;
+    
+    // Validate required fields
+    if (!tenant_id || !webhook_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id and webhook_id are required'
+      });
+    }
+    
+    // Get the template
+    const template = getRuleTemplate(templateId);
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+        template_id: templateId
+      });
+    }
+    
+    // Apply customization
+    const ruleConfig = applyTemplateCustomization(template, customization);
+    
+    // Create the rule in database
+    const result = await pool.query(`
+      INSERT INTO rules (
+        tenant_id, name, event_type, filters, target_webhook_id,
+        template_mode, custom_template, enabled, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING *
+    `, [
+      tenant_id,
+      ruleConfig.name,
+      ruleConfig.event_type,
+      JSON.stringify(ruleConfig.filters),
+      webhook_id,
+      ruleConfig.template_config.template_mode,
+      ruleConfig.template_config.custom_template,
+      ruleConfig.enabled
+    ]);
+    
+    const createdRule = result.rows[0];
+    
+    res.json({
+      success: true,
+      message: 'Template applied successfully',
+      rule: {
+        id: createdRule.id,
+        name: createdRule.name,
+        event_type: createdRule.event_type,
+        filters: createdRule.filters,
+        enabled: createdRule.enabled,
+        template_mode: createdRule.template_mode,
+        custom_template: createdRule.custom_template
+      },
+      template_id: templateId,
+      applied_customization: customization
+    });
+    
+  } catch (error) {
+    console.error('Error applying rule template:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to apply rule template'
     });
   }
 });

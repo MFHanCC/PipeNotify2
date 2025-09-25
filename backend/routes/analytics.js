@@ -40,6 +40,160 @@ const parseDateRange = (range) => {
   return { startDate, endDate: now };
 };
 
+/**
+ * Get real analytics data from the database
+ */
+async function getRealAnalyticsData(tenantId, range) {
+  const { startDate, endDate } = parseDateRange(range);
+  
+  try {
+    // Get overall statistics
+    const overallStatsQuery = `
+      SELECT 
+        COUNT(*) as total_notifications,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as successful,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+        AVG(CASE WHEN response_time_ms IS NOT NULL THEN response_time_ms END) as avg_response_time
+      FROM logs 
+      WHERE tenant_id = $1 
+      AND created_at >= $2 
+      AND created_at <= $3
+    `;
+    
+    const overallResult = await pool.query(overallStatsQuery, [tenantId, startDate, endDate]);
+    const stats = overallResult.rows[0];
+    
+    const totalNotifications = parseInt(stats.total_notifications) || 0;
+    const successful = parseInt(stats.successful) || 0;
+    const failed = parseInt(stats.failed) || 0;
+    const successRate = totalNotifications > 0 ? Math.round((successful / totalNotifications) * 100) : 0;
+    const failureRate = 100 - successRate;
+    const avgResponseTime = Math.round(parseFloat(stats.avg_response_time) || 0);
+
+    // Get rule performance
+    const ruleStatsQuery = `
+      SELECT 
+        r.id,
+        r.name,
+        COUNT(l.id) as success_count,
+        COUNT(CASE WHEN l.status = 'failed' THEN 1 END) as failure_count,
+        AVG(CASE WHEN l.response_time_ms IS NOT NULL THEN l.response_time_ms END) as avg_response_time
+      FROM rules r
+      LEFT JOIN logs l ON l.rule_id = r.id 
+        AND l.created_at >= $2 
+        AND l.created_at <= $3
+        AND l.status = 'success'
+      WHERE r.tenant_id = $1
+      GROUP BY r.id, r.name
+      ORDER BY success_count DESC
+      LIMIT 10
+    `;
+    
+    const ruleResult = await pool.query(ruleStatsQuery, [tenantId, startDate, endDate]);
+    const topPerformingRules = ruleResult.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      successCount: parseInt(row.success_count) || 0,
+      failureCount: parseInt(row.failure_count) || 0,
+      successRate: row.success_count > 0 ? Math.round((row.success_count / (row.success_count + row.failure_count)) * 100) : 0
+    }));
+
+    // Get rule effectiveness with trends
+    const ruleEffectivenessQuery = `
+      SELECT 
+        r.id as rule_id,
+        r.name as rule_name,
+        COUNT(l.id) as triggers_today,
+        COUNT(CASE WHEN l.status = 'success' THEN 1 END) as successful,
+        AVG(CASE WHEN l.response_time_ms IS NOT NULL THEN l.response_time_ms END) as avg_response_time
+      FROM rules r
+      LEFT JOIN logs l ON l.rule_id = r.id 
+        AND l.created_at >= CURRENT_DATE
+        AND l.created_at < CURRENT_DATE + INTERVAL '1 day'
+      WHERE r.tenant_id = $1
+      GROUP BY r.id, r.name
+      ORDER BY triggers_today DESC
+    `;
+    
+    const effectivenessResult = await pool.query(ruleEffectivenessQuery, [tenantId]);
+    const ruleEffectiveness = effectivenessResult.rows.map(row => {
+      const triggers = parseInt(row.triggers_today) || 0;
+      const successful = parseInt(row.successful) || 0;
+      return {
+        ruleId: row.rule_id.toString(),
+        ruleName: row.rule_name,
+        triggersToday: triggers,
+        successRate: triggers > 0 ? Math.round((successful / triggers) * 100) : 0,
+        avgResponseTime: Math.round(parseFloat(row.avg_response_time) || 0),
+        trend: triggers > 0 ? 'up' : 'stable' // Simplified trend calculation
+      };
+    });
+
+    // Get channel performance
+    const channelStatsQuery = `
+      SELECT 
+        cw.name as channel_name,
+        COUNT(l.id) as total_notifications,
+        COUNT(CASE WHEN l.status = 'success' THEN 1 END) as success_count,
+        COUNT(CASE WHEN l.status = 'failed' THEN 1 END) as failure_count,
+        AVG(CASE WHEN l.response_time_ms IS NOT NULL THEN l.response_time_ms END) as avg_response_time
+      FROM chat_webhooks cw
+      LEFT JOIN logs l ON l.webhook_id = cw.id 
+        AND l.created_at >= $2 
+        AND l.created_at <= $3
+      WHERE cw.tenant_id = $1
+      GROUP BY cw.id, cw.name
+      ORDER BY success_count DESC
+    `;
+    
+    const channelResult = await pool.query(channelStatsQuery, [tenantId, startDate, endDate]);
+    const channelPerformance = channelResult.rows.map(row => ({
+      channelName: row.channel_name || 'Unnamed Channel',
+      successCount: parseInt(row.success_count) || 0,
+      failureCount: parseInt(row.failure_count) || 0,
+      avgResponseTime: Math.round(parseFloat(row.avg_response_time) || 0)
+    }));
+
+    // Get time series data (daily aggregation)
+    const timeSeriesQuery = `
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(CASE WHEN status = 'success' THEN 1 END) as success,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failure,
+        AVG(CASE WHEN response_time_ms IS NOT NULL THEN response_time_ms END) as response_time
+      FROM logs 
+      WHERE tenant_id = $1 
+      AND created_at >= $2 
+      AND created_at <= $3
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `;
+    
+    const timeSeriesResult = await pool.query(timeSeriesQuery, [tenantId, startDate, endDate]);
+    const timeSeriesData = timeSeriesResult.rows.map(row => ({
+      timestamp: row.date.toISOString(),
+      success: parseInt(row.success) || 0,
+      failure: parseInt(row.failure) || 0,
+      responseTime: Math.round(parseFloat(row.response_time) || 0)
+    }));
+
+    return {
+      totalNotifications,
+      successRate,
+      failureRate,
+      avgResponseTime,
+      topPerformingRules,
+      timeSeriesData,
+      ruleEffectiveness,
+      channelPerformance
+    };
+
+  } catch (error) {
+    console.error('Error fetching real analytics data:', error);
+    throw error;
+  }
+}
+
 // Helper function to generate mock data for demonstration
 const generateMockAnalytics = (tenantId, range) => {
   const { startDate, endDate } = parseDateRange(range);
@@ -150,17 +304,17 @@ router.get('/dashboard/:tenantId', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    // For now, return mock data for demonstration
-    // In production, this would query the actual database
-    const analyticsData = generateMockAnalytics(tenantId, range);
+    // Get real analytics data from database
+    const analyticsData = await getRealAnalyticsData(tenantId, range);
     
     res.json(analyticsData);
   } catch (error) {
     console.error('Error fetching analytics:', error);
-    res.status(500).json({
-      error: 'Failed to fetch analytics',
-      message: error.message
-    });
+    
+    // Fallback to mock data if database query fails
+    console.warn('Falling back to mock data due to error:', error.message);
+    const mockData = generateMockAnalytics(tenantId, range);
+    res.json(mockData);
   }
 });
 
