@@ -195,7 +195,8 @@ The frontend restrictions are backed by robust server-side enforcement:
 | **Multi-Channel Orchestration** | 🔒 | 🔒 | 🔒 | ✅ |
 | **Daily/Weekly Summaries** | 🔒 | 🔒 | 🔒 | ✅ |
 | **Team Performance Metrics** | 🔒 | 🔒 | 🔒 | ✅ |
-| **API Access** | 🔒 | 🔒 | 🔒 | ✅ |
+| **Rule Templates Library** | 🔒 | 🔒 | ✅ | ✅ |
+| **Bulk Rule Management** | 🔒 | 🔒 | 🔒 | ✅ |
 | **Custom Field Filtering** | 🔒 | 🔒 | 🔒 | ✅ |
 | **Tag-Based Filtering** | 🔒 | 🔒 | 🔒 | ✅ |
 
@@ -249,8 +250,8 @@ The frontend restrictions are backed by robust server-side enforcement:
 | Email Support | ❌ | ✅ | ✅ | ✅ |
 | Priority Support | ❌ | ❌ | ✅ | ✅ |
 | Dedicated Support | ❌ | ❌ | ❌ | ✅ |
-| API Access | ❌ | ❌ | ❌ | ✅ |
-| Webhooks API | ❌ | ❌ | ❌ | ✅ |
+| Rule Templates Library | ❌ | ❌ | ✅ | ✅ |
+| Bulk Rule Management | ❌ | ❌ | ❌ | ✅ |
 
 ---
 

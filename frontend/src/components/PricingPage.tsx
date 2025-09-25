@@ -31,7 +31,7 @@ const plans: Plan[] = [
       'Google Chat integration',
       'Basic message templates',
       'Email support',
-      '100 notifications/month'
+      '7-day log retention'
     ],
     cta: 'Start free',
     ctaType: 'secondary',
@@ -45,60 +45,65 @@ const plans: Plan[] = [
     name: 'Starter',
     tier: 'starter',
     bestFor: 'Best for small teams',
-    monthlyPrice: 9,
-    annualPrice: 7,
+    monthlyPrice: 19,
+    annualPrice: 15,
     features: [
       'Everything in Free',
+      '1,000 notifications/month',
       'Deal filtering & routing',
-      'Advanced notifications',
+      'Advanced notifications', 
       'Priority email support',
-      'Unlimited notifications',
-      'Multiple webhooks'
+      'Enhanced message formatting',
+      '30-day log retention'
     ],
     cta: 'Get started',
     ctaType: 'primary',
     limits: {
-      notifications: 'Unlimited',
+      notifications: '1,000/month',
       webhooks: '3',
-      rules: '7 rules total'
+      rules: '10 rules total'
     }
   },
   {
     name: 'Professional',
     tier: 'pro',
     bestFor: 'Best for growing businesses',
-    monthlyPrice: 29,
-    annualPrice: 23,
+    monthlyPrice: 49,
+    annualPrice: 39,
     popular: true,
     features: [
       'Everything in Starter',
+      '5,000 notifications/month',
+      'Rule templates library',
       'Custom message templates',
-      'Advanced routing logic',
+      'Smart channel routing',
       'Quiet hours scheduling',
+      'Stalled deal alerts',
       'Analytics dashboard',
-      'Live chat support'
+      '90-day log retention'
     ],
     cta: 'Get started',
     ctaType: 'primary',
     limits: {
-      notifications: 'Unlimited',
-      webhooks: 'Unlimited',
-      rules: '10 rules total'
+      notifications: '5,000/month',
+      webhooks: '10',
+      rules: '50 rules total'
     }
   },
   {
     name: 'Team',
     tier: 'team',
     bestFor: 'Best for large organizations',
-    monthlyPrice: 79,
-    annualPrice: 63,
+    monthlyPrice: 99,
+    annualPrice: 79,
     features: [
       'Everything in Professional',
+      'Unlimited notifications',
+      'Bulk rule management',
       'Team analytics & insights',
-      'API access & webhooks',
-      'Dedicated account manager',
-      'Custom integrations',
-      'SLA guarantee'
+      'Daily/weekly summaries',
+      'Priority support',
+      '1-year log retention'
     ],
     cta: 'Get started',
     ctaType: 'primary',
@@ -116,20 +121,24 @@ const comparisonFeatures = [
     { name: 'Google Chat integration', free: true, starter: true, pro: true, team: true },
     { name: 'Basic templates', free: true, starter: true, pro: true, team: true },
     { name: 'Deal filtering', free: false, starter: true, pro: true, team: true },
-    { name: 'Custom templates', free: false, starter: false, pro: true, team: true },
+    { name: 'Enhanced message formatting', free: false, starter: true, pro: true, team: true },
   ]},
   { category: 'Advanced Features', features: [
-    { name: 'Advanced routing', free: false, starter: false, pro: true, team: true },
-    { name: 'Quiet hours', free: false, starter: false, pro: true, team: true },
+    { name: 'Rule templates library', free: false, starter: false, pro: true, team: true },
+    { name: 'Custom message templates', free: false, starter: false, pro: true, team: true },
+    { name: 'Smart channel routing', free: false, starter: false, pro: true, team: true },
+    { name: 'Quiet hours scheduling', free: false, starter: false, pro: true, team: true },
+    { name: 'Stalled deal alerts', free: false, starter: false, pro: true, team: true },
     { name: 'Analytics dashboard', free: false, starter: false, pro: true, team: true },
+    { name: 'Bulk rule management', free: false, starter: false, pro: false, team: true },
     { name: 'Team insights', free: false, starter: false, pro: false, team: true },
-    { name: 'API access', free: false, starter: false, pro: false, team: true },
+    { name: 'Daily/weekly summaries', free: false, starter: false, pro: false, team: true },
   ]},
   { category: 'Support & Limits', features: [
-    { name: 'Email support', free: true, starter: true, pro: true, team: true },
-    { name: 'Live chat support', free: false, starter: false, pro: true, team: true },
-    { name: 'Dedicated manager', free: false, starter: false, pro: false, team: true },
-    { name: 'SLA guarantee', free: false, starter: false, pro: false, team: true },
+    { name: 'Community support', free: true, starter: true, pro: true, team: true },
+    { name: 'Email support', free: false, starter: true, pro: true, team: true },
+    { name: 'Priority support', free: false, starter: false, pro: true, team: true },
+    { name: '1-year log retention', free: false, starter: false, pro: false, team: true },
   ]}
 ];
 
@@ -395,8 +404,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
             <p>Ready-to-use rules we provide for ease of use. You can customize, delete, or replace them with your own rules within your plan's limit.</p>
           </details>
           <details className="faq-item">
-            <summary>Can I customize notification messages?</summary>
-            <p>Professional and Team plans include custom message templates with deal data variables.</p>
+            <summary>What are rule templates?</summary>
+            <p>Professional and Team plans include pre-built rule templates for common notification patterns like high-value deals, won celebrations, and stalled deal monitoring.</p>
           </details>
           <details className="faq-item">
             <summary>Is my Pipedrive data secure?</summary>
@@ -409,7 +418,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onPlanSelect }) => {
         </div>
         
         <div className="enterprise-note">
-          <p>Need custom features or enterprise-level support? <a href="mailto:sales@pipenotify.com">Contact our sales team</a> for custom pricing and dedicated onboarding.</p>
+          <p>Need custom features or enterprise-level support? <a href="mailto:team@primedevlabs.com">Contact our sales team</a> for custom pricing and dedicated onboarding.</p>
         </div>
       </section>
     </div>
