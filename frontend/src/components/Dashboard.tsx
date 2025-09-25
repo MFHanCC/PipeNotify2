@@ -2167,10 +2167,17 @@ const Dashboard: React.FC = React.memo(() => {
           )}
           {activeTab === 'bulk-management' && !hasFeature('bulk_management') && (
             <FeatureRestriction 
+              isAvailable={false}
               featureName="Bulk Management"
               requiredPlan={getFeatureRequiredPlan('bulk_management')}
-              description="Manage multiple rules at once with bulk operations, batch editing, and advanced filtering."
-            />
+              currentPlan={planTier}
+              upgradeHint="Manage multiple rules at once with bulk operations, batch editing, and advanced filtering."
+            >
+              <div className="feature-placeholder">
+                <h3>📋 Bulk Management</h3>
+                <p>Advanced rule management capabilities</p>
+              </div>
+            </FeatureRestriction>
           )}
           {activeTab === 'billing' && (
             <div className="billing-section">
