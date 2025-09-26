@@ -1,6 +1,4 @@
-import { API_BASE_URL } from '../config/api';
-import React, { useState, useEffect, useMemo } from 'react';
-import { authenticatedFetch } from '../utils/auth';
+import React from 'react';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';
 import BasicAnalyticsDashboard from './BasicAnalyticsDashboard';
 import AdvancedAnalyticsDashboard from './AdvancedAnalyticsDashboard';
