@@ -12,7 +12,7 @@ const FEATURE_PLANS = {
   'enhanced_formatting': ['starter', 'pro', 'team'],
   'stage_filtering': ['starter', 'pro', 'team'],
   'activity_notifications': ['starter', 'pro', 'team'],
-  'usage_analytics': ['starter', 'pro', 'team'],
+  'basic_analytics': ['starter', 'pro', 'team'],
   
   // Professional features
   'channel_routing': ['pro', 'team'],

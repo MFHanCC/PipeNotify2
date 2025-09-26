@@ -349,6 +349,7 @@ app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/templates', templatesRoutes);
 app.use('/api/v1/analytics', require('./routes/analytics'));
+app.use('/api/v1/analytics/advanced', require('./routes/advancedAnalytics'));
 app.use('/api/v1/health', require('./routes/health'));
 
 // Health check endpoint

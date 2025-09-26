@@ -163,8 +163,7 @@ const RULE_TEMPLATES = [
     preview: {
       title: 'Pipeline Stage Tracking',
       description: 'Get notifications when deals reach critical stages in your sales pipeline.'
-    },
-    requirements: ['starter', 'pro', 'team']
+    }
   },
 
   {
@@ -227,8 +226,7 @@ const RULE_TEMPLATES = [
     preview: {
       title: 'Lost Deal Analysis',
       description: 'Helps track lost deals with context for continuous improvement of sales processes.'
-    },
-    requirements: ['starter', 'pro', 'team']
+    }
   },
 
   {
@@ -254,6 +252,231 @@ const RULE_TEMPLATES = [
       description: 'Comprehensive overview of all team deal activities for managers and team leads.'
     },
     requirements: ['team']
+  },
+
+  {
+    id: 'deal-risk-alerts',
+    name: 'Deal Risk Alerts',
+    description: 'Get alerted when high-value deals drop in probability and may be at risk',
+    category: 'monitoring',
+    difficulty: 'intermediate',
+    event_type: 'deal.updated',
+    template: {
+      name: 'Deal Risk Alerts - {{PROBABILITY_THRESHOLD}}%',
+      event_type: 'deal.updated',
+      enabled: true,
+      filters: {
+        value_min: 10000,
+        probability_max: 50
+      },
+      template_config: {
+        template_mode: 'detailed',
+        custom_template: null
+      }
+    },
+    customization: {
+      PROBABILITY_THRESHOLD: {
+        type: 'number',
+        default: 50,
+        min: 10,
+        max: 90,
+        step: 5,
+        description: 'Maximum probability threshold to trigger risk alerts'
+      },
+      VALUE_THRESHOLD: {
+        type: 'number',
+        default: 10000,
+        min: 1000,
+        max: 500000,
+        step: 1000,
+        description: 'Minimum deal value to monitor for risk'
+      }
+    },
+    preview: {
+      title: 'Deal Risk Alerts',
+      description: 'Stay on top of deals that may be slipping away by monitoring probability drops on high-value opportunities.'
+    },
+    requirements: ['pro', 'team']
+  },
+
+  {
+    id: 'closing-soon-reminders',
+    name: 'Closing Soon Reminders',
+    description: 'Get reminded of deals expected to close in the next few days',
+    category: 'sales',
+    difficulty: 'beginner',
+    event_type: 'deal.updated',
+    template: {
+      name: 'Closing Soon Reminders - {{DAYS_AHEAD}} days',
+      event_type: 'deal.updated',
+      enabled: true,
+      filters: {
+        days_until_close: 7
+      },
+      template_config: {
+        template_mode: 'compact',
+        custom_template: null
+      }
+    },
+    customization: {
+      DAYS_AHEAD: {
+        type: 'number',
+        default: 7,
+        min: 1,
+        max: 30,
+        step: 1,
+        description: 'Days ahead to send closing reminders'
+      }
+    },
+    preview: {
+      title: 'Closing Soon Reminders',
+      description: 'Never miss important deal closures with timely reminders for upcoming expected close dates.'
+    }
+  },
+
+  {
+    id: 'overdue-activities',
+    name: 'Overdue Activities',
+    description: 'Track activities that are past their due date',
+    category: 'monitoring',
+    difficulty: 'beginner',
+    event_type: 'activity.updated',
+    template: {
+      name: 'Overdue Activities - {{DAYS_OVERDUE}}+ days',
+      event_type: 'activity.updated',
+      enabled: true,
+      filters: {
+        days_overdue: 1
+      },
+      template_config: {
+        template_mode: 'compact',
+        custom_template: null
+      }
+    },
+    customization: {
+      DAYS_OVERDUE: {
+        type: 'number',
+        default: 1,
+        min: 1,
+        max: 30,
+        step: 1,
+        description: 'Number of days overdue before triggering alerts'
+      }
+    },
+    preview: {
+      title: 'Overdue Activities',
+      description: 'Keep your team accountable by tracking activities that have passed their due dates.'
+    },
+    requirements: ['pro', 'team']
+  },
+
+  {
+    id: 'hot-lead-alerts',
+    name: 'Hot Lead Alerts',
+    description: 'Get notified when new high-potential leads are added',
+    category: 'leads',
+    difficulty: 'beginner',
+    event_type: 'person.added',
+    template: {
+      name: 'Hot Lead Alerts - Score {{LEAD_SCORE}}+',
+      event_type: 'person.added',
+      enabled: true,
+      filters: {
+        lead_score_min: 80
+      },
+      template_config: {
+        template_mode: 'detailed',
+        custom_template: null
+      }
+    },
+    customization: {
+      LEAD_SCORE: {
+        type: 'number',
+        default: 80,
+        min: 50,
+        max: 100,
+        step: 5,
+        description: 'Minimum lead score to qualify as hot lead'
+      }
+    },
+    preview: {
+      title: 'Hot Lead Alerts',
+      description: 'Jump on high-potential leads immediately with alerts for contacts that meet your quality criteria.'
+    },
+    requirements: ['pro', 'team']
+  },
+
+  {
+    id: 'top-performer-highlights',
+    name: 'Top Performer Highlights',
+    description: 'Celebrate team members who close multiple deals in a time period',
+    category: 'celebrations',
+    difficulty: 'beginner',
+    event_type: 'deal.won',
+    template: {
+      name: 'Top Performer Highlights - {{DEAL_COUNT}} deals',
+      event_type: 'deal.won',
+      enabled: true,
+      filters: {
+        deals_won_count: 3,
+        time_period_days: 30
+      },
+      template_config: {
+        template_mode: 'custom',
+        custom_template: '🏆 **TOP PERFORMER ALERT!**\n\n🎯 **{{deal.owner_name}}** just closed their {{deals_won_count}} deal this month!\n💰 **Deal:** {{deal.title}} - ${{deal.value}}\n\n*Outstanding work! 🚀*'
+      }
+    },
+    customization: {
+      DEAL_COUNT: {
+        type: 'number',
+        default: 3,
+        min: 2,
+        max: 10,
+        step: 1,
+        description: 'Number of deals needed to trigger top performer alert'
+      }
+    },
+    preview: {
+      title: 'Top Performer Highlights',
+      description: 'Boost team morale by highlighting reps who are excelling and closing multiple deals.'
+    },
+    requirements: ['pro', 'team']
+  },
+
+  {
+    id: 'revenue-milestones',
+    name: 'Revenue Milestones',
+    description: 'Celebrate when monthly or quarterly revenue targets are achieved',
+    category: 'celebrations',
+    difficulty: 'intermediate',
+    event_type: 'deal.won',
+    template: {
+      name: 'Revenue Milestones - ${{MILESTONE_AMOUNT}}',
+      event_type: 'deal.won',
+      enabled: true,
+      filters: {
+        monthly_revenue_target: 100000
+      },
+      template_config: {
+        template_mode: 'custom',
+        custom_template: '🎊 **REVENUE MILESTONE ACHIEVED!** 🎊\n\n💰 **Monthly Target Reached:** ${{milestone_amount}}\n📈 **This Month\'s Performance:** ${{monthly_total}}\n🏆 **Congratulations to the entire team!**\n\n*Keep up the amazing work! 🚀*'
+      }
+    },
+    customization: {
+      MILESTONE_AMOUNT: {
+        type: 'number',
+        default: 100000,
+        min: 10000,
+        max: 1000000,
+        step: 10000,
+        description: 'Monthly revenue target to celebrate'
+      }
+    },
+    preview: {
+      title: 'Revenue Milestones',
+      description: 'Celebrate team achievements when revenue targets and milestones are reached.'
+    },
+    requirements: ['pro', 'team']
   }
 ];
 

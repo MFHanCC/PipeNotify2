@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
-import './AnalyticsDashboard.css';
+import './BasicAnalyticsDashboard.css';
 
 interface NotificationMetrics {
   total_sent: number;
@@ -36,11 +36,12 @@ interface ChannelMetrics {
   avg_response_time: number;
 }
 
-interface AnalyticsDashboardProps {
+interface BasicAnalyticsDashboardProps {
   onRefresh?: () => void;
+  refreshToken?: number;
 }
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onRefresh }) => {
+const BasicAnalyticsDashboard: React.FC<BasicAnalyticsDashboardProps> = ({ onRefresh, refreshToken }) => {
   const [metrics, setMetrics] = useState<NotificationMetrics | null>(null);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [rulePerformance, setRulePerformance] = useState<RulePerformance[]>([]);
@@ -52,6 +53,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onRefresh }) =>
   useEffect(() => {
     loadAnalytics();
   }, [dateRange]);
+
+  // Refetch when refreshToken changes
+  useEffect(() => {
+    if (refreshToken && refreshToken > 0) {
+      loadAnalytics();
+    }
+  }, [refreshToken]);
 
   const loadAnalytics = async () => {
     try {
@@ -362,4 +370,4 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onRefresh }) =>
   );
 };
 
-export default AnalyticsDashboard;
+export default BasicAnalyticsDashboard;

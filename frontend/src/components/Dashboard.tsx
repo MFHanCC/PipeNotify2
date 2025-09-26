@@ -2146,7 +2146,7 @@ const Dashboard: React.FC = React.memo(() => {
               />
             </Suspense>
           )}
-          {activeTab === 'analytics' && hasFeature('usage_analytics') && (
+          {activeTab === 'analytics' && hasFeature('basic_analytics') && (
             <Suspense fallback={<ComponentLoader />}>
               <AnalyticsPanel 
                 tenantId={tenantId}
@@ -2201,26 +2201,38 @@ const Dashboard: React.FC = React.memo(() => {
           )}
           {activeTab === 'pricing' && (
             <div className="pricing-section">
-              <div className="section-header">
-                <h3>💎 Plans & Pricing</h3>
-                <p>Choose the perfect plan for your team</p>
-              </div>
-              
-              <div className="pricing-dashboard-compact">
-                {/* Simplified pricing display */}
-                <div className="pricing-cards">
+              {/* Header */}
+              <header className="pricing-header">
+                <h1>Simple, transparent pricing</h1>
+                <p>Choose the perfect plan for your team. Start free, upgrade anytime.</p>
+                
+                {/* Billing Toggle */}
+                <div className="billing-toggle">
+                  <button className="toggle-option active">
+                    Monthly
+                  </button>
+                  <button className="toggle-option">
+                    Annual
+                    <span className="savings-badge">Save up to 20%</span>
+                  </button>
+                </div>
+              </header>
+
+              {/* Plan Cards */}
+              <section className="plans-section">
+                <div className="plans-grid">
                   <div className={`pricing-card free ${planTier === 'free' ? 'current' : ''}`}>
                     <div className="plan-header">
                       <h4>Free</h4>
                       <div className="price">$0<span>/month</span></div>
                     </div>
                     <ul className="features">
-                      <li>✅ 100 notifications/month</li>
-                      <li>✅ 1 webhook maximum</li>
-                      <li>✅ 3 basic rules maximum (Deal Won/Lost/New)</li>
+                      <li>✅ Real-time deal notifications</li>
+                      <li>✅ Google Chat integration</li>
                       <li>✅ Basic message templates</li>
-                      <li>❌ No advanced filtering</li>
+                      <li>✅ Email support</li>
                       <li>✅ 7-day log retention</li>
+                      <li>✅ 100/month, 1 webhook, 3 rules total</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'free' ? 'current' : 'downgrade'}`}>
                       {planTier === 'free' ? 'Current Plan' : 'Downgrade'}
@@ -2233,12 +2245,13 @@ const Dashboard: React.FC = React.memo(() => {
                       <div className="price">$19<span>/month</span></div>
                     </div>
                     <ul className="features">
+                      <li>✅ Everything in Free</li>
                       <li>✅ 1,000 notifications/month</li>
-                      <li>✅ 3 webhooks maximum</li>
-                      <li>✅ 10 smart rules maximum + Deal Updated</li>
-                      <li>✅ Value/stage/owner filtering</li>
-                      <li>✅ Enhanced message templates</li>
-                      <li>✅ 30-day log retention</li>
+                      <li>✅ 3 webhooks, 10 rules</li>
+                      <li>✅ Value filtering</li>
+                      <li>✅ Enhanced formatting</li>
+                      <li>✅ CSV export of logs</li>
+                      <li>✅ Basic templates (3 pre-built)</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'starter' ? 'current' : planTier === 'free' ? 'upgrade' : 'downgrade'}`}>
                       {planTier === 'starter' ? 'Current Plan' : planTier === 'free' ? 'Upgrade' : 'Downgrade'}
@@ -2252,12 +2265,16 @@ const Dashboard: React.FC = React.memo(() => {
                       <div className="price">$49<span>/month</span></div>
                     </div>
                     <ul className="features">
+                      <li>✅ Everything in Starter</li>
                       <li>✅ 5,000 notifications/month</li>
-                      <li>✅ 10 webhooks, 50 rules maximum</li>
+                      <li>✅ 10 webhooks, 50 rules total</li>
+                      <li>✅ Rule templates library</li>
+                      <li>✅ Custom message templates</li>
                       <li>✅ Smart channel routing</li>
                       <li>✅ Quiet hours scheduling</li>
-                      <li>✅ Rule templates library</li>
-                      <li>✅ Advanced filtering & probability</li>
+                      <li>✅ Stalled deal alerts</li>
+                      <li>✅ Basic analytics dashboard</li>
+                      <li>✅ Bulk rule management</li>
                       <li>✅ 90-day log retention</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'pro' ? 'current' : ['free', 'starter'].includes(planTier) ? 'upgrade' : 'downgrade'}`}>
@@ -2272,42 +2289,86 @@ const Dashboard: React.FC = React.memo(() => {
                       <div className="price">$99<span>/month</span></div>
                     </div>
                     <ul className="features">
-                      <li>✅ Unlimited notifications & rules</li>
-                      <li>✅ Rule templates library</li>
-                      <li>✅ Bulk rule management</li>
-                      <li>✅ Team analytics dashboard</li>
+                      <li>✅ Everything in Professional</li>
+                      <li>✅ Unlimited notifications</li>
+                      <li>✅ Unlimited webhooks</li>
+                      <li>✅ Unlimited rules</li>
+                      <li>✅ Advanced analytics & insights</li>
+                      <li>✅ Scheduled reports (daily/weekly)</li>
+                      <li>✅ Rule backup & restore</li>
                       <li>✅ Priority support</li>
-                      <li>✅ 365-day log retention</li>
+                      <li>✅ 1-year log retention</li>
                     </ul>
                     <button className={`plan-button ${planTier === 'team' ? 'current' : 'upgrade'}`}>
                       {planTier === 'team' ? 'Current Plan' : 'Upgrade'}
                     </button>
                   </div>
                 </div>
-                
-                {/* FAQ Section */}
-                <div className="pricing-faq">
-                  <h4>💡 Frequently Asked Questions</h4>
-                  <div className="faq-compact">
-                    <details className="faq-item">
-                      <summary>Can I change plans anytime?</summary>
-                      <p>Yes, you can upgrade or downgrade instantly. Changes take effect immediately and billing is prorated.</p>
-                    </details>
-                    <details className="faq-item">
-                      <summary>What happens if I exceed limits?</summary>
-                      <p>Notifications pause until next billing cycle or you can upgrade instantly to restore service.</p>
-                    </details>
-                    <details className="faq-item">
-                      <summary>How secure is my data?</summary>
-                      <p>We use enterprise-grade encryption and only access data necessary for notifications.</p>
-                    </details>
-                    <details className="faq-item">
-                      <summary>Do you offer refunds?</summary>
-                      <p>30-day money-back guarantee on all paid plans. Contact support for assistance.</p>
-                    </details>
+              </section>
+
+              {/* Trust Elements */}
+              <section className="trust-section">
+                <div className="trust-grid">
+                  <div className="trust-item">
+                    <div className="trust-icon">🔒</div>
+                    <div className="trust-content">
+                      <h4>Enterprise Security</h4>
+                      <p>SOC 2 compliant, 256-bit encryption</p>
+                    </div>
+                  </div>
+                  <div className="trust-item">
+                    <div className="trust-icon">💯</div>
+                    <div className="trust-content">
+                      <h4>30-Day Money Back</h4>
+                      <p>Full refund, no questions asked</p>
+                    </div>
+                  </div>
+                  <div className="trust-item">
+                    <div className="trust-icon">⚡</div>
+                    <div className="trust-content">
+                      <h4>99.9% Uptime SLA</h4>
+                      <p>Reliable delivery guaranteed</p>
+                    </div>
+                  </div>
+                  <div className="trust-item testimonial">
+                    <div className="trust-content">
+                      <p>"PipeNotify transformed our sales workflow. Essential tool for any Pipedrive team."</p>
+                      <cite>— Sarah K., Sales Director</cite>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </section>
+
+              {/* FAQ Section */}
+              <section className="faq-section">
+                <h2>Frequently asked questions</h2>
+                <div className="faq-list">
+                  <details className="faq-item">
+                    <summary>Can I upgrade or downgrade anytime?</summary>
+                    <p>Yes, change plans instantly from your account settings.</p>
+                  </details>
+                  <details className="faq-item">
+                    <summary>What are default rules?</summary>
+                    <p>Ready-to-use rules we provide for ease of use. You can customize, delete, or replace them with your own rules within your plan's limit.</p>
+                  </details>
+                  <details className="faq-item">
+                    <summary>What are rule templates?</summary>
+                    <p>Professional and Team plans include pre-built rule templates for common notification patterns like high-value deals, won celebrations, and stalled deal monitoring.</p>
+                  </details>
+                  <details className="faq-item">
+                    <summary>Is my Pipedrive data secure?</summary>
+                    <p>Yes, enterprise-grade encryption and SOC 2 compliance protect your data.</p>
+                  </details>
+                  <details className="faq-item">
+                    <summary>30-day money-back guarantee?</summary>
+                    <p>Full refund on all paid plans, no questions asked.</p>
+                  </details>
+                </div>
+                
+                <div className="enterprise-note">
+                  <p>Need custom features or enterprise-level support? <a href="mailto:team@primedevlabs.com">Contact our sales team</a> for custom pricing and dedicated onboarding.</p>
+                </div>
+              </section>
             </div>
           )}
           {activeTab === 'settings' && (
@@ -2412,9 +2473,11 @@ const Dashboard: React.FC = React.memo(() => {
                         <button className="tool-button" onClick={handleTestConnection}>
                           🔌 Test
                         </button>
-                        <button className="tool-button" onClick={handleExportLogs}>
-                          📊 Export
-                        </button>
+                        {hasFeature('csv_export') && (
+                          <button className="tool-button" onClick={handleExportLogs}>
+                            📊 Export
+                          </button>
+                        )}
                         <button className="tool-button" onClick={handleClearCache}>
                           🧹 Clear
                         </button>
