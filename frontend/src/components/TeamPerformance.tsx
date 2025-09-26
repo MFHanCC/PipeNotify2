@@ -20,7 +20,11 @@ interface BenchmarkData {
   source: string;
 }
 
-const TeamPerformance: React.FC = () => {
+interface TeamPerformanceProps {
+  refreshToken?: number;
+}
+
+const TeamPerformance: React.FC<TeamPerformanceProps> = ({ refreshToken }) => {
   const [performance, setPerformance] = useState<TeamPerformanceData | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,6 +34,13 @@ const TeamPerformance: React.FC = () => {
   useEffect(() => {
     fetchTeamPerformance();
   }, [period]);
+
+  // Refetch when refreshToken changes
+  useEffect(() => {
+    if (refreshToken && refreshToken > 0) {
+      fetchTeamPerformance();
+    }
+  }, [refreshToken]);
 
   const fetchTeamPerformance = async () => {
     try {
@@ -82,8 +93,18 @@ const TeamPerformance: React.FC = () => {
   };
 
   const getBenchmarkComparison = (value: number, benchmark: number, isLower = false) => {
+    // Safety checks for invalid benchmark values
+    if (!benchmark || benchmark <= 0 || !isFinite(benchmark) || !isFinite(value)) {
+      return { status: 'on-par', text: 'No benchmark available' };
+    }
+    
     const diff = isLower ? benchmark - value : value - benchmark;
     const percentage = (diff / benchmark) * 100;
+    
+    // Additional safety check for percentage calculation
+    if (!isFinite(percentage)) {
+      return { status: 'on-par', text: 'No benchmark available' };
+    }
     
     if (Math.abs(percentage) < 5) return { status: 'on-par', text: 'On par with industry' };
     if (isLower ? percentage > 0 : percentage > 0) return { status: 'above', text: `${Math.abs(percentage).toFixed(0)}% above industry` };

@@ -19,7 +19,11 @@ interface ExecutiveReport {
   period: string;
 }
 
-const ExecutiveReports: React.FC = () => {
+interface ExecutiveReportsProps {
+  refreshToken?: number;
+}
+
+const ExecutiveReports: React.FC<ExecutiveReportsProps> = ({ refreshToken }) => {
   const [report, setReport] = useState<ExecutiveReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +33,13 @@ const ExecutiveReports: React.FC = () => {
   useEffect(() => {
     fetchExecutiveReport();
   }, [period]);
+
+  // Refetch when refreshToken changes
+  useEffect(() => {
+    if (refreshToken && refreshToken > 0) {
+      fetchExecutiveReport();
+    }
+  }, [refreshToken]);
 
   const fetchExecutiveReport = async () => {
     try {
@@ -43,7 +54,7 @@ const ExecutiveReports: React.FC = () => {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/analytics/advanced/executive/${tenantId}?period=${period}`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/executive/${tenantId}?period=${period}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

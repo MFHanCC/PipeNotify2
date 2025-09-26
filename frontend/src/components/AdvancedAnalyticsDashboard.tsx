@@ -15,6 +15,7 @@ type AnalyticsView = 'overview' | 'executive' | 'predictive' | 'team' | 'export'
 const AdvancedAnalyticsDashboard: React.FC<AdvancedAnalyticsDashboardProps> = ({ onRefresh }) => {
   const [activeView, setActiveView] = useState<AnalyticsView>('overview');
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const navigationItems = [
     { id: 'overview' as AnalyticsView, label: 'Overview', icon: '📊', description: 'Key metrics and trends' },
@@ -30,6 +31,8 @@ const AdvancedAnalyticsDashboard: React.FC<AdvancedAnalyticsDashboardProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
+      // Increment refresh token to trigger child component refreshes
+      setRefreshToken(prev => prev + 1);
     } finally {
       setIsLoading(false);
     }
@@ -38,17 +41,17 @@ const AdvancedAnalyticsDashboard: React.FC<AdvancedAnalyticsDashboardProps> = ({
   const renderActiveView = () => {
     switch (activeView) {
       case 'overview':
-        return <BasicAnalyticsDashboard onRefresh={handleRefresh} />;
+        return <BasicAnalyticsDashboard onRefresh={handleRefresh} refreshToken={refreshToken} />;
       case 'executive':
-        return <ExecutiveReports />;
+        return <ExecutiveReports refreshToken={refreshToken} />;
       case 'predictive':
-        return <PredictiveAnalytics />;
+        return <PredictiveAnalytics refreshToken={refreshToken} />;
       case 'team':
-        return <TeamPerformance />;
+        return <TeamPerformance refreshToken={refreshToken} />;
       case 'export':
-        return <AnalyticsExport />;
+        return <AnalyticsExport refreshToken={refreshToken} />;
       default:
-        return <BasicAnalyticsDashboard onRefresh={handleRefresh} />;
+        return <BasicAnalyticsDashboard onRefresh={handleRefresh} refreshToken={refreshToken} />;
     }
   };
 

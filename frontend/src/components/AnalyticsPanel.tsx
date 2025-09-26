@@ -17,12 +17,22 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   dateRange, 
   onDateRangeChange 
 }) => {
-  const { hasFeature } = usePlanFeatures();
+  const { hasFeature, loading } = usePlanFeatures();
 
   const handleRefresh = () => {
     // Refresh logic can be passed to child components
     console.log('Analytics refresh requested');
   };
+
+  // Wait for features to load to prevent UI flicker
+  if (loading) {
+    return (
+      <div className="analytics-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading analytics...</p>
+      </div>
+    );
+  }
 
   // Team Plan users get Advanced Analytics
   if (hasFeature('advanced_analytics')) {

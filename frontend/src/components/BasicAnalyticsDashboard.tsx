@@ -38,9 +38,10 @@ interface ChannelMetrics {
 
 interface BasicAnalyticsDashboardProps {
   onRefresh?: () => void;
+  refreshToken?: number;
 }
 
-const BasicAnalyticsDashboard: React.FC<BasicAnalyticsDashboardProps> = ({ onRefresh }) => {
+const BasicAnalyticsDashboard: React.FC<BasicAnalyticsDashboardProps> = ({ onRefresh, refreshToken }) => {
   const [metrics, setMetrics] = useState<NotificationMetrics | null>(null);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [rulePerformance, setRulePerformance] = useState<RulePerformance[]>([]);
@@ -52,6 +53,13 @@ const BasicAnalyticsDashboard: React.FC<BasicAnalyticsDashboardProps> = ({ onRef
   useEffect(() => {
     loadAnalytics();
   }, [dateRange]);
+
+  // Refetch when refreshToken changes
+  useEffect(() => {
+    if (refreshToken && refreshToken > 0) {
+      loadAnalytics();
+    }
+  }, [refreshToken]);
 
   const loadAnalytics = async () => {
     try {

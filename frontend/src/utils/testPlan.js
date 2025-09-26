@@ -6,7 +6,7 @@
 import { getTenantId } from './auth';
 
 // Set this to test different plans: 'free', 'starter', 'pro', 'team'
-const TEST_PLAN_OVERRIDE = 'free'; // Change this to test different plans
+const TEST_PLAN_OVERRIDE = 'starter'; // Change this to test different plans
 
 export function getTestPlanFeatures(originalFeatures) {
   // Only allow plan override in development environment
@@ -36,7 +36,8 @@ export function getTestPlanFeatures(originalFeatures) {
         enhanced_formatting: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
         stage_filtering: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
         activity_notifications: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
-        usage_analytics: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
+        basic_analytics: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
+        advanced_analytics: { available: false, available_in_plans: ['team'] },
         channel_routing: { available: false, available_in_plans: ['pro', 'team'] },
         stalled_alerts: { available: false, available_in_plans: ['pro', 'team'] },
         custom_templates: { available: false, available_in_plans: ['pro', 'team'] },
@@ -48,7 +49,8 @@ export function getTestPlanFeatures(originalFeatures) {
         owner_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         time_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         rule_templates: { available: false, available_in_plans: ['pro', 'team'] },
-        bulk_management: { available: false, available_in_plans: ['team'] }
+        csv_export: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
+        bulk_management: { available: true, available_in_plans: ['pro', 'team'] }
       }
     },
     
@@ -67,7 +69,8 @@ export function getTestPlanFeatures(originalFeatures) {
         enhanced_formatting: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         stage_filtering: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         activity_notifications: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
-        usage_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        basic_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        advanced_analytics: { available: false, available_in_plans: ['team'] },
         channel_routing: { available: false, available_in_plans: ['pro', 'team'] },
         stalled_alerts: { available: false, available_in_plans: ['pro', 'team'] },
         custom_templates: { available: false, available_in_plans: ['pro', 'team'] },
@@ -79,7 +82,8 @@ export function getTestPlanFeatures(originalFeatures) {
         owner_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         time_filtering: { available: false, available_in_plans: ['pro', 'team'] },
         rule_templates: { available: false, available_in_plans: ['pro', 'team'] },
-        bulk_management: { available: false, available_in_plans: ['team'] }
+        csv_export: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        bulk_management: { available: true, available_in_plans: ['pro', 'team'] }
       }
     },
     
@@ -98,7 +102,8 @@ export function getTestPlanFeatures(originalFeatures) {
         enhanced_formatting: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         stage_filtering: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         activity_notifications: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
-        usage_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        basic_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        advanced_analytics: { available: false, available_in_plans: ['team'] },
         channel_routing: { available: true, available_in_plans: ['pro', 'team'] },
         stalled_alerts: { available: true, available_in_plans: ['pro', 'team'] },
         custom_templates: { available: true, available_in_plans: ['pro', 'team'] },
@@ -110,7 +115,8 @@ export function getTestPlanFeatures(originalFeatures) {
         owner_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         time_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         rule_templates: { available: true, available_in_plans: ['pro', 'team'] },
-        bulk_management: { available: false, available_in_plans: ['team'] }
+        csv_export: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        bulk_management: { available: true, available_in_plans: ['pro', 'team'] }
       }
     },
     
@@ -129,7 +135,8 @@ export function getTestPlanFeatures(originalFeatures) {
         enhanced_formatting: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         stage_filtering: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
         activity_notifications: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
-        usage_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        basic_analytics: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        advanced_analytics: { available: true, available_in_plans: ['team'] },
         channel_routing: { available: true, available_in_plans: ['pro', 'team'] },
         stalled_alerts: { available: true, available_in_plans: ['pro', 'team'] },
         custom_templates: { available: true, available_in_plans: ['pro', 'team'] },
@@ -141,7 +148,8 @@ export function getTestPlanFeatures(originalFeatures) {
         owner_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         time_filtering: { available: true, available_in_plans: ['pro', 'team'] },
         rule_templates: { available: true, available_in_plans: ['pro', 'team'] },
-        bulk_management: { available: true, available_in_plans: ['team'] }
+        csv_export: { available: true, available_in_plans: ['starter', 'pro', 'team'] },
+        bulk_management: { available: true, available_in_plans: ['pro', 'team'] }
       }
     }
   };

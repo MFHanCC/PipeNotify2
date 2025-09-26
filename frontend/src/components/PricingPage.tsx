@@ -54,6 +54,7 @@ const plans: Plan[] = [
       '10 rules',
       'Value filtering',
       'Enhanced formatting',
+      'Basic analytics dashboard',
       'CSV export of logs',
       'Basic templates (3 pre-built)'
     ],

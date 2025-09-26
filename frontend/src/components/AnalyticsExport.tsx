@@ -10,7 +10,11 @@ interface ExportJob {
   download_url: string;
 }
 
-const AnalyticsExport: React.FC = () => {
+interface AnalyticsExportProps {
+  refreshToken?: number;
+}
+
+const AnalyticsExport: React.FC<AnalyticsExportProps> = ({ refreshToken }) => {
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf' | 'excel'>('csv');
   const [dataRange, setDataRange] = useState('30d');
   const [includeFilters, setIncludeFilters] = useState({
@@ -36,7 +40,7 @@ const AnalyticsExport: React.FC = () => {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/analytics/advanced/export/${tenantId}`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/export/${tenantId}`,
         {
           method: 'POST',
           headers: {
@@ -80,7 +84,7 @@ const AnalyticsExport: React.FC = () => {
       if (!tenantId || !token) return;
 
       const response = await fetch(
-        `${API_BASE_URL}/analytics/advanced/export/${tenantId}/${exportId}/download`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/export/${tenantId}/${exportId}/download`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

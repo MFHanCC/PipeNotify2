@@ -23,7 +23,11 @@ interface DealProbability {
   at_risk: number;
 }
 
-const PredictiveAnalytics: React.FC = () => {
+interface PredictiveAnalyticsProps {
+  refreshToken?: number;
+}
+
+const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({ refreshToken }) => {
   const [pipelineForecast, setPipelineForecast] = useState<PipelineForecast | null>(null);
   const [dealProbability, setDealProbability] = useState<DealProbability | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +37,13 @@ const PredictiveAnalytics: React.FC = () => {
   useEffect(() => {
     fetchPredictiveData();
   }, []);
+
+  // Refetch when refreshToken changes
+  useEffect(() => {
+    if (refreshToken && refreshToken > 0) {
+      fetchPredictiveData();
+    }
+  }, [refreshToken]);
 
   const fetchPredictiveData = async () => {
     try {
@@ -48,7 +59,7 @@ const PredictiveAnalytics: React.FC = () => {
 
       // Fetch pipeline forecast
       const pipelineResponse = await fetch(
-        `${API_BASE_URL}/analytics/advanced/predictive/${tenantId}?type=pipeline_forecast`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/predictive/${tenantId}?type=pipeline_forecast`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -59,7 +70,7 @@ const PredictiveAnalytics: React.FC = () => {
 
       // Fetch deal probability
       const dealsResponse = await fetch(
-        `${API_BASE_URL}/analytics/advanced/predictive/${tenantId}?type=deal_probability`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/predictive/${tenantId}?type=deal_probability`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
