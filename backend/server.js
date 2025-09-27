@@ -110,8 +110,13 @@ const limiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Trust proxy configuration for Railway
-  trustProxy: process.env.RAILWAY_ENVIRONMENT ? 1 : true,
+  // Skip trust proxy validation for Railway deployment since we already set app trust proxy above
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+  keyGenerator: (req) => {
+    // Use the real IP from X-Forwarded-For header if available (Railway/proxy scenario)
+    return req.ip || req.connection.remoteAddress;
+  }
 });
 
 // Apply rate limiting to all routes
@@ -125,8 +130,10 @@ const adminLimiter = rateLimit({
     error: 'Too many admin requests from this IP, please try again later.',
     retryAfter: '15 minutes'
   },
-  // Trust proxy configuration for Railway
-  trustProxy: process.env.RAILWAY_ENVIRONMENT ? 1 : true,
+  keyGenerator: (req) => {
+    // Use the real IP from X-Forwarded-For header if available (Railway/proxy scenario)
+    return req.ip || req.connection.remoteAddress;
+  }
 });
 
 app.use('/api/v1/admin', adminLimiter);
