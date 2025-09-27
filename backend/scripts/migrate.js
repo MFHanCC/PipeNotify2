@@ -43,7 +43,10 @@ async function runMigrations() {
   }
   
   if (!dbReady) {
-    console.log('⚠️ Database not ready after maximum attempts, continuing anyway...');
+    console.log('⚠️ Database not ready after maximum attempts, skipping migrations');
+    console.log('💡 Run migrations manually later with: node backend/scripts/migrate.js');
+    await pool.end();
+    process.exit(0);
   }
   
   const migrationsDir = path.join(__dirname, '../migrations');
