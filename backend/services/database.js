@@ -13,12 +13,15 @@ function createDatabasePool() {
     } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Increased for Railway
-    acquireTimeoutMillis: 10000,
+    connectionTimeoutMillis: 15000, // Increased for Railway IPv6
+    acquireTimeoutMillis: 15000,
     // Railway networking optimizations
     keepAlive: true,
     keepAliveInitialDelayMillis: 0,
-    allowExitOnIdle: false
+    allowExitOnIdle: false,
+    // Enhanced Railway IPv6 support
+    query_timeout: 15000,
+    statement_timeout: 15000
   };
 
   const pool = new Pool(poolConfig);
@@ -30,6 +33,9 @@ function createDatabasePool() {
       console.error('❌ Database authentication failed - check DATABASE_URL');
     } else if (err.message.includes('ENOTFOUND') || err.message.includes('timeout')) {
       console.error('❌ Database network error - Railway internal networking issue');
+    } else if (err.message.includes('ECONNRESET') || err.message.includes('ECONNREFUSED')) {
+      console.error('❌ Database connection refused/reset - Railway service may be starting');
+      console.error('💡 Retrying connections with exponential backoff...');
     }
   });
 

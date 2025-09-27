@@ -3,9 +3,10 @@ const { Queue } = require('bullmq');
 // Redis connection configuration
 let redisConfig;
 
-// Redis connection configuration
+// Check if Redis is available in Railway environment
+const hasRedis = process.env.REDIS_URL || process.env.REDIS_HOST;
 
-if (process.env.REDIS_URL) {
+if (hasRedis && process.env.REDIS_URL) {
   // Parse Redis URL: redis:// or rediss:// (TLS)
   const url = new URL(process.env.REDIS_URL);
   console.log('🔧 Configuring Redis for Railway deployment');
@@ -46,12 +47,12 @@ if (process.env.REDIS_URL) {
   if (url.username) {
     redisConfig.connection.username = url.username;
   }
-} else {
-  // Local development fallback
-  console.log('🔧 Using fallback Redis configuration');
+} else if (hasRedis && process.env.REDIS_HOST) {
+  // Host-based Redis configuration
+  console.log('🔧 Using host-based Redis configuration');
   redisConfig = {
     connection: {
-      host: process.env.REDIS_HOST || 'localhost',
+      host: process.env.REDIS_HOST,
       port: parseInt(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD || undefined,
       family: 4, // IPv4 for local development
@@ -61,62 +62,79 @@ if (process.env.REDIS_URL) {
       keepAlive: 30000
     }
   };
+} else {
+  // No Redis available - disable queue
+  console.log('⚠️ Redis not available - queue functionality disabled');
+  redisConfig = null;
 }
 
 
 // Create notification queue with enhanced Railway error handling
 let notificationQueue;
-
-console.log('🔄 Initializing Redis notification queue...');
+let initPromise;
 
 async function initializeQueue() {
-  try {
-    notificationQueue = new Queue('notification', redisConfig);
-
-    // Enhanced event listeners for Railway debugging
-    notificationQueue.on('waiting', (job) => {
-      console.log(`📋 Job ${job.id} is waiting`);
-    });
-
-    notificationQueue.on('active', (job) => {
-      console.log(`⚡ Job ${job.id} is now active`);
-    });
-
-    notificationQueue.on('completed', (job, result) => {
-      console.log(`✅ Job ${job.id} completed successfully`);
-    });
-
-    notificationQueue.on('failed', (job, err) => {
-      console.error(`❌ Job ${job.id} failed:`, err.message);
-    });
-
-    notificationQueue.on('error', (err) => {
-      console.error('❌ Queue error:', err.message);
-      
-      if (err.message.includes('ENOTFOUND')) {
-        console.error('🚨 Redis DNS resolution failed - Railway networking issue');
-        console.error('💡 Consider using Redis public URL as workaround');
-      } else if (err.message.includes('ECONNREFUSED')) {
-        console.error('🚨 Redis connection refused - service may be down');
-      } else if (err.message.includes('authentication')) {
-        console.error('🚨 Redis authentication failed - check REDIS_URL password');
-      }
-    });
-
-    // Test the connection
-    await notificationQueue.waitUntilReady();
-    console.log('✅ Notification queue initialized successfully');
-    console.log('🔗 Redis connection established');
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize notification queue:', error.message);
-    console.log('⚠️ Running in degraded mode without queue functionality');
-    notificationQueue = null;
+  if (notificationQueue || initPromise) {
+    return initPromise;
   }
+
+  if (!redisConfig) {
+    console.log('⚠️ Redis not configured - skipping queue initialization');
+    return Promise.resolve();
+  }
+
+  console.log('🔄 Initializing Redis notification queue...');
+  
+  initPromise = (async () => {
+    try {
+      notificationQueue = new Queue('notification', redisConfig);
+
+      // Enhanced event listeners for Railway debugging
+      notificationQueue.on('waiting', (job) => {
+        console.log(`📋 Job ${job.id} is waiting`);
+      });
+
+      notificationQueue.on('active', (job) => {
+        console.log(`⚡ Job ${job.id} is now active`);
+      });
+
+      notificationQueue.on('completed', (job, result) => {
+        console.log(`✅ Job ${job.id} completed successfully`);
+      });
+
+      notificationQueue.on('failed', (job, err) => {
+        console.error(`❌ Job ${job.id} failed:`, err.message);
+      });
+
+      notificationQueue.on('error', (err) => {
+        console.error('❌ Queue error:', err.message);
+        
+        if (err.message.includes('ENOTFOUND')) {
+          console.error('🚨 Redis DNS resolution failed - Railway networking issue');
+          console.error('💡 Consider using Redis public URL as workaround');
+        } else if (err.message.includes('ECONNREFUSED')) {
+          console.error('🚨 Redis connection refused - service may be down');
+        } else if (err.message.includes('authentication')) {
+          console.error('🚨 Redis authentication failed - check REDIS_URL password');
+        }
+      });
+
+      // Test the connection
+      await notificationQueue.waitUntilReady();
+      console.log('✅ Notification queue initialized successfully');
+      console.log('🔗 Redis connection established');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize notification queue:', error.message);
+      console.log('⚠️ Running in degraded mode without queue functionality');
+      notificationQueue = null;
+    }
+  })();
+
+  return initPromise;
 }
 
-// Initialize queue asynchronously and export the promise
-const initPromise = initializeQueue();
+// Lazy initialization - only initialize when first used
 
 // Helper function to add notification job
 async function addNotificationJob(webhookData, options = {}) {
