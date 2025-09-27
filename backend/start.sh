@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Railway Network Initialization Delay Script
-# Force redeploy to fix merge conflict cache
 # This script adds a delay to allow Railway's private networking to initialize
 # before starting the Node.js application
 
