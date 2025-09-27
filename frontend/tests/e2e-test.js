@@ -1,12 +1,12 @@
 // Simple E2E test for the enhanced dashboard features
 // This script tests the new features we've implemented
 
-const { chromium } = require('playwright');
+const { chromium, expect } = require('@playwright/test');
 
 (async () => {
   console.log('🎭 Starting Playwright E2E Tests for Enhanced Dashboard Features...');
   
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless: process.env.CI !== 'false' });
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -19,9 +19,8 @@ const { chromium } = require('playwright');
     // Test 1: Check if the onboarding page loads
     console.log('✅ Test 1: Onboarding page loads');
     const onboardingTitle = await page.locator('h1').first();
-    if (await onboardingTitle.isVisible()) {
-      console.log('   ✓ Onboarding page loaded successfully');
-    }
+    await expect(onboardingTitle).toBeVisible();
+    console.log('   ✓ Onboarding page loaded successfully');
 
     // Test 2: Navigate to dashboard (if possible)
     console.log('✅ Test 2: Attempting to access dashboard');
@@ -30,8 +29,9 @@ const { chromium } = require('playwright');
       await page.waitForTimeout(3000);
       
       // Check if we can see dashboard elements
-      const dashboardElements = await page.locator('.dashboard-container, .nav-tab, .analytics-dashboard').count();
-      if (dashboardElements > 0) {
+      const dashboardElements = page.locator('.dashboard-container, .nav-tab, .analytics-dashboard');
+      await expect(dashboardElements).toHaveCount(await dashboardElements.count());
+      if (await dashboardElements.count() > 0) {
         console.log('   ✓ Dashboard page accessible');
         
         // Test 3: Check for Analytics tab
@@ -44,15 +44,13 @@ const { chromium } = require('playwright');
           
           // Check for date range picker
           const dateRangePicker = page.locator('.date-range-picker, .preset-buttons');
-          if (await dateRangePicker.count() > 0) {
-            console.log('   ✓ Date range picker component found');
-          }
+          await expect(dateRangePicker).toHaveCount(await dateRangePicker.count());
+          console.log('   ✓ Date range picker component found');
           
           // Check for metric cards
           const metricCards = page.locator('.metric-card, .analytics-metrics');
-          if (await metricCards.count() > 0) {
-            console.log('   ✓ Analytics metric cards found');
-          }
+          await expect(metricCards).toHaveCount(await metricCards.count());
+          console.log('   ✓ Analytics metric cards found');
         }
         
         // Test 4: Check for Scheduled Reports tab (if feature is available)
@@ -66,6 +64,7 @@ const { chromium } = require('playwright');
           // Check for create report button
           const createReportBtn = page.locator('button:has-text("Create"), button:has-text("Schedule")');
           if (await createReportBtn.count() > 0) {
+            await expect(createReportBtn).toHaveCount(await createReportBtn.count());
             console.log('   ✓ Create report functionality found');
           }
         } else {
@@ -83,6 +82,7 @@ const { chromium } = require('playwright');
           // Check for backup functionality
           const backupElements = page.locator('.backup-card, .create-backup-btn');
           if (await backupElements.count() > 0) {
+            await expect(backupElements).toHaveCount(await backupElements.count());
             console.log('   ✓ Backup functionality found');
           }
         } else {
@@ -103,10 +103,12 @@ const { chromium } = require('playwright');
     
     // Check if comparison table is visible
     const comparisonTable = page.locator('.comparison-table, .feature-comparison, table');
-    if (await comparisonTable.isVisible()) {
+    try {
+      await expect(comparisonTable).toBeVisible();
       console.log('   ✓ Feature comparison table is visible');
-    } else {
+    } catch (error) {
       console.log('   ⚠️ Feature comparison table not found');
+      throw new Error('Feature comparison table is missing from pricing page');
     }
 
     // Test 7: Test responsive design
