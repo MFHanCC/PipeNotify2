@@ -164,182 +164,63 @@ const settingsRoutes = require('./routes/settings');
 const templatesRoutes = require('./routes/templates');
 const { authenticateToken } = require('./middleware/auth'); // SECURITY FIX: Import authentication middleware
 
-// Import job processor to start worker
-console.log('🔄 ATTEMPTING TO START BULLMQ WORKER...');
-try {
-  require('./jobs/processor');
-  console.log('✅ BULLMQ WORKER LOADED SUCCESSFULLY');
-} catch (workerError) {
-  console.error('❌ FAILED TO LOAD BULLMQ WORKER:', workerError);
-  console.error('Worker error details:', {
-    message: workerError.message,
-    code: workerError.code,
-    stack: workerError.stack
+// Background services initialization function
+function initializeBackgroundServices() {
+  // Initialize services with delays to prevent overwhelming startup
+  const initService = (name, requirePath, delay = 0) => {
+    setTimeout(() => {
+      console.log(`🔄 STARTING ${name}...`);
+      try {
+        require(requirePath);
+        console.log(`✅ ${name} STARTED`);
+      } catch (error) {
+        console.error(`❌ FAILED TO START ${name}:`, error.message);
+      }
+    }, delay);
+  };
+
+  // Stagger service initialization to prevent startup overload
+  initService('BULLMQ WORKER', './jobs/processor', 0);
+  initService('DELAYED NOTIFICATION PROCESSOR', './jobs/delayedNotificationProcessor', 2000);
+  initService('BATCH NOTIFICATION PROCESSOR', './jobs/batchProcessor', 4000);
+  initService('WORKER MONITORING', './jobs/workerMonitor', 6000);
+  initService('HEARTBEAT MONITORING', './services/heartbeatMonitor', 8000);
+  initService('STALLED DEAL MONITORING', './jobs/stalledDealMonitor', 10000);
+  initService('LOG CLEANUP SERVICE', './jobs/logCleanup', 12000);
+  
+  // Initialize remaining services
+  setTimeout(() => {
+    console.log('🔄 STARTING REMAINING MONITORING SERVICES...');
+    // Continue with other services that were in the original startup
+    initializeAdvancedServices();
+  }, 15000);
+}
+
+function initializeAdvancedServices() {
+  // Advanced monitoring services
+  const services = [
+    { name: 'SELF-HEALING SYSTEM', path: './services/selfHealing' },
+    { name: 'HEALTH TRACKING SYSTEM', path: './services/healthTracker' },
+    { name: 'PERFORMANCE ANALYZER', path: './services/performanceAnalyzer' },
+    { name: 'AUTO-REMEDIATION SYSTEM', path: './services/autoRemediation' },
+    { name: 'HEALTH PREDICTOR', path: './services/healthPredictor' },
+    { name: 'SYSTEM REPORTER', path: './services/systemReporter' },
+    { name: 'ADVANCED DEBUGGER', path: './services/advancedDebugger' }
+  ];
+
+  services.forEach((service, index) => {
+    setTimeout(() => {
+      try {
+        require(service.path);
+        console.log(`✅ ${service.name} STARTED`);
+      } catch (error) {
+        console.error(`❌ FAILED TO START ${service.name}:`, error.message);
+      }
+    }, index * 2000);
   });
 }
 
-// Start delayed notification processor (cron job)
-console.log('🔄 STARTING DELAYED NOTIFICATION PROCESSOR...');
-try {
-  require('./jobs/delayedNotificationProcessor');
-  console.log('✅ DELAYED NOTIFICATION PROCESSOR STARTED');
-} catch (cronError) {
-  console.error('❌ FAILED TO START DELAYED NOTIFICATION PROCESSOR:', cronError);
-  console.error('Cron error details:', {
-    message: cronError.message,
-    code: cronError.code,
-    stack: cronError.stack
-  });
-}
-
-// Start batch notification processor (guaranteed delivery)
-console.log('🔄 STARTING BATCH NOTIFICATION PROCESSOR...');
-try {
-  require('./jobs/batchProcessor');
-  console.log('✅ BATCH NOTIFICATION PROCESSOR STARTED');
-} catch (batchError) {
-  console.error('❌ FAILED TO START BATCH PROCESSOR:', batchError);
-  console.error('Batch error details:', {
-    message: batchError.message,
-    code: batchError.code,
-    stack: batchError.stack
-  });
-}
-
-// Start worker monitoring system
-console.log('🔄 STARTING WORKER MONITORING...');
-try {
-  require('./jobs/workerMonitor');
-  console.log('✅ WORKER MONITORING STARTED');
-} catch (monitorError) {
-  console.error('❌ FAILED TO START WORKER MONITORING:', monitorError);
-  console.error('Monitor error details:', {
-    message: monitorError.message,
-    code: monitorError.code,
-    stack: monitorError.stack
-  });
-}
-
-// Start heartbeat monitoring system
-console.log('🔄 STARTING HEARTBEAT MONITORING...');
-try {
-  require('./services/heartbeatMonitor');
-  console.log('✅ HEARTBEAT MONITORING STARTED');
-} catch (heartbeatError) {
-  console.error('❌ FAILED TO START HEARTBEAT MONITORING:', heartbeatError);
-  console.error('Heartbeat error details:', {
-    message: heartbeatError.message,
-    code: heartbeatError.code,
-    stack: heartbeatError.stack
-  });
-}
-
-// Start stalled deal monitoring system (daily cron job)
-console.log('🔄 STARTING STALLED DEAL MONITORING...');
-try {
-  require('./jobs/stalledDealMonitor');
-  console.log('✅ STALLED DEAL MONITORING STARTED - will run daily at 9 AM UTC');
-} catch (stalledError) {
-  console.error('❌ FAILED TO START STALLED DEAL MONITORING:', stalledError);
-  console.error('Stalled deal monitor error details:', {
-    message: stalledError.message,
-    code: stalledError.code,
-    stack: stalledError.stack
-  });
-}
-
-// Start log cleanup service (daily cron job)
-console.log('🔄 STARTING LOG CLEANUP SERVICE...');
-try {
-  require('./jobs/logCleanup');
-  console.log('✅ LOG CLEANUP SERVICE STARTED - will run daily at 2 AM UTC');
-} catch (cleanupError) {
-  console.error('❌ FAILED TO START LOG CLEANUP SERVICE:', cleanupError);
-  console.error('Log cleanup error details:', {
-    message: cleanupError.message,
-    code: cleanupError.code,
-    stack: cleanupError.stack
-  });
-}
-
-// Start self-healing monitoring system
-try {
-  const { startSelfHealingMonitor } = require('./services/selfHealing');
-  startSelfHealingMonitor();
-  console.log('✅ SELF-HEALING SYSTEM STARTED - will monitor and fix issues automatically');
-} catch (healingError) {
-  console.error('❌ FAILED TO START SELF-HEALING SYSTEM:', healingError);
-  console.error('Self-healing system error details:', {
-    message: healingError.message,
-    code: healingError.code,
-    stack: healingError.stack
-  });
-}
-
-// Start health tracking system (Phase 2)
-try {
-  const { startHealthTracking } = require('./services/healthTracker');
-  startHealthTracking();
-  console.log('✅ HEALTH TRACKING SYSTEM STARTED - recording metrics every 15 minutes');
-} catch (trackingError) {
-  console.error('❌ FAILED TO START HEALTH TRACKING SYSTEM:', trackingError);
-  console.error('Health tracking system error details:', {
-    message: trackingError.message,
-    code: trackingError.code,
-    stack: trackingError.stack
-  });
-}
-
-// Start Phase 3: Advanced Tools
-// Performance Analyzer
-try {
-  const { PerformanceAnalyzer } = require('./services/performanceAnalyzer');
-  global.performanceAnalyzer = new PerformanceAnalyzer();
-  global.performanceAnalyzer.start();
-  console.log('✅ PERFORMANCE ANALYZER STARTED - collecting metrics every 5 minutes');
-} catch (performanceError) {
-  console.error('❌ FAILED TO START PERFORMANCE ANALYZER:', performanceError.message);
-}
-
-// Auto-Remediation System
-try {
-  const { AutoRemediationSystem } = require('./services/autoRemediation');
-  global.autoRemediation = new AutoRemediationSystem();
-  global.autoRemediation.start();
-  console.log('✅ AUTO-REMEDIATION SYSTEM STARTED - monitoring every 10 minutes');
-} catch (remediationError) {
-  console.error('❌ FAILED TO START AUTO-REMEDIATION:', remediationError.message);
-}
-
-// Health Predictor
-try {
-  const { HealthPredictor } = require('./services/healthPredictor');
-  global.healthPredictor = new HealthPredictor();
-  global.healthPredictor.start();
-  console.log('✅ HEALTH PREDICTOR STARTED - forecasting every 12 hours');
-} catch (predictorError) {
-  console.error('❌ FAILED TO START HEALTH PREDICTOR:', predictorError.message);
-}
-
-// System Reporter
-try {
-  const { SystemReporter } = require('./services/systemReporter');
-  global.systemReporter = new SystemReporter();
-  global.systemReporter.start();
-  console.log('✅ SYSTEM REPORTER STARTED - generating automated reports');
-} catch (reporterError) {
-  console.error('❌ FAILED TO START SYSTEM REPORTER:', reporterError.message);
-}
-
-// Advanced Debugger
-try {
-  const { AdvancedDebugger } = require('./services/advancedDebugger');
-  global.advancedDebugger = new AdvancedDebugger();
-  global.advancedDebugger.start();
-  console.log('✅ ADVANCED DEBUGGER STARTED - comprehensive debugging active');
-} catch (debuggerError) {
-  console.error('❌ FAILED TO START ADVANCED DEBUGGER:', debuggerError.message);
-}
+// All background services moved to deferred initialization after Express server starts
 
 // Mount routes
 app.use('/api/v1/webhook', webhookRoutes);
@@ -1608,7 +1489,7 @@ async function startServer() {
     }
   }
   
-  // Start server - this should always execute
+  // Start server - this should always execute BEFORE background services
   const serverStartTime = Date.now();
   console.log('🔄 STARTING EXPRESS SERVER...');
   server = app.listen(PORT, () => {
@@ -1616,6 +1497,16 @@ async function startServer() {
     const serverBindTime = Date.now() - serverStartTime;
     console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
     console.log(`⏱️ Total startup time: ${totalStartTime}ms, Server bind time: ${serverBindTime}ms`);
+    
+    // Initialize background services AFTER HTTP server is ready
+    console.log('🔄 INITIALIZING BACKGROUND SERVICES...');
+    initializeBackgroundServices();
+    
+    // Initialize advanced services after background services
+    setTimeout(() => {
+      console.log('🔄 INITIALIZING ADVANCED SERVICES...');
+      initializeAdvancedServices();
+    }, 5000);
     
     // Use Railway public URL in production, localhost in development
     const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
