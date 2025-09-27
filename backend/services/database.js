@@ -2,21 +2,35 @@ const { Pool } = require('pg');
 
 // Production-grade PostgreSQL configuration for Railway deployment
 function createDatabasePool() {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production'; // Use Railway env for SSL
   const isRailway = process.env.RAILWAY_ENVIRONMENT;
   
-  // Railway IPv6 fallback - try public URL if private networking fails
-  let databaseUrl = process.env.DATABASE_URL;
+  // Railway connection strategy: Try public URL first to avoid IPv6 issues
+  let databaseUrl;
+  let connectionType = 'local';
   
-  // If we have both private and public URLs, prefer private but have public as fallback
-  if (isRailway && process.env.DATABASE_PUBLIC_URL) {
-    console.log('🔗 Railway detected: Using private DATABASE_URL with public fallback available');
+  if (isRailway) {
+    if (process.env.DATABASE_PUBLIC_URL) {
+      // Prefer public URL first due to IPv6 connection issues with private URL
+      databaseUrl = process.env.DATABASE_PUBLIC_URL;
+      connectionType = 'railway-public';
+      console.log('🔗 Railway detected: Using PUBLIC DATABASE_URL (IPv4 compatible)');
+    } else if (process.env.DATABASE_URL) {
+      databaseUrl = process.env.DATABASE_URL;
+      connectionType = 'railway-private';
+      console.log('🔗 Railway detected: Using private DATABASE_URL (may have IPv6 issues)');
+    }
+  } else {
     databaseUrl = process.env.DATABASE_URL;
   }
   
   if (!databaseUrl) {
     databaseUrl = `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`;
+    connectionType = 'local-fallback';
   }
+  
+  console.log(`📡 Database connection type: ${connectionType}`);
+  console.log(`🔗 Connection host: ${databaseUrl.split('@')[1]?.split('/')[0] || 'unknown'}`);
   
   // Railway-optimized connection configuration
   const poolConfig = {
@@ -76,7 +90,10 @@ function createDatabasePool() {
   });
 
   pool.on('connect', (client) => {
-    console.log('✅ PostgreSQL client connected to database');
+    const hostInfo = client.host || 'unknown';
+    const portInfo = client.port || 'unknown';
+    console.log(`✅ PostgreSQL client connected to database at ${hostInfo}:${portInfo}`);
+    console.log(`📊 Connection type: ${connectionType}`);
     
     // Set connection-specific timeouts for Railway stability
     if (isRailway) {
@@ -101,11 +118,11 @@ function createDatabasePool() {
 let pool = createDatabasePool();
 let fallbackPool = null;
 
-// Create fallback pool for Railway public URL
-if (process.env.RAILWAY_ENVIRONMENT && process.env.DATABASE_PUBLIC_URL) {
+// Create fallback pool only if we're using private URL and have public available
+if (process.env.RAILWAY_ENVIRONMENT && process.env.DATABASE_URL && process.env.DATABASE_PUBLIC_URL && !process.env.DATABASE_PUBLIC_URL.includes(process.env.DATABASE_URL)) {
   try {
     const fallbackConfig = {
-      connectionString: process.env.DATABASE_PUBLIC_URL,
+      connectionString: process.env.DATABASE_URL, // Use private as fallback now
       ssl: { rejectUnauthorized: false, require: true },
       max: 10,
       min: 1,
@@ -114,7 +131,7 @@ if (process.env.RAILWAY_ENVIRONMENT && process.env.DATABASE_PUBLIC_URL) {
       application_name: 'pipenotify-backend-fallback'
     };
     fallbackPool = new Pool(fallbackConfig);
-    console.log('🔄 Fallback database pool created with public URL');
+    console.log('🔄 Fallback database pool created with private URL');
   } catch (error) {
     console.warn('⚠️ Could not create fallback pool:', error.message);
   }
@@ -155,6 +172,18 @@ async function healthCheck(maxRetries = 10, initialDelay = 1000) {
       
     } catch (error) {
       console.error(`❌ Database health check attempt ${attempt} failed:`, error.message);
+      
+      // Enhanced error debugging for Railway
+      if (error.message.includes('ECONNREFUSED')) {
+        const match = error.message.match(/connect ECONNREFUSED ([^:]+):(\d+)/);
+        if (match) {
+          const [, host, port] = match;
+          console.error(`🔍 Connection refused to ${host}:${port}`);
+          if (host.includes(':')) {
+            console.error('📡 IPv6 address detected - this may be the root cause');
+          }
+        }
+      }
       
       // Determine if error is retryable
       const isRetryableError = 
@@ -648,8 +677,14 @@ process.on('SIGINT', async () => {
   await pool.end();
 });
 
+// Export function to get current database pool
+function getDbPool() {
+  return pool;
+}
+
 module.exports = {
   pool,
+  getDbPool,
   healthCheck,
   getRulesForEvent,
   getAllRules,
