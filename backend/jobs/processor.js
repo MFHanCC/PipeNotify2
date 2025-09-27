@@ -12,10 +12,11 @@ const { isQuietTime, queueDelayedNotification } = require('../services/quietHour
 // Create BullMQ worker for processing notification jobs (only if Redis is available)
 let notificationWorker = null;
 
-// Wait for Redis initialization then create worker
-initPromise.then(() => {
-  if (redisConfig) {
-    notificationWorker = new Worker('notification', async (job) => {
+// Wait for Redis initialization then create worker (with safety check)
+if (initPromise && typeof initPromise.then === 'function') {
+  initPromise.then(() => {
+    if (redisConfig) {
+      notificationWorker = new Worker('notification', async (job) => {
   const { data } = job;
   
   try {
@@ -92,13 +93,16 @@ initPromise.then(() => {
     console.log('🔄 Redis reconnecting for worker');
   });
 
-  console.log('✅ Notification worker initialized successfully');
+    console.log('✅ Notification worker initialized successfully');
+  } else {
+    console.log('⚠️ Notification worker disabled - Redis not available');
+  }
+  }).catch(error => {
+    console.error('❌ Failed to initialize notification worker:', error.message);
+  });
 } else {
-  console.log('⚠️ Notification worker disabled - Redis not available');
+  console.log('⚠️ Redis initialization promise not available - notification worker disabled');
 }
-}).catch(error => {
-  console.error('❌ Failed to initialize notification worker:', error.message);
-});
 
 // Simple in-memory deduplication cache (for production, use Redis)
 const processedWebhooks = new Map();
