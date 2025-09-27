@@ -348,6 +348,11 @@ let stalledDealWorker = null;
 
 async function initializeWorker() {
   try {
+    if (!redisConfig) {
+      console.log('⚠️ Redis not available - stalled deal monitor disabled');
+      return;
+    }
+
     // Test Redis connection before creating worker
     console.log('🔄 Testing Redis connection for stalled deal monitor...');
     const Redis = require('ioredis');
