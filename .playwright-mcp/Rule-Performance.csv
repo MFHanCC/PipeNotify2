@@ -1,0 +1,9 @@
+Rule Name,Triggers,Success / Failed,Success Rate,Response
+"Deal Won Notifications","45","","100","120"
+"High Value Deal Alerts","23","","98.7","135"
+"Stage Changes","156","","97.5","145"
+"Overdue Deal Reminders","34","","95.8","110"
+"New Lead Notifications","89","","99.2","125"
+"Deal Lost Analysis","12","","100","105"
+"Activity Summaries","67","","98.1","140"
+"Pipeline Reports","45","","96.9","130"
