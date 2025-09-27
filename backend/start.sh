@@ -14,12 +14,18 @@ sleep $STARTUP_DELAY
 
 echo "🔗 Network initialization complete, running migrations and starting Node.js server..."
 
-# Run database migrations
-echo "🔄 Running database migrations..."
-if node scripts/migrate.js; then
-    echo "✅ Database migrations completed successfully"
+# Skip migrations during Railway startup due to network timing issues
+if [ "$SKIP_MIGRATIONS" = "true" ] || [ "$RAILWAY_ENVIRONMENT" = "production" ]; then
+    echo "⚠️ Skipping database migrations (Railway startup optimization)"
+    echo "💡 Run migrations manually: railway run node backend/scripts/migrate.js"
 else
-    echo "⚠️ Database migrations failed, but continuing with server start"
+    # Run database migrations
+    echo "🔄 Running database migrations..."
+    if timeout 30 node scripts/migrate.js; then
+        echo "✅ Database migrations completed successfully"
+    else
+        echo "⚠️ Database migrations timed out or failed, continuing with server start"
+    fi
 fi
 
 # Start the Node.js application
