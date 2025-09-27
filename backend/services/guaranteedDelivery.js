@@ -215,6 +215,17 @@ async function processBatchQueue() {
   try {
     console.log('📦 Processing batch notification queue...');
     
+    // Check database connectivity with Railway IPv6 tolerance
+    try {
+      await pool.query('SELECT 1');
+    } catch (dbError) {
+      if (dbError.message.includes('ECONNREFUSED') || dbError.message.includes('ECONNRESET')) {
+        console.log('⚠️ Database connection temporarily unavailable, skipping batch processing');
+        return { processed: 0, skipped: true, reason: 'Database unavailable' };
+      }
+      throw dbError;
+    }
+    
     // Get pending notifications
     const result = await pool.query(`
       SELECT * FROM notification_queue

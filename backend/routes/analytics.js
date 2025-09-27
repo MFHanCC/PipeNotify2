@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 
 // Import authentication and feature gating
 const { authenticateToken } = require('../middleware/auth');
 const { requireFeature } = require('../middleware/featureGating');
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Use centralized database service with Railway optimizations
+const { pool } = require('../services/database');
 
 // Apply authentication to all routes
 router.use(authenticateToken);

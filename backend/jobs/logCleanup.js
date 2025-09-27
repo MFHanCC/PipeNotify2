@@ -1,11 +1,7 @@
-const { Pool } = require('pg');
 const cron = require('node-cron');
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Use centralized database service with Railway optimizations
+const { pool } = require('../services/database');
 
 // Plan-based retention configuration
 const RETENTION_CONFIG = {

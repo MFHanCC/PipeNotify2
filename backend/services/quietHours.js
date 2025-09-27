@@ -349,6 +349,17 @@ async function processDelayedNotifications() {
       return { processed: 0, error: 'Database not available' };
     }
 
+    // Check database connectivity with Railway IPv6 tolerance
+    try {
+      await pool.query('SELECT 1');
+    } catch (dbError) {
+      if (dbError.message.includes('ECONNREFUSED') || dbError.message.includes('ECONNRESET')) {
+        console.log('⚠️ Database connection temporarily unavailable, skipping delayed notification processing');
+        return { processed: 0, skipped: true, reason: 'Database unavailable' };
+      }
+      throw dbError;
+    }
+
     // Check if table exists first
     const tableCheck = await pool.query(`
       SELECT table_name 
