@@ -354,14 +354,22 @@ app.use('/api/v1/analytics', require('./routes/analytics'));
 app.use('/api/v1/analytics/advanced', require('./routes/advancedAnalytics'));
 app.use('/api/v1/health', require('./routes/health'));
 
-// Health check endpoint
+// Minimal health check endpoint - no external dependencies
 app.get('/health', (req, res) => {
+  console.log('🩺 Health check request received');
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    service: 'pipenotify-backend'
+    service: 'pipenotify-backend',
+    uptime: process.uptime()
   });
+});
+
+// Emergency ping endpoint - absolute minimal response
+app.get('/ping', (req, res) => {
+  console.log('🏓 Ping request received');
+  res.send('pong');
 });
 
 // Migration endpoint to fix Add Default Rules schema (no auth)
@@ -1551,6 +1559,9 @@ let server;
 
 // Run database migration in production
 async function startServer() {
+  const startTime = Date.now();
+  console.log('🚀 SERVER STARTUP INITIATED');
+  
   // Test database connectivity with timeout
   console.log('🔄 TESTING DATABASE CONNECTION...');
   try {
@@ -1598,9 +1609,13 @@ async function startServer() {
   }
   
   // Start server - this should always execute
+  const serverStartTime = Date.now();
   console.log('🔄 STARTING EXPRESS SERVER...');
   server = app.listen(PORT, () => {
+    const totalStartTime = Date.now() - startTime;
+    const serverBindTime = Date.now() - serverStartTime;
     console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
+    console.log(`⏱️ Total startup time: ${totalStartTime}ms, Server bind time: ${serverBindTime}ms`);
     
     // Use Railway public URL in production, localhost in development
     const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
