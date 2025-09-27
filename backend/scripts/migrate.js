@@ -2,10 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
-// Database connection
+// Database connection with enhanced Railway support
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 15000,
+  idleTimeoutMillis: 30000,
+  max: 5, // Reduced for migrations
+  keepAlive: true
 });
 
 async function runMigrations() {

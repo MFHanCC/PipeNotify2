@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireFeature } = require('../middleware/featureGating');
-const { verifyToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { pool } = require('../services/database');
 const systemReporter = require('../services/systemReporter');
 
@@ -17,7 +17,7 @@ router.use(requireFeature('advanced_analytics'));
  * GET /api/v1/analytics/advanced/executive/:tenantId
  * Executive summary and reports
  */
-router.get('/executive/:tenantId', verifyToken, async (req, res) => {
+router.get('/executive/:tenantId', authenticateToken, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const { period = '30d' } = req.query;
@@ -50,7 +50,7 @@ router.get('/executive/:tenantId', verifyToken, async (req, res) => {
  * GET /api/v1/analytics/advanced/team-performance/:tenantId
  * Team performance metrics and benchmarks
  */
-router.get('/team-performance/:tenantId', verifyToken, async (req, res) => {
+router.get('/team-performance/:tenantId', authenticateToken, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const { period = '30d' } = req.query;
@@ -77,7 +77,7 @@ router.get('/team-performance/:tenantId', verifyToken, async (req, res) => {
  * GET /api/v1/analytics/advanced/predictive/:tenantId
  * Predictive analytics and forecasts
  */
-router.get('/predictive/:tenantId', verifyToken, async (req, res) => {
+router.get('/predictive/:tenantId', authenticateToken, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const { type = 'pipeline_forecast' } = req.query;
@@ -107,7 +107,7 @@ router.get('/predictive/:tenantId', verifyToken, async (req, res) => {
  * POST /api/v1/analytics/advanced/export/:tenantId
  * Generate data export in various formats
  */
-router.post('/export/:tenantId', verifyToken, async (req, res) => {
+router.post('/export/:tenantId', authenticateToken, async (req, res) => {
   try {
     const { tenantId } = req.params;
     const { format = 'csv', data_range = '30d', filters = {} } = req.body;
@@ -135,7 +135,7 @@ router.post('/export/:tenantId', verifyToken, async (req, res) => {
  * GET /api/v1/analytics/advanced/export/:tenantId/:exportId/download
  * Download completed export file
  */
-router.get('/export/:tenantId/:exportId/download', verifyToken, async (req, res) => {
+router.get('/export/:tenantId/:exportId/download', authenticateToken, async (req, res) => {
   try {
     const { tenantId, exportId } = req.params;
     
