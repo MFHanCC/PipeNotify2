@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import PricingPage from './components/PricingPage';
 import AdaptiveBillingDashboard from './components/AdaptiveBillingDashboard';
 import { getAuthToken } from './utils/auth';
+import { QueryProvider } from './providers/QueryProvider';
 import './App.css';
 
 function OnboardingRoute() {
@@ -873,22 +874,24 @@ function DocsPage() {
 
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<Navigate to="/onboarding" replace />} />
-          <Route path="/onboarding" element={<OnboardingRoute />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/billing" element={<BillingRoute />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/support" element={<SupportPage />} />
-          <Route path="/docs" element={<DocsPage />} />
-          <Route path="*" element={<Navigate to="/onboarding" replace />} />
-        </Routes>
-      </div>
-    </Router>
+    <QueryProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<Navigate to="/onboarding" replace />} />
+            <Route path="/onboarding" element={<OnboardingRoute />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/billing" element={<BillingRoute />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/docs" element={<DocsPage />} />
+            <Route path="*" element={<Navigate to="/onboarding" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </QueryProvider>
   );
 }
 

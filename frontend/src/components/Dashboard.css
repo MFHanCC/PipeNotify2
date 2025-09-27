@@ -486,12 +486,13 @@
   margin-bottom: 20px;
 }
 
-/* Force 2x2 Grid Layout for Overview Stats - Responsive */
+/* Single Row Layout for Overview Stats */
 .stats-2x2 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr;
   width: 100%;
   max-width: 1200px;
+  gap: 16px;
 }
 
 .stat-card {
@@ -523,9 +524,7 @@
 }
 
 .stat-icon {
-  font-size: 40px;
-  margin-right: 20px;
-  opacity: 0.8;
+  display: none;
 }
 
 .stat-content {
@@ -2891,55 +2890,19 @@ select:focus,
 }
 
 .stat-icon.notifications {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  border-radius: 12px;
-  padding: 8px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
+  display: none;
 }
 
 .stat-icon.success {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  border-radius: 12px;
-  padding: 8px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
+  display: none;
 }
 
 .stat-icon.rules {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
-  border-radius: 12px;
-  padding: 8px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
+  display: none;
 }
 
 .stat-icon.speed {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
-  border-radius: 12px;
-  padding: 8px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
+  display: none;
 }
 
 .stat-value.animated {

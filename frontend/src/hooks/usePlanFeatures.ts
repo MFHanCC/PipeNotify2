@@ -61,7 +61,10 @@ export function usePlanFeatures() {
           advanced_filtering: { available: false, available_in_plans: ['pro', 'team'] },
           probability_filtering: { available: false, available_in_plans: ['pro', 'team'] },
           owner_filtering: { available: false, available_in_plans: ['pro', 'team'] },
-          time_filtering: { available: false, available_in_plans: ['pro', 'team'] }
+          time_filtering: { available: false, available_in_plans: ['pro', 'team'] },
+          csv_export: { available: false, available_in_plans: ['starter', 'pro', 'team'] },
+          bulk_management: { available: false, available_in_plans: ['pro', 'team'] },
+          rule_templates: { available: false, available_in_plans: ['pro', 'team'] }
         },
         can_upgrade: true
       };

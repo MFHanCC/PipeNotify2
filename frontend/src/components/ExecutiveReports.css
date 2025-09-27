@@ -1,7 +1,7 @@
 /* Executive Reports Component Styles */
 
 .executive-reports {
-  padding: 2rem;
+  padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -61,8 +61,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -74,7 +74,7 @@
 }
 
 .header-content p {
-  color: rgba(255, 255, 255, 0.7);
+  color: #cbd5e1;
   margin: 0;
 }
 
@@ -133,7 +133,7 @@
 
 /* Metrics Overview */
 .metrics-overview {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .metrics-overview h4 {
@@ -152,10 +152,10 @@
 .metric-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -173,7 +173,7 @@
 }
 
 .metric-label {
-  color: rgba(255, 255, 255, 0.7);
+  color: #94a3b8;
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -186,7 +186,7 @@
 
 /* Executive Summary */
 .executive-summary {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .executive-summary h4 {
@@ -213,7 +213,7 @@
 
 /* Recommendations */
 .recommendations {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .recommendations h4 {
@@ -278,7 +278,7 @@
 }
 
 .metadata-label {
-  color: rgba(255, 255, 255, 0.7);
+  color: #94a3b8;
   font-size: 0.8rem;
   font-weight: 500;
 }

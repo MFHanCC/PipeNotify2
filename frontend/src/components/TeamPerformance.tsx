@@ -55,7 +55,7 @@ const TeamPerformance: React.FC<TeamPerformanceProps> = ({ refreshToken }) => {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/analytics/advanced/team-performance/${tenantId}?period=${period}`,
+        `${API_BASE_URL}/api/v1/analytics/advanced/team-performance/${tenantId}?period=${period}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

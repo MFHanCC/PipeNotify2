@@ -14,13 +14,17 @@ const RuleFilters = lazy(() => import('./RuleFilters'));
 const TemplateEditor = lazy(() => import('./TemplateEditor'));
 const ChannelRouting = lazy(() => import('./ChannelRouting'));
 const QuietHours = lazy(() => import('./QuietHours'));
-const AnalyticsPanel = lazy(() => import('./AnalyticsPanel'));
+const BasicAnalyticsDashboard = lazy(() => import('./BasicAnalyticsDashboard'));
+const EnhancedAnalyticsDashboard = lazy(() => import('./EnhancedAnalyticsDashboard'));
 const NotificationPreview = lazy(() => import('./NotificationPreview'));
 const BulkRuleManager = lazy(() => import('./BulkRuleManager'));
 const StalledDealMonitor = lazy(() => import('./StalledDealMonitor'));
 const BillingDashboard = lazy(() => import('./AdaptiveBillingDashboard'));
 const TestingSection = lazy(() => import('./TestingSection'));
 const RuleTemplateLibrary = lazy(() => import('./RuleTemplateLibrary'));
+const ScheduledReports = lazy(() => import('./ScheduledReports'));
+const RuleBackupRestore = lazy(() => import('./RuleBackupRestore'));
+const UnifiedPricingTable = lazy(() => import('./UnifiedPricingTable'));
 
 // Loading component for Suspense fallback
 const ComponentLoader: React.FC = () => (
@@ -207,7 +211,7 @@ const Dashboard: React.FC = React.memo(() => {
   const logsPerPage = 20;
   
   // UI state
-  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'templates' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'rules' | 'templates' | 'logs' | 'webhooks' | 'routing' | 'quiet-hours' | 'stalled-deals' | 'analytics' | 'scheduled-reports' | 'rule-backup' | 'testing' | 'bulk-management' | 'billing' | 'pricing' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingRule, setEditingRule] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
@@ -1126,7 +1130,7 @@ const Dashboard: React.FC = React.memo(() => {
           tabIndex={0}
           aria-label="View notification logs"
         >
-          <div className="stat-icon notifications">📊</div>
+          <div className="stat-icon notifications"></div>
           <div className="stat-content">
             <div className="stat-value animated">{stats.totalNotifications.toLocaleString()}</div>
             <div className="stat-label">Total Notifications</div>
@@ -1143,7 +1147,7 @@ const Dashboard: React.FC = React.memo(() => {
           tabIndex={0}
           aria-label="View success rate details"
         >
-          <div className="stat-icon success">🎯</div>
+          <div className="stat-icon success"></div>
           <div className="stat-content">
             <div className={`stat-value animated ${getSuccessRateColor(stats.successRate)}`}>
               {stats.successRate.toFixed(1)}%
@@ -1168,7 +1172,7 @@ const Dashboard: React.FC = React.memo(() => {
           tabIndex={0}
           aria-label="Manage notification rules"
         >
-          <div className="stat-icon rules">⚙️</div>
+          <div className="stat-icon rules"></div>
           <div className="stat-content">
             <div className="stat-value animated">{rules.length}</div>
             <div className="stat-label">Active Rules</div>
@@ -1189,7 +1193,7 @@ const Dashboard: React.FC = React.memo(() => {
           tabIndex={0}
           aria-label="View delivery performance"
         >
-          <div className="stat-icon speed">🚀</div>
+          <div className="stat-icon speed"></div>
           <div className="stat-content">
             <div className="stat-value animated">{stats.avgDeliveryTime}ms</div>
             <div className="stat-label">Avg Delivery Time</div>
@@ -1918,7 +1922,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'overview' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Overview'}
+            <span aria-hidden="true">🏠</span> {!sidebarCollapsed && 'Overview'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'rules' ? 'active' : ''}`}
@@ -1927,7 +1931,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'rules' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">⚙️</span> {!sidebarCollapsed && `Rules (${rules.length})`}
+            <span aria-hidden="true">📏</span> {!sidebarCollapsed && `Rules (${rules.length})`}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'templates' ? 'active' : ''}`}
@@ -1936,7 +1940,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'templates' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Templates'}
+            <span aria-hidden="true">📝</span> {!sidebarCollapsed && 'Templates'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'logs' ? 'active' : ''}`}
@@ -1945,7 +1949,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'logs' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Logs'}
+            <span aria-hidden="true">📄</span> {!sidebarCollapsed && 'Logs'}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'webhooks' ? 'active' : ''}`}
@@ -2006,24 +2010,58 @@ const Dashboard: React.FC = React.memo(() => {
               aria-current={activeTab === 'stalled-deals' ? 'page' : undefined}
               type="button"
             >
-              <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Stalled Deals'}
+              <span aria-hidden="true">⏰</span> {!sidebarCollapsed && 'Stalled Deals'}
             </button>
           </FeatureRestriction>
           <FeatureRestriction
-            isAvailable={hasFeature('usage_analytics')}
-            requiredPlan={getFeatureRequiredPlan('usage_analytics')}
+            isAvailable={hasFeature('basic_analytics')}
+            requiredPlan={getFeatureRequiredPlan('basic_analytics')}
             currentPlan={planTier}
-            featureName="Usage Analytics"
+            featureName="Analytics"
             upgradeHint="View detailed analytics and usage reports"
           >
             <button 
-              className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${!hasFeature('usage_analytics') ? 'disabled' : ''}`}
-              onClick={() => hasFeature('usage_analytics') && setActiveTab('analytics')}
+              className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${!hasFeature('basic_analytics') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('basic_analytics') && setActiveTab('analytics')}
               aria-label="Analytics and reporting"
               aria-current={activeTab === 'analytics' ? 'page' : undefined}
               type="button"
             >
-              <span aria-hidden="true">📊</span> {!sidebarCollapsed && 'Analytics'}
+              <span aria-hidden="true">📈</span> {!sidebarCollapsed && 'Analytics'}
+            </button>
+          </FeatureRestriction>
+          <FeatureRestriction
+            isAvailable={hasFeature('advanced_analytics')}
+            requiredPlan={getFeatureRequiredPlan('advanced_analytics')}
+            currentPlan={planTier}
+            featureName="Scheduled Reports"
+            upgradeHint="Automate report generation and delivery"
+          >
+            <button 
+              className={`nav-tab ${activeTab === 'scheduled-reports' ? 'active' : ''} ${!hasFeature('advanced_analytics') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('advanced_analytics') && setActiveTab('scheduled-reports')}
+              aria-label="Scheduled reports management"
+              aria-current={activeTab === 'scheduled-reports' ? 'page' : undefined}
+              type="button"
+            >
+              <span aria-hidden="true">📅</span> {!sidebarCollapsed && 'Scheduled Reports'}
+            </button>
+          </FeatureRestriction>
+          <FeatureRestriction
+            isAvailable={hasFeature('bulk_management')}
+            requiredPlan={getFeatureRequiredPlan('bulk_management')}
+            currentPlan={planTier}
+            featureName="Rule Backup & Restore"
+            upgradeHint="Backup and restore notification rule configurations"
+          >
+            <button 
+              className={`nav-tab ${activeTab === 'rule-backup' ? 'active' : ''} ${!hasFeature('bulk_management') ? 'disabled' : ''}`}
+              onClick={() => hasFeature('bulk_management') && setActiveTab('rule-backup')}
+              aria-label="Rule backup and restore management"
+              aria-current={activeTab === 'rule-backup' ? 'page' : undefined}
+              type="button"
+            >
+              <span aria-hidden="true">💾</span> {!sidebarCollapsed && 'Backup & Restore'}
             </button>
           </FeatureRestriction>
           <FeatureRestriction
@@ -2040,7 +2078,7 @@ const Dashboard: React.FC = React.memo(() => {
               type="button"
               disabled={!hasFeature('bulk_management')}
             >
-              <span aria-hidden="true">📋</span> {!sidebarCollapsed && 'Bulk Management'}
+              <span aria-hidden="true">🗂️</span> {!sidebarCollapsed && 'Bulk Management'}
             </button>
           </FeatureRestriction>
           <button 
@@ -2075,7 +2113,7 @@ const Dashboard: React.FC = React.memo(() => {
             aria-current={activeTab === 'settings' ? 'page' : undefined}
             type="button"
           >
-            <span aria-hidden="true">⚙️</span> {!sidebarCollapsed && 'Settings'}
+            <span aria-hidden="true">🔧</span> {!sidebarCollapsed && 'Settings'}
           </button>
           
           {/* Dark Mode Toggle */}
@@ -2146,13 +2184,30 @@ const Dashboard: React.FC = React.memo(() => {
               />
             </Suspense>
           )}
-          {activeTab === 'analytics' && hasFeature('basic_analytics') && (
+          {activeTab === 'analytics' && hasFeature('basic_analytics') && !hasFeature('advanced_analytics') && (
             <Suspense fallback={<ComponentLoader />}>
-              <AnalyticsPanel 
-                tenantId={tenantId}
-                dateRange={dateRange}
-                onDateRangeChange={setDateRange}
+              <BasicAnalyticsDashboard 
+                onRefresh={loadDashboardData}
+                refreshToken={Date.now()}
               />
+            </Suspense>
+          )}
+          {activeTab === 'analytics' && hasFeature('advanced_analytics') && (
+            <Suspense fallback={<ComponentLoader />}>
+              <EnhancedAnalyticsDashboard 
+                onRefresh={loadDashboardData}
+                refreshToken={Date.now()}
+              />
+            </Suspense>
+          )}
+          {activeTab === 'scheduled-reports' && hasFeature('advanced_analytics') && (
+            <Suspense fallback={<ComponentLoader />}>
+              <ScheduledReports />
+            </Suspense>
+          )}
+          {activeTab === 'rule-backup' && hasFeature('bulk_management') && (
+            <Suspense fallback={<ComponentLoader />}>
+              <RuleBackupRestore />
             </Suspense>
           )}
           {activeTab === 'testing' && (
@@ -2200,176 +2255,9 @@ const Dashboard: React.FC = React.memo(() => {
             </div>
           )}
           {activeTab === 'pricing' && (
-            <div className="pricing-section">
-              {/* Header */}
-              <header className="pricing-header">
-                <h1>Simple, transparent pricing</h1>
-                <p>Choose the perfect plan for your team. Start free, upgrade anytime.</p>
-                
-                {/* Billing Toggle */}
-                <div className="billing-toggle">
-                  <button className="toggle-option active">
-                    Monthly
-                  </button>
-                  <button className="toggle-option">
-                    Annual
-                    <span className="savings-badge">Save up to 20%</span>
-                  </button>
-                </div>
-              </header>
-
-              {/* Plan Cards */}
-              <section className="plans-section">
-                <div className="plans-grid">
-                  <div className={`pricing-card free ${planTier === 'free' ? 'current' : ''}`}>
-                    <div className="plan-header">
-                      <h4>Free</h4>
-                      <div className="price">$0<span>/month</span></div>
-                    </div>
-                    <ul className="features">
-                      <li>✅ Real-time deal notifications</li>
-                      <li>✅ Google Chat integration</li>
-                      <li>✅ Basic message templates</li>
-                      <li>✅ Email support</li>
-                      <li>✅ 7-day log retention</li>
-                      <li>✅ 100/month, 1 webhook, 3 rules total</li>
-                    </ul>
-                    <button className={`plan-button ${planTier === 'free' ? 'current' : 'downgrade'}`}>
-                      {planTier === 'free' ? 'Current Plan' : 'Downgrade'}
-                    </button>
-                  </div>
-                  
-                  <div className={`pricing-card starter ${planTier === 'starter' ? 'current' : ''}`}>
-                    <div className="plan-header">
-                      <h4>Starter</h4>
-                      <div className="price">$19<span>/month</span></div>
-                    </div>
-                    <ul className="features">
-                      <li>✅ Everything in Free</li>
-                      <li>✅ 1,000 notifications/month</li>
-                      <li>✅ 3 webhooks, 10 rules</li>
-                      <li>✅ Value filtering</li>
-                      <li>✅ Enhanced formatting</li>
-                      <li>✅ CSV export of logs</li>
-                      <li>✅ Basic templates (3 pre-built)</li>
-                    </ul>
-                    <button className={`plan-button ${planTier === 'starter' ? 'current' : planTier === 'free' ? 'upgrade' : 'downgrade'}`}>
-                      {planTier === 'starter' ? 'Current Plan' : planTier === 'free' ? 'Upgrade' : 'Downgrade'}
-                    </button>
-                  </div>
-                  
-                  <div className={`pricing-card pro popular ${planTier === 'pro' ? 'current' : ''}`}>
-                    <div className="plan-badge">Most Popular</div>
-                    <div className="plan-header">
-                      <h4>Pro</h4>
-                      <div className="price">$49<span>/month</span></div>
-                    </div>
-                    <ul className="features">
-                      <li>✅ Everything in Starter</li>
-                      <li>✅ 5,000 notifications/month</li>
-                      <li>✅ 10 webhooks, 50 rules total</li>
-                      <li>✅ Rule templates library</li>
-                      <li>✅ Custom message templates</li>
-                      <li>✅ Smart channel routing</li>
-                      <li>✅ Quiet hours scheduling</li>
-                      <li>✅ Stalled deal alerts</li>
-                      <li>✅ Basic analytics dashboard</li>
-                      <li>✅ Bulk rule management</li>
-                      <li>✅ 90-day log retention</li>
-                    </ul>
-                    <button className={`plan-button ${planTier === 'pro' ? 'current' : ['free', 'starter'].includes(planTier) ? 'upgrade' : 'downgrade'}`}>
-                      {planTier === 'pro' ? 'Current Plan' : ['free', 'starter'].includes(planTier) ? 'Upgrade' : 'Downgrade'}
-                    </button>
-                  </div>
-                  
-                  <div className={`pricing-card team ${planTier === 'team' ? 'current' : ''}`}>
-                    {planTier === 'team' && <div className="current-badge">Current Plan</div>}
-                    <div className="plan-header">
-                      <h4>Team</h4>
-                      <div className="price">$99<span>/month</span></div>
-                    </div>
-                    <ul className="features">
-                      <li>✅ Everything in Professional</li>
-                      <li>✅ Unlimited notifications</li>
-                      <li>✅ Unlimited webhooks</li>
-                      <li>✅ Unlimited rules</li>
-                      <li>✅ Advanced analytics & insights</li>
-                      <li>✅ Scheduled reports (daily/weekly)</li>
-                      <li>✅ Rule backup & restore</li>
-                      <li>✅ Priority support</li>
-                      <li>✅ 1-year log retention</li>
-                    </ul>
-                    <button className={`plan-button ${planTier === 'team' ? 'current' : 'upgrade'}`}>
-                      {planTier === 'team' ? 'Current Plan' : 'Upgrade'}
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              {/* Trust Elements */}
-              <section className="trust-section">
-                <div className="trust-grid">
-                  <div className="trust-item">
-                    <div className="trust-icon">🔒</div>
-                    <div className="trust-content">
-                      <h4>Enterprise Security</h4>
-                      <p>SOC 2 compliant, 256-bit encryption</p>
-                    </div>
-                  </div>
-                  <div className="trust-item">
-                    <div className="trust-icon">💯</div>
-                    <div className="trust-content">
-                      <h4>30-Day Money Back</h4>
-                      <p>Full refund, no questions asked</p>
-                    </div>
-                  </div>
-                  <div className="trust-item">
-                    <div className="trust-icon">⚡</div>
-                    <div className="trust-content">
-                      <h4>99.9% Uptime SLA</h4>
-                      <p>Reliable delivery guaranteed</p>
-                    </div>
-                  </div>
-                  <div className="trust-item testimonial">
-                    <div className="trust-content">
-                      <p>"PipeNotify transformed our sales workflow. Essential tool for any Pipedrive team."</p>
-                      <cite>— Sarah K., Sales Director</cite>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* FAQ Section */}
-              <section className="faq-section">
-                <h2>Frequently asked questions</h2>
-                <div className="faq-list">
-                  <details className="faq-item">
-                    <summary>Can I upgrade or downgrade anytime?</summary>
-                    <p>Yes, change plans instantly from your account settings.</p>
-                  </details>
-                  <details className="faq-item">
-                    <summary>What are default rules?</summary>
-                    <p>Ready-to-use rules we provide for ease of use. You can customize, delete, or replace them with your own rules within your plan's limit.</p>
-                  </details>
-                  <details className="faq-item">
-                    <summary>What are rule templates?</summary>
-                    <p>Professional and Team plans include pre-built rule templates for common notification patterns like high-value deals, won celebrations, and stalled deal monitoring.</p>
-                  </details>
-                  <details className="faq-item">
-                    <summary>Is my Pipedrive data secure?</summary>
-                    <p>Yes, enterprise-grade encryption and SOC 2 compliance protect your data.</p>
-                  </details>
-                  <details className="faq-item">
-                    <summary>30-day money-back guarantee?</summary>
-                    <p>Full refund on all paid plans, no questions asked.</p>
-                  </details>
-                </div>
-                
-                <div className="enterprise-note">
-                  <p>Need custom features or enterprise-level support? <a href="mailto:team@primedevlabs.com">Contact our sales team</a> for custom pricing and dedicated onboarding.</p>
-                </div>
-              </section>
-            </div>
+            <Suspense fallback={<ComponentLoader />}>
+              <UnifiedPricingTable />
+            </Suspense>
           )}
           {activeTab === 'settings' && (
             <div className="settings-section">

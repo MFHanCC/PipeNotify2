@@ -80,8 +80,13 @@ const QuietHours: React.FC<QuietHoursProps> = ({ onRefresh }) => {
 
       if (configResponse.ok) {
         const configData = await configResponse.json();
-        setConfig(configData.quiet_hours);
-        setEditConfig(configData.quiet_hours);
+        const quietHoursConfig = {
+          ...DEFAULT_CONFIG,
+          ...configData.quiet_hours,
+          configured: !!configData.quiet_hours && Object.keys(configData.quiet_hours).length > 0
+        };
+        setConfig(quietHoursConfig);
+        setEditConfig(quietHoursConfig);
       }
 
       if (statusResponse.ok) {
@@ -240,7 +245,7 @@ const QuietHours: React.FC<QuietHoursProps> = ({ onRefresh }) => {
           <div className="quiet-hours-display">
             <div className="config-section">
               <h4>Configuration</h4>
-              {config.configured ? (
+              {config && config.configured ? (
                 <div className="config-details">
                   <div className="config-row">
                     <span className="config-label">Timezone:</span>
@@ -279,9 +284,9 @@ const QuietHours: React.FC<QuietHoursProps> = ({ onRefresh }) => {
                 className="edit-button"
                 onClick={() => setIsEditing(true)}
               >
-                {config.configured ? '✏️ Edit' : '⚙️ Configure'} Quiet Hours
+                {config && config.configured ? '✏️ Edit' : '⚙️ Configure'} Quiet Hours
               </button>
-              {config.configured && (
+              {config && config.configured && (
                 <button
                   className="delete-button"
                   onClick={deleteQuietHours}

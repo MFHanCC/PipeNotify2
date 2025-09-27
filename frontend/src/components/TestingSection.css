@@ -1,5 +1,5 @@
 .testing-section {
-  padding: 12px;
+  padding: 16px 0;
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
@@ -8,15 +8,17 @@
 }
 
 .section-header {
-  text-align: center;
-  margin-bottom: 2rem;
+  text-align: left;
+  margin-bottom: 1.5rem;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .section-header h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 700;
   color: #1f2937;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .section-header p {
@@ -26,82 +28,101 @@
 
 .testing-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
 
+/* For screens that can fit 4 cards, show them in one row */
+@media (min-width: 1400px) {
+  .testing-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+}
+
+/* For medium screens, maintain 2x2 layout */
+@media (max-width: 1399px) and (min-width: 769px) {
+  .testing-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
 .test-card {
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  padding: 20px;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+  background: rgba(30, 41, 59, 0.95);
+  border-radius: 8px;
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  padding: 16px;
+  transition: all 0.3s ease;
+  box-shadow: none;
+  color: #e2e8f0;
 }
 
 .test-card:hover {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: rgba(71, 85, 105, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .test-card.primary {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(30, 41, 59, 0.95);
 }
 
-.test-card.success {
-  border-color: #10b981;
-  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+.test-card.secondary {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(30, 41, 59, 0.95);
 }
 
-.test-card.failure {
-  border-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+.test-card.tertiary {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(30, 41, 59, 0.95);
 }
 
-.test-card.info {
-  border-color: #8b5cf6;
-  background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
+.test-card.quaternary {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(30, 41, 59, 0.95);
 }
 
 .card-header {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .card-header h4 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.25rem;
+  color: #f8fafc;
+  margin-bottom: 0.2rem;
+  line-height: 1.3;
 }
 
 .card-description {
-  color: #6b7280;
-  font-size: 0.9rem;
-  line-height: 1.4;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  line-height: 1.3;
 }
 
 .card-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .test-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.3;
   transition: all 0.2s ease;
   cursor: pointer;
   border: none;
-  min-height: 44px;
+  min-height: 36px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -156,13 +177,18 @@
 }
 
 .test-info {
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 8px;
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 4px;
+  border: 1px solid rgba(71, 85, 105, 0.2);
 }
 
 .test-info small {
-  color: #6b7280;
-  font-size: 0.85rem;
+  color: #cbd5e1;
+  font-size: 0.75rem;
   line-height: 1.3;
+  font-weight: 500;
 }
 
 .health-status {
@@ -187,11 +213,11 @@
 
 .status-text {
   font-weight: 500;
-  color: #374151;
+  color: #e2e8f0;
 }
 
 .last-checked {
-  color: #6b7280;
+  color: #94a3b8;
   font-size: 0.85rem;
 }
 
@@ -345,33 +371,53 @@
   }
 }
 
+/* Mobile screens, single column */
 @media (max-width: 768px) {
   .testing-section {
     padding: 12px;
-    gap: 16px;
+    gap: 14px;
   }
   
   .section-header {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
   }
   
   .section-header h3 {
-    font-size: 20px;
+    font-size: 1.4rem;
+  }
+  
+  .section-header p {
+    font-size: 0.9rem;
   }
   
   .testing-grid {
     grid-template-columns: 1fr;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
   
   .test-card {
     padding: 12px;
   }
   
+  .card-header h4 {
+    font-size: 0.95rem;
+  }
+  
+  .card-description {
+    font-size: 0.8rem;
+  }
+  
+  .test-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    min-height: 32px;
+  }
+  
   .result-meta {
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 }
 
@@ -529,26 +575,26 @@
 }
 
 .diagnostics-results {
-  margin-top: 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  background: #f9fafb;
+  margin-top: 16px;
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  background: rgba(51, 65, 85, 0.5);
 }
 
 .diagnostics-results h5 {
-  margin: 0 0 16px 0;
-  color: #374151;
-  font-size: 1rem;
+  margin: 0 0 12px 0;
+  color: #f8fafc;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
 .diagnostic-item {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.4);
   border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
   transition: all 0.2s ease;
 }
 
@@ -557,15 +603,15 @@
 }
 
 .diagnostic-item:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-color: rgba(71, 85, 105, 0.6);
+  background: rgba(51, 65, 85, 0.8);
 }
 
 .diagnostic-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .diagnostic-icon {
@@ -574,7 +620,7 @@
 
 .diagnostic-name {
   font-weight: 600;
-  color: #374151;
+  color: #f8fafc;
   flex: 1;
 }
 
@@ -610,19 +656,20 @@
   flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
-  color: #6b7280;
+  color: #cbd5e1;
 }
 
 .diagnostic-metric {
-  background: #f3f4f6;
+  background: rgba(71, 85, 105, 0.6);
   padding: 2px 6px;
   border-radius: 3px;
   font-weight: 500;
+  color: #e2e8f0;
 }
 
 .diagnostic-time {
   font-style: italic;
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 /* Dark mode support for diagnostics */
@@ -662,44 +709,44 @@
 
 /* Health metrics styles */
 .health-metrics {
-  margin-top: 16px;
-  padding: 12px;
-  background: #f8fafc;
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(51, 65, 85, 0.5);
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(71, 85, 105, 0.3);
 }
 
 .health-metrics h6 {
-  margin: 0 0 12px 0;
-  color: #374151;
-  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: #f8fafc;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
 }
 
 .metric-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 8px;
-  background: white;
+  padding: 5px 6px;
+  background: rgba(30, 41, 59, 0.8);
   border-radius: 4px;
-  border: 1px solid #e5e7eb;
-  font-size: 12px;
+  border: 1px solid rgba(71, 85, 105, 0.4);
+  font-size: 0.7rem;
 }
 
 .metric-label {
-  color: #6b7280;
+  color: #cbd5e1;
   font-weight: 500;
 }
 
 .metric-value {
-  color: #1f2937;
+  color: #f8fafc;
   font-weight: 600;
 }
 
