@@ -19,8 +19,23 @@ async function runMigrations() {
   const pool = getDbPool();
   
   const migrationsDir = path.join(__dirname, '../migrations');
+  const schemaFile = path.join(__dirname, '../db/schema.sql');
   
   try {
+    // First, run the base schema if it exists
+    if (fs.existsSync(schemaFile)) {
+      console.log('🔄 Running base schema: schema.sql');
+      const schemaSql = fs.readFileSync(schemaFile, 'utf8');
+      
+      try {
+        await pool.query(schemaSql);
+        console.log('✅ Base schema completed: schema.sql');
+      } catch (error) {
+        // Log but continue - schema might already exist
+        console.log(`⚠️ Base schema note: ${error.message}`);
+      }
+    }
+    
     // Get all migration files
     const files = fs.readdirSync(migrationsDir)
       .filter(file => file.endsWith('.sql'))
