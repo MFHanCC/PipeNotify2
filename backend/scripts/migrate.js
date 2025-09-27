@@ -1,53 +1,22 @@
 const fs = require('fs');
 const path = require('path');
-const { Pool } = require('pg');
-
-// Database connection with enhanced Railway support and retry logic
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 20000, // Increased for Railway startup
-  idleTimeoutMillis: 30000,
-  max: 3, // Reduced for migrations
-  keepAlive: true,
-  // Enhanced Railway startup resilience
-  retryDelay: 2000,
-  maxRetries: 5
-});
+const { getDbPool, healthCheck } = require('../services/database');
 
 async function runMigrations() {
   console.log('🔄 Starting database migrations...');
   
-  // Wait for database to be ready with exponential backoff
-  let dbReady = false;
-  let attempts = 0;
-  const maxAttempts = 10;
+  // Use production-grade health check from database service
+  console.log('🔍 Performing database health check...');
+  const isHealthy = await healthCheck();
   
-  while (!dbReady && attempts < maxAttempts) {
-    attempts++;
-    try {
-      console.log(`🔍 Database readiness check ${attempts}/${maxAttempts}...`);
-      await pool.query('SELECT 1');
-      dbReady = true;
-      console.log('✅ Database is ready for migrations');
-    } catch (error) {
-      if (error.message.includes('ECONNREFUSED') || error.message.includes('ECONNRESET')) {
-        const waitTime = Math.min(1000 * Math.pow(2, attempts - 1), 10000); // Cap at 10s
-        console.log(`⏳ Database not ready, waiting ${waitTime}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      } else {
-        console.error('❌ Database connection error:', error.message);
-        break;
-      }
-    }
-  }
-  
-  if (!dbReady) {
-    console.log('⚠️ Database not ready after maximum attempts, skipping migrations');
+  if (!isHealthy) {
+    console.log('⚠️ Database health check failed, skipping migrations');
     console.log('💡 Run migrations manually later with: node backend/scripts/migrate.js');
-    await pool.end();
     process.exit(0);
   }
+  
+  console.log('✅ Database is ready for migrations');
+  const pool = getDbPool();
   
   const migrationsDir = path.join(__dirname, '../migrations');
   
@@ -97,8 +66,6 @@ async function runMigrations() {
   } catch (error) {
     console.error('❌ Migration process failed:', error);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 

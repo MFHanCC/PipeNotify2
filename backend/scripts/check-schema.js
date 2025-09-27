@@ -1,12 +1,18 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const { getDbPool, healthCheck } = require('../services/database');
 
 async function checkSchema() {
   console.log('🔍 Checking database schema...');
+  
+  // Use production-grade health check
+  console.log('🔍 Performing database health check...');
+  const isHealthy = await healthCheck();
+  
+  if (!isHealthy) {
+    console.log('⚠️ Database health check failed, cannot check schema');
+    process.exit(1);
+  }
+  
+  const pool = getDbPool();
   
   try {
     // Check if is_default column exists in rules table
@@ -53,8 +59,6 @@ async function checkSchema() {
     
   } catch (error) {
     console.error('❌ Schema check failed:', error.message);
-  } finally {
-    await pool.end();
   }
 }
 

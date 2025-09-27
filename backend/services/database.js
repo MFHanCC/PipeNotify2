@@ -1,46 +1,85 @@
 const { Pool } = require('pg');
 
-// Enhanced PostgreSQL configuration for Railway deployment
+// Production-grade PostgreSQL configuration for Railway deployment
 function createDatabasePool() {
   const isProduction = process.env.NODE_ENV === 'production';
+  const isRailway = process.env.RAILWAY_ENVIRONMENT;
   
+  // Railway-optimized connection configuration
   const poolConfig = {
     connectionString: process.env.DATABASE_URL || 
       `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`,
+    
+    // SSL Configuration
     ssl: isProduction ? { 
       rejectUnauthorized: false,
       require: true 
     } : false,
-    max: 20,
+    
+    // Connection Pool Settings - optimized for Railway
+    max: isRailway ? 15 : 20, // Reduced max connections for Railway
+    min: isRailway ? 2 : 1,   // Maintain minimum connections
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 15000, // Increased for Railway IPv6
-    acquireTimeoutMillis: 15000,
-    // Railway networking optimizations
+    
+    // Railway-specific timeouts (longer for network stability)
+    connectionTimeoutMillis: 30000, // Increased for Railway startup
+    acquireTimeoutMillis: 20000,
+    
+    // Network optimizations for Railway
     keepAlive: true,
     keepAliveInitialDelayMillis: 0,
     allowExitOnIdle: false,
-    // Enhanced Railway IPv6 support
-    query_timeout: 15000,
-    statement_timeout: 15000
+    
+    // Query timeouts
+    query_timeout: 25000,
+    statement_timeout: 25000,
+    
+    // Railway networking resilience
+    application_name: 'pipenotify-backend',
+    
+    // Connection retry and stability
+    options: isRailway ? '--statement_timeout=25000' : undefined
   };
 
   const pool = new Pool(poolConfig);
   
-  // Enhanced error handling for Railway networking
+  // Production-grade error handling and monitoring
   pool.on('error', (err) => {
-    console.error('PostgreSQL pool error:', err.message);
+    console.error('🔥 PostgreSQL pool error:', err.message);
+    
+    // Log specific error types for monitoring
     if (err.message.includes('authentication failed')) {
-      console.error('❌ Database authentication failed - check DATABASE_URL');
-    } else if (err.message.includes('ENOTFOUND') || err.message.includes('timeout')) {
-      console.error('❌ Database network error - Railway internal networking issue');
-    } else if (err.message.includes('ECONNRESET') || err.message.includes('ECONNREFUSED')) {
-      console.error('❌ Database connection refused/reset - Railway service may be starting');
-      console.error('💡 Retrying connections with exponential backoff...');
+      console.error('❌ Database authentication failed - check DATABASE_URL credentials');
+    } else if (err.message.includes('ENOTFOUND')) {
+      console.error('❌ Database host not found - check Railway networking');
+    } else if (err.message.includes('ECONNRESET')) {
+      console.error('❌ Database connection reset - Railway network instability');
+    } else if (err.message.includes('ECONNREFUSED')) {
+      console.error('❌ Database connection refused - Railway service may be restarting');
+    } else if (err.message.includes('timeout')) {
+      console.error('❌ Database timeout - Railway network latency');
+    } else {
+      console.error('❌ Database error:', err.code, err.errno);
     }
   });
 
-  pool.on('connect', () => {
+  pool.on('connect', (client) => {
     console.log('✅ PostgreSQL client connected to database');
+    
+    // Set connection-specific timeouts for Railway stability
+    if (isRailway) {
+      client.query('SET statement_timeout = 25000').catch(err => {
+        console.warn('⚠️ Could not set statement timeout:', err.message);
+      });
+    }
+  });
+
+  pool.on('acquire', () => {
+    console.log('🔗 Database connection acquired from pool');
+  });
+
+  pool.on('release', () => {
+    console.log('📤 Database connection released to pool');
   });
 
   return pool;
@@ -49,32 +88,85 @@ function createDatabasePool() {
 // Create database connection pool with enhanced Railway support
 const pool = createDatabasePool();
 
-// Database connection health check with retry logic for Railway
-async function healthCheck(retries = 3) {
+// Production-grade database health check with comprehensive retry logic
+async function healthCheck(maxRetries = 10, initialDelay = 1000) {
+  const isRailway = process.env.RAILWAY_ENVIRONMENT;
+  const retries = isRailway ? Math.max(maxRetries, 10) : maxRetries;
+  
+  console.log(`🔍 Starting database health check (Railway: ${!!isRailway})...`);
+  
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`🔄 Database health check attempt ${attempt}/${retries}...`);
       
+      // Use pool with timeout for health check
       const client = await pool.connect();
-      await client.query('SELECT 1');
+      
+      // Test basic connectivity
+      const result = await client.query('SELECT 1 as health_check, NOW() as timestamp');
       client.release();
       
       console.log('✅ Database health check successful');
-      return { healthy: true };
+      console.log(`📊 Health check result:`, result.rows[0]);
+      
+      return { 
+        healthy: true, 
+        attempt, 
+        timestamp: result.rows[0].timestamp,
+        connectionInfo: {
+          database: client.database,
+          user: client.user,
+          host: client.host,
+          port: client.port
+        }
+      };
+      
     } catch (error) {
       console.error(`❌ Database health check attempt ${attempt} failed:`, error.message);
       
+      // Determine if error is retryable
+      const isRetryableError = 
+        error.message.includes('ECONNREFUSED') ||
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ECONNRESET';
+      
       if (attempt === retries) {
         console.error('💥 All database health check attempts failed');
-        return { healthy: false, error: error.message };
+        return { 
+          healthy: false, 
+          error: error.message, 
+          code: error.code,
+          lastAttempt: attempt,
+          retryable: isRetryableError
+        };
       }
       
-      // Wait before retry (exponential backoff)
-      const waitTime = Math.pow(2, attempt) * 1000;
-      console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+      if (!isRetryableError) {
+        console.error('💥 Non-retryable database error, aborting health check');
+        return { 
+          healthy: false, 
+          error: error.message, 
+          code: error.code,
+          lastAttempt: attempt,
+          retryable: false
+        };
+      }
+      
+      // Exponential backoff with jitter for Railway
+      const baseDelay = initialDelay * Math.pow(1.5, attempt - 1);
+      const jitter = Math.random() * 0.1 * baseDelay; // 10% jitter
+      const waitTime = Math.min(baseDelay + jitter, 15000); // Cap at 15s
+      
+      console.log(`⏳ Waiting ${Math.round(waitTime)}ms before retry (exponential backoff)...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
+  
+  return { healthy: false, error: 'Health check exhausted all retries' };
 }
 
 // Rules management functions
