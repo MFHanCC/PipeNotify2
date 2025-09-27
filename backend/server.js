@@ -1551,11 +1551,18 @@ let server;
 
 // Run database migration in production
 async function startServer() {
-  // Test database connectivity first
+  // Test database connectivity with timeout
   console.log('🔄 TESTING DATABASE CONNECTION...');
   try {
     const { healthCheck } = require('./services/database');
-    const dbHealth = await healthCheck();
+    
+    // Add timeout to prevent hanging
+    const dbHealthPromise = healthCheck();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database health check timeout')), 10000)
+    );
+    
+    const dbHealth = await Promise.race([dbHealthPromise, timeoutPromise]);
     if (dbHealth.healthy) {
       console.log('✅ DATABASE CONNECTION SUCCESSFUL');
     } else {
@@ -1571,19 +1578,27 @@ async function startServer() {
   } else if (runMigration && fixPipedriveConnectionsTable) {
     try {
       console.log('🔄 Running database migrations...');
-      await runMigration();
-      console.log('✅ Tenants table migration completed');
-      console.log('📋 Migration includes delayed_notifications table creation');
       
-      await fixPipedriveConnectionsTable();
-      console.log('✅ Pipedrive connections table migration completed');
+      // Add timeout to migration to prevent hanging
+      const migrationPromise = Promise.all([
+        runMigration().then(() => console.log('✅ Tenants table migration completed')),
+        fixPipedriveConnectionsTable().then(() => console.log('✅ Pipedrive connections table migration completed'))
+      ]);
+      
+      const migrationTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Migration timeout')), 30000)
+      );
+      
+      await Promise.race([migrationPromise, migrationTimeout]);
+      console.log('📋 Migration includes delayed_notifications table creation');
     } catch (error) {
       console.error('❌ Database migration failed:', error);
       // Continue startup even if migration fails (in case columns already exist)
     }
   }
   
-  // Start server
+  // Start server - this should always execute
+  console.log('🔄 STARTING EXPRESS SERVER...');
   server = app.listen(PORT, () => {
     console.log(`🚀 Pipenotify Backend running on port ${PORT}`);
     
