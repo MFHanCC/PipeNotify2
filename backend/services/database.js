@@ -5,10 +5,22 @@ function createDatabasePool() {
   const isProduction = process.env.NODE_ENV === 'production';
   const isRailway = process.env.RAILWAY_ENVIRONMENT;
   
+  // Railway IPv6 fallback - try public URL if private networking fails
+  let databaseUrl = process.env.DATABASE_URL;
+  
+  // If we have both private and public URLs, prefer private but have public as fallback
+  if (isRailway && process.env.DATABASE_PUBLIC_URL) {
+    console.log('🔗 Railway detected: Using private DATABASE_URL with public fallback available');
+    databaseUrl = process.env.DATABASE_URL;
+  }
+  
+  if (!databaseUrl) {
+    databaseUrl = `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`;
+  }
+  
   // Railway-optimized connection configuration
   const poolConfig = {
-    connectionString: process.env.DATABASE_URL || 
-      `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'pipenotify_dev'}`,
+    connectionString: databaseUrl,
     
     // SSL Configuration
     ssl: isProduction ? { 
@@ -86,7 +98,27 @@ function createDatabasePool() {
 }
 
 // Create database connection pool with enhanced Railway support
-const pool = createDatabasePool();
+let pool = createDatabasePool();
+let fallbackPool = null;
+
+// Create fallback pool for Railway public URL
+if (process.env.RAILWAY_ENVIRONMENT && process.env.DATABASE_PUBLIC_URL) {
+  try {
+    const fallbackConfig = {
+      connectionString: process.env.DATABASE_PUBLIC_URL,
+      ssl: { rejectUnauthorized: false, require: true },
+      max: 10,
+      min: 1,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 30000,
+      application_name: 'pipenotify-backend-fallback'
+    };
+    fallbackPool = new Pool(fallbackConfig);
+    console.log('🔄 Fallback database pool created with public URL');
+  } catch (error) {
+    console.warn('⚠️ Could not create fallback pool:', error.message);
+  }
+}
 
 // Production-grade database health check with comprehensive retry logic
 async function healthCheck(maxRetries = 10, initialDelay = 1000) {
@@ -135,6 +167,37 @@ async function healthCheck(maxRetries = 10, initialDelay = 1000) {
         error.code === 'ECONNRESET';
       
       if (attempt === retries) {
+        // Try fallback pool if available and this is Railway
+        if (fallbackPool && isRailway) {
+          console.log('🔄 Trying fallback database pool (public URL)...');
+          try {
+            const client = await fallbackPool.connect();
+            const result = await client.query('SELECT 1 as health_check, NOW() as timestamp');
+            client.release();
+            
+            console.log('✅ Fallback database connection successful!');
+            console.log('🔄 Switching to fallback pool for this session');
+            
+            // Switch to fallback pool
+            pool = fallbackPool;
+            
+            return { 
+              healthy: true, 
+              attempt, 
+              timestamp: result.rows[0].timestamp,
+              fallback: true,
+              connectionInfo: {
+                database: client.database,
+                user: client.user,
+                host: client.host,
+                port: client.port
+              }
+            };
+          } catch (fallbackError) {
+            console.error('❌ Fallback pool also failed:', fallbackError.message);
+          }
+        }
+        
         console.error('💥 All database health check attempts failed');
         return { 
           healthy: false, 
